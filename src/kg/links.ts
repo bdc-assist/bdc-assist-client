@@ -11,7 +11,7 @@ const DBGAP = 'https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin'
 const LOGIN = new Set(['UMLS', 'SNOMEDCT', 'MEDDRA', 'GTOPDB'])
 
 /** The page for a concept id (CURIE). Dug's prefixes are listed in
- * tests/fixtures/dug_curie_prefixes.json. Most common: MONDO → OBO PURL, EFO → EBI's
+ * src/kg/fixtures/dug_curie_prefixes.json. Most common: MONDO → OBO PURL, EFO → EBI's
  * ontology browser, UMLS → NLM's UTS. GTOPDB → Guide to Pharmacology (its ligands;
  * bioregistry knows it under another name). Any other prefix → bioregistry.io,
  * which redirects to the prefix's own provider. */

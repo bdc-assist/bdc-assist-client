@@ -4,7 +4,7 @@ import type { KgGraph } from '@/kg/types'
 import { fromKgList, kgParts, type KgPart } from '@/kg/wire'
 import { readSSE } from '@/lib/sse'
 
-// Wire format of POST /chat/stream (see stream_chat in r_assist/api.py).
+// Wire format of POST /chat/stream (bdc-assist: stream_chat in r_assist/api.py; its README's API section).
 export type Source = { title: string; link: string; type: string }
 export type Sources = Record<string, Source[]> // {"bdc-doc": [...]}, deduplicated
 

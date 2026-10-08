@@ -22,7 +22,7 @@ is a working example of everything below (React, but only as glue).
 The API sends the agent's knowledge graphs as `kg`: in the `sources` event of
 `POST /chat/stream` (as soon as the agent is done), in its `done` event, and in
 `POST /chat`. It's a list, one graph per tool call, attached by the Dug interceptor
-(`examples/bdc/interceptors.py`):
+(`examples/bdc/interceptors.py` in [bdc-assist](https://github.com/bdc-assist/bdc-assist)):
 
 ```ts
 type KgWireEntry = {
