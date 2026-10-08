@@ -9,7 +9,7 @@ import { toElements } from './elements'
 import { fromKgList, kgLabel, kgParts } from './wire'
 
 // *-kg.json: what the API sends today, made by main's interceptor (to_kg in
-// examples/bdc/interceptors.py) from the same Dug results as the *-graph.json fixtures
+// examples/bdc/interceptors.py, in bdc-assist) from the same Dug results as the *-graph.json fixtures
 const count = (g: KgGraph, t: string) => g.nodes.filter((n) => n.type === t).length
 
 describe('fromKgList', () => {

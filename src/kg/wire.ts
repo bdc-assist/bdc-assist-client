@@ -1,7 +1,7 @@
 import type { KgEdge, KgGraph, KgNode, KgNodeType } from './types'
 
 // The API's `kg` field (the `sources` and `done` events, POST /chat): one graph per
-// tool call, attached by the Dug interceptor (examples/bdc/interceptors.py).
+// tool call, attached by the Dug interceptor (bdc-assist: examples/bdc/interceptors.py).
 
 export type KgWireNode = {
   id: string
