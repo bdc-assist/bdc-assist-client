@@ -6,7 +6,7 @@ import type { KgEdge, KgGraph, KgNode, KgNodeType } from './types'
 export type KgWireNode = {
   id: string
   name?: string
-  type?: string // proposed: the node's role (concept | variable | study | term)
+  type?: string // the node's role (concept | term | variable | study)
   category?: string // today: "Study" | "StudyVariable" for those, else the concept's category
   description?: string
   attributes?: { related_concepts_count?: number } & Record<string, unknown> // proposed
@@ -22,11 +22,10 @@ export type KgWireEntry = {
   edges: KgWireEdge[]
 }
 
-const TYPES: readonly string[] = ['concept', 'variable', 'study'] satisfies KgNodeType[]
+const TYPES: readonly string[] = ['concept', 'term', 'variable', 'study'] satisfies KgNodeType[]
 
-/** The role of a wire node: its `type` if it names one we draw, else from today's
- * `category` ("Study", "StudyVariable"); anything else (including a search `term`) is a
- * concept. */
+/** The role of a wire node: its `type` if it names one we draw, else from
+ * `category` ("Study", "StudyVariable"); anything else is a concept. */
 function nodeType(n: KgWireNode): KgNodeType {
   if (n.type && TYPES.includes(n.type)) return n.type as KgNodeType
   if (n.category === 'Study') return 'study'
@@ -56,7 +55,6 @@ export function fromKgList(value: unknown): KgGraph | null {
       }
       const type = nodeType(n)
       const node: KgNode = { id: n.id, label: n.name || n.id, type }
-      if (n.type === 'term') node.term = true // drawn as a concept, but marked as just a search word
       if (type === 'concept' && n.category) node.concept_type = n.category
       const count = n.attributes?.related_concepts_count
       if (type === 'variable' && typeof count === 'number') node.related_concepts_count = count

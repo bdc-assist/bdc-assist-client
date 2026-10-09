@@ -21,15 +21,17 @@ import type { KgPart } from '@/kg/wire'
 // Another host would write its own wrapper around mountGraph and studyList;
 // nothing in src/kg depends on this file.
 
-const TYPE_LABELS: Record<KgNode['type'], string> = { concept: 'Concept', variable: 'Variable', study: 'Study' }
+const TYPE_LABELS: Record<KgNode['type'], string> = { concept: 'Concept', term: 'Search term', variable: 'Variable', study: 'Study' }
 
 const counted = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
 // counts what mountGraph draws: versions collapsed (its default)
 function summary(g: KgGraph) {
   const count = (t: KgNode['type']) => g.nodes.filter((n) => n.type === t).length
+  const [concepts, terms] = [count('concept'), count('term')]
   return [
-    counted(count('concept'), 'concept', 'concepts'),
+    ...(concepts || !terms ? [counted(concepts, 'concept', 'concepts')] : []),
+    ...(terms ? [counted(terms, 'search term', 'search terms')] : []),
     counted(count('variable'), 'variable', 'variables'),
     counted(count('study'), 'study', 'studies'),
   ].join(' · ')
@@ -155,7 +157,7 @@ function ExternalLink({ link }: { link: KgLink }) {
 // The ID is shown as its link(s): a concept's ontology page, or one dbGaP page per
 // release of a study or variable (merged releases list each versioned ID).
 function NodeDetails({ node, graph }: { node: KgNode; graph: KgGraph }) {
-  if (node.term) {
+  if (node.type === 'term') {
     // find_cohort_variables reports the words it searched for, not concept ids
     return (
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
@@ -204,7 +206,7 @@ function PairDetails({ concept, study, graph }: { concept: KgNode; study: KgNode
   const variables = pairVariables(graph, concept.id, study.id)
   return (
     <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
-      <dt className="text-muted-foreground">{concept.term ? 'Search term' : 'Concept'}</dt>
+      <dt className="text-muted-foreground">{TYPE_LABELS[concept.type]}</dt>
       <dd className="font-medium">{concept.label}</dd>
       <dt className="text-muted-foreground">Study</dt>
       <dd className="font-medium">{study.label}</dd>
@@ -300,7 +302,7 @@ function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgFocus | 
                         >
                           <span className="size-2 shrink-0 self-center rounded-full" style={{ background: 'var(--kg-concept)' }} />
                           <span>{concept.label}</span>
-                          {concept.term && <span className="text-muted-foreground shrink-0">(search term)</span>}
+                          {concept.type === 'term' && <span className="text-muted-foreground shrink-0">(search term)</span>}
                           <span className="text-muted-foreground shrink-0">· {vs.length}</span>
                         </button>
                       ) : (
@@ -365,7 +367,7 @@ function GraphBody(props: GraphBodyProps) {
   const { json, shown, canvasClass, layout, onLayout, mode, onMode, sharedOnly, onSharedOnly, canShare, zoomGestures } = props
   const { sources, source, onSource } = props
   const relationCount = useMemo(() => relations(shown).length, [shown])
-  const hasTerms = useMemo(() => shown.nodes.some((n) => n.term), [shown])
+  const hasTerms = useMemo(() => shown.nodes.some((n) => n.type === 'term'), [shown])
   const container = useRef<HTMLDivElement>(null)
   const view = useRef<GraphView | null>(null)
   const flowContainer = useRef<HTMLDivElement>(null)

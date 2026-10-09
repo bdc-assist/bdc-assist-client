@@ -1,4 +1,4 @@
-import type { KgGraph } from './types'
+import { isConceptOrTerm, type KgGraph } from './types'
 
 export type Position = { x: number; y: number }
 
@@ -14,7 +14,7 @@ export const ROW = 18 // between variables
  */
 export function columnPositions(graph: KgGraph): Map<string, Position> {
   const type = new Map(graph.nodes.map((n) => [n.id, n.type]))
-  const conceptIndex = new Map(graph.nodes.filter((n) => n.type === 'concept').map((n, i) => [n.id, i]))
+  const conceptIndex = new Map(graph.nodes.filter((n) => isConceptOrTerm(n.type)).map((n, i) => [n.id, i]))
   const studyOf = new Map<string, string>()
   const conceptsOf = new Map<string, number[]>() // variable → its concepts' indexes
   for (const e of graph.edges) {
@@ -55,7 +55,7 @@ export function columnPositions(graph: KgGraph): Map<string, Position> {
   let y = variables.length * ROW
   for (const n of graph.nodes) {
     if (pos.has(n.id)) continue
-    const x = n.type === 'concept' ? 0 : n.type === 'variable' ? COLUMN_GAP : 2 * COLUMN_GAP
+    const x = isConceptOrTerm(n.type) ? 0 : n.type === 'variable' ? COLUMN_GAP : 2 * COLUMN_GAP
     pos.set(n.id, { x, y: (y += ROW) })
   }
   return pos

@@ -43,6 +43,7 @@ export function nodeLinks(node: KgNode, graph: KgGraph): KgLink[] {
     const link = conceptLink(node.id)
     return link ? [link] : []
   }
+  if (node.type === 'term') return [] // a search word: no page
   const ids = node.versions ?? [node.id]
   if (node.type === 'study') {
     return ids.map((id) => ({ label: id, url: `${DBGAP}/study.cgi?study_id=${encodeURIComponent(id)}` }))

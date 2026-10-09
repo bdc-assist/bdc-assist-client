@@ -61,6 +61,11 @@ describe('nodeLinks', () => {
       { label: 'MONDO:0005453', url: 'https://purl.obolibrary.org/obo/MONDO_0005453' },
     ])
   })
+
+  it('gives a search term no link', () => {
+    const term = { id: 'asthma', label: 'asthma', type: 'term' as const }
+    expect(nodeLinks(term, { nodes: [term], edges: [] })).toEqual([])
+  })
 })
 
 describe('conceptLink', () => {

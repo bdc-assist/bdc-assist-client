@@ -4,14 +4,22 @@ import { bridges, sharedOnly } from './bridges'
 import { collapseVersions } from './collapse'
 import asthmaCopd from './fixtures/graph/concept_graph_2.json'
 import chd from './fixtures/graph/concept_graph.json'
+import cohort from './fixtures/graph/cohort_variables.json'
 import type { KgGraph } from './types'
 
 const TWO = collapseVersions(asthmaCopd as KgGraph)
 const CHD = collapseVersions(chd as KgGraph)
+const COHORT = collapseVersions(cohort as KgGraph) // find_cohort_variables: search terms, not concepts
 
 describe('bridges', () => {
   it('finds the studies with variables on both concepts (real asthma + COPD graph)', () => {
     expect([...bridges(TWO)].sort()).toEqual(['phs000007', 'phs000280']) // Framingham, ARIC
+  })
+
+  it('counts search terms like concepts (real asthma + COPD cohort search)', () => {
+    const studies = COHORT.nodes.filter((n) => n.type === 'study' && bridges(COHORT).has(n.id))
+    expect(studies.length).toBeGreaterThan(0)
+    expect(sharedOnly(COHORT).nodes.filter((n) => n.type === 'term').map((n) => n.id)).toEqual(['asthma', 'COPD'])
   })
 
   it('finds none with a single concept', () => {

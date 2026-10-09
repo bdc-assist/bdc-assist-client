@@ -13,8 +13,7 @@
   {
    "id": "asthma",
    "label": "asthma",
-   "type": "concept",
-   "term": true
+   "type": "term"
   },
   {
    "id": "phv00000603.v1.p12",
@@ -64,8 +63,7 @@
   {
    "id": "COPD",
    "label": "COPD",
-   "type": "concept",
-   "term": true
+   "type": "term"
   },
   {
    "id": "phv00177574.v4.p12",

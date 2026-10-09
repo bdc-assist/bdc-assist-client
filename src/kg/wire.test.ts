@@ -63,7 +63,7 @@ describe('fromKgList', () => {
     expect(g.edges).toContainEqual({ source: 'C', target: 'D', predicates: ['related_to'] })
   })
 
-  it('keeps a search term as a concept, marked as just a term (find_cohort_variables)', () => {
+  it('keeps a search term as a term, not a concept (find_cohort_variables)', () => {
     const g = fromKgList([
       {
         tool: 'find_cohort_variables',
@@ -74,8 +74,8 @@ describe('fromKgList', () => {
         edges: [{ subject: 'v1', object: 'COPD' }],
       },
     ])!
-    expect(g.nodes.find((n) => n.id === 'COPD')).toEqual({ id: 'COPD', label: 'COPD', type: 'concept', term: true })
-    expect(toElements(g).find((e) => e.data.id === 'COPD')?.data.term).toBe(true)
+    expect(g.nodes.find((n) => n.id === 'COPD')).toEqual({ id: 'COPD', label: 'COPD', type: 'term' })
+    expect(toElements(g).find((e) => e.data.id === 'COPD')?.data.type).toBe('term')
   })
 
   it('is null for no list, an empty list, or graphs without edges', () => {

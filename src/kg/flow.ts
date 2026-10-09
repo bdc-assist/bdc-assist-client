@@ -3,7 +3,7 @@ import { sankey, sankeyLinkHorizontal, type SankeyLink, type SankeyNode } from '
 import { sharedOnly } from './bridges'
 import { collapseVersions } from './collapse'
 import { focusConnections, isPair, type KgFocus } from './focus'
-import type { KgGraph, KgNode } from './types'
+import { isConceptOrTerm, type KgGraph, type KgNode } from './types'
 import type { KgView, KgViewOptions } from './view'
 
 export type FlowNode = { id: string; node: KgNode } // a concept or a study
@@ -23,7 +23,7 @@ export function flowData(graph: KgGraph): FlowData {
   for (const e of graph.edges) {
     const t = byId.get(e.target)?.type
     if (t === 'study') studyOf.set(e.source, e.target)
-    if (t === 'concept') conceptsOf.set(e.source, [...(conceptsOf.get(e.source) ?? []), e.target])
+    if (isConceptOrTerm(t)) conceptsOf.set(e.source, [...(conceptsOf.get(e.source) ?? []), e.target])
   }
   const links = new Map<string, FlowLink>()
   for (const n of graph.nodes) {
@@ -137,13 +137,13 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
     const boxes = g('kg-flow-nodes')
     for (const n of nodes as SNode[]) {
       const [x0, y0, x1, y1] = [n.x0 ?? 0, n.y0 ?? 0, n.x1 ?? 0, n.y1 ?? 0]
-      const isConcept = n.node.type === 'concept'
+      const isConcept = isConceptOrTerm(n.node.type)
       const item = boxes.appendChild(document.createElementNS(SVG, 'g'))
       item.setAttribute('data-id', n.id)
       item.style.cursor = 'pointer'
       const rect = item.appendChild(document.createElementNS(SVG, 'rect'))
       for (const [k, v] of Object.entries({ x: x0, y: y0, width: x1 - x0, height: Math.max(1, y1 - y0), rx: 2 })) rect.setAttribute(k, String(v))
-      if (n.node.term) {
+      if (n.node.type === 'term') {
         // a search word standing in for a concept: hollow, in the concept colour
         rect.dataset.term = ''
         Object.assign(rect.style, { fill: 'none', stroke: fill.concept, strokeWidth: '1.5' })

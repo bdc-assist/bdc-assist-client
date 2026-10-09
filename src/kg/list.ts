@@ -1,5 +1,5 @@
 import { variableWeights } from './elements'
-import type { KgGraph, KgNode } from './types'
+import { isConceptOrTerm, type KgGraph, type KgNode } from './types'
 
 export type ListVariable = {
   variable: KgNode
@@ -29,14 +29,14 @@ export type ListStudy = {
  */
 export function studyList(graph: KgGraph): ListStudy[] {
   const byId = new Map(graph.nodes.map((n) => [n.id, n]))
-  const conceptOrder = new Map(graph.nodes.filter((n) => n.type === 'concept').map((n, i) => [n.id, i]))
+  const conceptOrder = new Map(graph.nodes.filter((n) => isConceptOrTerm(n.type)).map((n, i) => [n.id, i]))
   const weights = variableWeights(graph)
   const studyOf = new Map<string, string>()
   const conceptsOf = new Map<string, KgNode[]>()
   for (const e of graph.edges) {
     const target = byId.get(e.target)
     if (target?.type === 'study') studyOf.set(e.source, e.target)
-    if (target?.type === 'concept') conceptsOf.set(e.source, [...(conceptsOf.get(e.source) ?? []), target])
+    if (target && isConceptOrTerm(target.type)) conceptsOf.set(e.source, [...(conceptsOf.get(e.source) ?? []), target])
   }
   const inOrder = (cs: KgNode[]) => [...new Set(cs)].sort((a, b) => conceptOrder.get(a.id)! - conceptOrder.get(b.id)!)
 

@@ -1,4 +1,4 @@
-import type { KgGraph } from './types'
+import { isConceptOrTerm, type KgGraph } from './types'
 
 /**
  * The nodes that connect two or more concepts: studies whose variables are on at
@@ -13,7 +13,7 @@ export function bridges(graph: KgGraph): Set<string> {
   const add = (id: string, concept: string) => conceptsOf.set(id, (conceptsOf.get(id) ?? new Set()).add(concept))
   for (const e of graph.edges) {
     // variables only: a concept related to other concepts isn't a bridge between them
-    if (type.get(e.target) === 'concept' && type.get(e.source) === 'variable') add(e.source, e.target)
+    if (isConceptOrTerm(type.get(e.target)) && type.get(e.source) === 'variable') add(e.source, e.target)
     if (type.get(e.target) === 'study') studyOf.set(e.source, e.target)
   }
   for (const [variable, study] of studyOf) for (const c of conceptsOf.get(variable) ?? []) add(study, c)
@@ -31,7 +31,7 @@ export function sharedOnly(graph: KgGraph): KgGraph {
   const studyOf = new Map(graph.edges.filter((e) => type.get(e.target) === 'study').map((e) => [e.source, e.target]))
   const keep = (id: string) => {
     const t = type.get(id)
-    if (t === 'concept' || shared.has(id)) return true
+    if (isConceptOrTerm(t) || shared.has(id)) return true
     return t === 'variable' && shared.has(studyOf.get(id) ?? '')
   }
   return {

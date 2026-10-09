@@ -14,7 +14,7 @@ describe('columnPositions', () => {
     const pos = columnPositions(CHD)
     expect(pos.size).toBe(CHD.nodes.length)
     for (const n of CHD.nodes) {
-      expect(pos.get(n.id)!.x).toBe({ concept: 0, variable: COLUMN_GAP, study: 2 * COLUMN_GAP }[n.type])
+      expect(pos.get(n.id)!.x).toBe({ concept: 0, term: 0, variable: COLUMN_GAP, study: 2 * COLUMN_GAP }[n.type])
     }
   })
 

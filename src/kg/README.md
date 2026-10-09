@@ -41,11 +41,11 @@ from `category` (`"Study"`, `"StudyVariable"`; anything else is a concept):
 type KgGraph = { nodes: KgNode[]; edges: KgEdge[] }
 
 type KgNode = {
-  id: string                       // concept CURIE, dbGaP variable or study accession (with version)
+  id: string                       // concept CURIE, search word, dbGaP variable or study accession (with version)
   label: string
-  type: 'concept' | 'variable' | 'study'
+  type: 'concept' | 'term' | 'variable' | 'study'  // term: a search word standing in for a concept
+                                                   // (find_cohort_variables): no link, no category
   concept_type?: string            // concepts: Dug's biolink category, verbatim
-  term?: true                      // concepts: just a search word (find_cohort_variables), no concept id
   related_concepts_count?: number  // variables: how many other concepts it links to
   versions?: string[]              // after collapseVersions: the versioned ids merged into this node
 }
@@ -164,6 +164,7 @@ used) first, so ids match what the views draw.
 | `fromKgList(kg)` | `wire.ts` | the API's per-call graphs merged into one |
 | `relations(graph)` | `elements.ts` | the concept → concept edges (drawn dashed in the graph view; the flow view can't show them) |
 | `variableWeights(graph)` | `elements.ts` | `related_concepts_count` scaled to 0..1 within the graph |
+| `isConceptOrTerm(type)` | `types.ts` | concepts and search terms play the same part (what variables are about); most views treat them alike, but a term has no link or category |
 
 ## Things to know
 

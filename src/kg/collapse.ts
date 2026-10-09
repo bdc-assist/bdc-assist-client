@@ -20,10 +20,11 @@ export function collapseVersions(graph: KgGraph): KgGraph {
   const nodes = new Map<string, KgNode>()
   const idOf = new Map<string, string>() // original id → collapsed id
   for (const n of graph.nodes) {
-    const id = n.type === 'concept' ? n.id : baseId(n.id)
+    const versioned = n.type === 'variable' || n.type === 'study'
+    const id = versioned ? baseId(n.id) : n.id
     idOf.set(n.id, id)
     const merged = nodes.get(id)
-    if (!merged) nodes.set(id, n.type === 'concept' ? { ...n } : { ...n, id, versions: [n.id] })
+    if (!merged) nodes.set(id, versioned ? { ...n, id, versions: [n.id] } : { ...n })
     else if (merged.versions && !merged.versions.includes(n.id)) merged.versions.push(n.id)
   }
   const edges = new Map<string, KgGraph['edges'][number]>()

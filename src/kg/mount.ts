@@ -173,7 +173,7 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
   }
 
   function radialRoots(): string[] {
-    const concepts = cy.nodes('[type = "concept"]')
+    const concepts = cy.nodes('[type = "concept"], [type = "term"]')
     const withVariables = concepts.filter((c) => c.neighborhood('node[type = "variable"]').length > 0)
     return (withVariables.length ? withVariables : concepts).map((n) => n.id())
   }
@@ -288,7 +288,7 @@ function styleFor(el: HTMLElement): StylesheetJson {
       },
     },
     {
-      selector: 'node[type = "concept"]',
+      selector: 'node[type = "concept"], node[type = "term"]',
       style: {
         'background-color': color('concept'),
         width: 24,
@@ -300,7 +300,7 @@ function styleFor(el: HTMLElement): StylesheetJson {
     },
     {
       // a search word standing in for a concept: hollow, in the concept colour
-      selector: 'node[?term]',
+      selector: 'node[type = "term"]',
       style: { 'background-opacity': 0, 'border-width': 2, 'border-color': color('concept') },
     },
     {
@@ -315,7 +315,7 @@ function styleFor(el: HTMLElement): StylesheetJson {
       selector: 'node.columns',
       style: { 'text-valign': 'center', 'text-halign': 'right', 'text-margin-x': 5, 'text-margin-y': 0, 'text-max-width': '200px' },
     },
-    { selector: 'node.columns[type = "concept"]', style: { 'text-halign': 'left', 'text-margin-x': -5 } },
+    { selector: 'node.columns[type = "concept"], node.columns[type = "term"]', style: { 'text-halign': 'left', 'text-margin-x': -5 } },
     { selector: 'edge', style: { width: 1, 'line-color': color('edge'), 'curve-style': 'straight' } },
     {
       // concept → concept: dashed, in the concept colour

@@ -3,11 +3,13 @@ import { describe, expect, it } from 'vitest'
 import { baseId, collapseVersions } from './collapse'
 import asthmaCopd from './fixtures/graph/concept_graph_2.json'
 import chd from './fixtures/graph/concept_graph.json'
+import cohort from './fixtures/graph/cohort_variables.json'
 import type { KgGraph } from './types'
 
 // real server output for Dug get_concept_graph on congenital heart disease (MONDO:0005453),
 // fromKgList of fixtures/kg/concept_graph.json (bdc-assist's tests/fixtures/dug_concept_graph_chd.json)
 const CHD = chd as KgGraph
+const COHORT = cohort as KgGraph // find_cohort_variables: search terms, not concepts
 
 const count = (g: KgGraph, type: string) => g.nodes.filter((n) => n.type === type).length
 
@@ -51,12 +53,12 @@ describe('collapseVersions', () => {
     ])
   })
 
-  it('gives every study and variable its versions, and concepts none', () => {
-    const g = collapseVersions(CHD)
-    for (const n of g.nodes) {
-      if (n.type === 'concept') expect(n.versions).toBeUndefined()
+  it('gives every study and variable its versions, and concepts and terms none', () => {
+    for (const n of [...collapseVersions(CHD).nodes, ...collapseVersions(COHORT).nodes]) {
+      if (n.type === 'concept' || n.type === 'term') expect(n.versions).toBeUndefined()
       else expect(n.versions?.length).toBeGreaterThan(0)
     }
+    expect(collapseVersions(COHORT).nodes.filter((n) => n.type === 'term').map((n) => n.id)).toEqual(['asthma', 'COPD'])
   })
 
   it('re-points and deduplicates edges', () => {
