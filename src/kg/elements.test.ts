@@ -20,6 +20,11 @@ describe('toElements', () => {
     })
   })
 
+  it('marks the seed (real CHD graph: congenital heart disease was asked about)', () => {
+    const seeds = toElements(CHD).filter((e) => e.data.seed)
+    expect(seeds.map((e) => e.data.id)).toEqual(['MONDO:0005453'])
+  })
+
   it("orders variables by their study, so they sit next to it", () => {
     const order = (id: string) => toElements(CHD).find((e) => e.data.id === id)?.data.order
     expect(order('phv00001546')).toBe('phs000007 phv00001546') // FC219, Framingham

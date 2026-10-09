@@ -44,7 +44,7 @@ const LEGEND: { type: KgNode['type']; shape: string }[] = [
   { type: 'study', shape: 'size-2.5 rounded-[2px]' },
 ]
 
-function Legend({ related, terms }: { related: boolean; terms: boolean }) {
+function Legend({ related, terms, seeds }: { related: boolean; terms: boolean; seeds: boolean }) {
   return (
     <ul aria-label="Legend" className="flex flex-wrap items-center gap-x-3 gap-y-1">
       {LEGEND.map(({ type, shape }) => (
@@ -62,6 +62,12 @@ function Legend({ related, terms }: { related: boolean; terms: boolean }) {
           {type === 'variable' && <span className="opacity-70">(darker: links more concepts)</span>}
         </li>
       ))}
+      {seeds && (
+        <li className="flex items-center gap-1.5">
+          <span className="size-2.5 rotate-45" style={{ background: 'var(--kg-concept)' }} />
+          Asked about
+        </li>
+      )}
       {terms && (
         <li className="flex items-center gap-1.5">
           <span className="size-3 rounded-full border-2" style={{ borderColor: 'var(--kg-concept)' }} />
@@ -368,6 +374,7 @@ function GraphBody(props: GraphBodyProps) {
   const { sources, source, onSource } = props
   const relationCount = useMemo(() => relations(shown).length, [shown])
   const hasTerms = useMemo(() => shown.nodes.some((n) => n.type === 'term'), [shown])
+  const hasSeeds = useMemo(() => shown.nodes.some((n) => n.seed), [shown])
   const container = useRef<HTMLDivElement>(null)
   const view = useRef<GraphView | null>(null)
   const flowContainer = useRef<HTMLDivElement>(null)
@@ -445,7 +452,7 @@ function GraphBody(props: GraphBodyProps) {
   return (
     <div data-slot="bdc-graph" className="flex min-h-0 flex-1 flex-col text-xs">
       <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 border-t px-3 py-1.5">
-        <Legend related={relationCount > 0} terms={hasTerms} />
+        <Legend related={relationCount > 0} terms={hasTerms} seeds={hasSeeds} />
         <div className="ml-auto flex min-w-0 items-center gap-3">
           {sources.length > 1 && <SourcePicker sources={sources} source={source} onSource={onSource} />}
           {canShare && (

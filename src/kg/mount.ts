@@ -14,7 +14,8 @@ import type { KgView, KgViewOptions } from './view'
 cytoscape.use(fcose)
 
 /**
- * - radial: concepts in the middle, their variables around them, studies outside
+ * - radial: the seeds (what was asked about) in the middle, or without seeds the concepts;
+ *   their variables around them, studies outside
  * - force: a force-directed layout (fCoSE, cytoscape-fcose); clusters form on their own
  * - columns: a left-to-right flow, concepts | variables | studies
  */
@@ -173,6 +174,8 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
   }
 
   function radialRoots(): string[] {
+    const seeds = cy.nodes('[?seed]')
+    if (seeds.length) return seeds.map((n) => n.id())
     const concepts = cy.nodes('[type = "concept"], [type = "term"]')
     const withVariables = concepts.filter((c) => c.neighborhood('node[type = "variable"]').length > 0)
     return (withVariables.length ? withVariables : concepts).map((n) => n.id())
@@ -205,8 +208,9 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
       // redraw (e.g. toggling sharedOnly) would spread wider and fit smaller. Use the
       // container's own size (a fallback while it's hidden, e.g. in the list view).
       boundingBox: { x1: 0, y1: 0, w: container.clientWidth || 600, h: container.clientHeight || 300 },
-      // the concepts with variables in the middle; concepts only related to them (no
-      // variables of their own) form a ring around them instead of joining the middle
+      // the seeds in the middle, so related concepts and the seeds' variables ring them.
+      // Without seeds (searches): the concepts with variables; concepts only related to
+      // them (no variables of their own) form a ring around them instead of joining the middle
       roots: radialRoots(),
       circle: true,
       depthSort: (a, b) => String(a.data('order')).localeCompare(String(b.data('order'))),
@@ -302,6 +306,11 @@ function styleFor(el: HTMLElement): StylesheetJson {
       // a search word standing in for a concept: hollow, in the concept colour
       selector: 'node[type = "term"]',
       style: { 'background-opacity': 0, 'border-width': 2, 'border-color': color('concept') },
+    },
+    {
+      // what a call asked about (the API's seeds): a diamond, in its own type's colour
+      selector: 'node[?seed]',
+      style: { shape: 'diamond', width: 30, height: 30 },
     },
     {
       selector: 'node[type = "variable"]',

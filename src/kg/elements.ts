@@ -30,7 +30,7 @@ export function variableWeights(graph: KgGraph): Map<string, number> {
  * Cytoscape elements for a graph. Each node's data carries `order`, the key the
  * radial layout sorts by within a ring: studies by id, variables by their study's
  * id, so a study's variables sit together, next to it. Variables also carry
- * `weight` (variableWeights), drawn as a light-to-dark colour. Concept → concept
+ * `weight` (variableWeights), drawn as a light-to-dark colour; seeds carry `seed`. Concept → concept
  * edges get the class `relation`, and every edge its predicates joined as `predicate`.
  */
 export function toElements(graph: KgGraph): ElementDefinition[] {
@@ -48,6 +48,7 @@ export function toElements(graph: KgGraph): ElementDefinition[] {
         type: n.type,
         order: order(n.id, n.type),
         ...(n.type === 'variable' && { weight: weights.get(n.id) }),
+        ...(n.seed && { seed: true }),
       },
     })),
     ...graph.edges.map((e) => {

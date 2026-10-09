@@ -122,7 +122,7 @@ Extra options:
 
 | Option | |
 |---|---|
-| `layout` | `'radial'` (default: concepts in the middle, variables around, studies outside), `'force'` (force-directed, turned to fit the container), `'columns'` (concepts \| variables \| studies). All listed in `KG_LAYOUTS` |
+| `layout` | `'radial'` (default: the seeds in the middle, or the concepts when there are none; variables around, studies outside), `'force'` (force-directed, turned to fit the container), `'columns'` (concepts \| variables \| studies). All listed in `KG_LAYOUTS` |
 | `zoomGestures` | `false` (default: the wheel scrolls the page), `'modifier'` (Ctrl/⌘ + wheel zooms; trackpad pinch counts), `true` (the wheel always zooms). Use `'modifier'` where a page scrolls around the graph |
 | `onZoomHint` | `'modifier'` mode: called when the wheel turns over the graph without Ctrl/⌘, so you can say how to zoom |
 
