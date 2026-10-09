@@ -1,4 +1,4 @@
-import type { KgGraph, KgNode } from './types'
+import type { KgEdge, KgGraph, KgNode } from './types'
 
 // dbGaP accessions end in ".v<version>.p<participant set>": phs000007.v34.p15, phv00001546.v1.p12
 const VERSION = /\.v\d+\.p\d+$/
@@ -27,15 +27,20 @@ export function collapseVersions(graph: KgGraph): KgGraph {
     if (!merged) nodes.set(id, versioned ? { ...n, id, versions: [n.id] } : { ...n })
     else if (merged.versions && !merged.versions.includes(n.id)) merged.versions.push(n.id)
   }
-  const edges = new Map<string, KgGraph['edges'][number]>()
-  for (const e of graph.edges) {
+  return { nodes: [...nodes.values()], edges: repointEdges(graph.edges, idOf) }
+}
+
+/** Edges with their ends renamed (`idOf`: old id → new id; others stay), one per
+ * pair, keeping every predicate of the edges merged into it. For merging nodes. */
+export function repointEdges(edges: KgEdge[], idOf: Map<string, string>): KgEdge[] {
+  const out = new Map<string, KgEdge>()
+  for (const e of edges) {
     const source = idOf.get(e.source) ?? e.source
     const target = idOf.get(e.target) ?? e.target
     const key = JSON.stringify([source, target])
-    const seen = edges.get(key)
-    // releases merged into one pair: keep every way they're related
+    const seen = out.get(key)
     const predicates = [...new Set([...(seen?.predicates ?? []), ...(e.predicates ?? [])])]
-    edges.set(key, { source, target, ...(predicates.length && { predicates }) })
+    out.set(key, { source, target, ...(predicates.length && { predicates }) })
   }
-  return { nodes: [...nodes.values()], edges: [...edges.values()] }
+  return [...out.values()]
 }

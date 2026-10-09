@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { bridges, sharedOnly as onlyShared } from '@/kg/bridges'
 import { collapseVersions } from '@/kg/collapse'
+import { groupSynonyms } from '@/kg/group'
 import { relations } from '@/kg/elements'
 import { nodeLinks, type KgLink } from '@/kg/links'
 import { studyList, type ListVariable } from '@/kg/list'
@@ -25,7 +26,7 @@ const TYPE_LABELS: Record<KgNode['type'], string> = { concept: 'Concept', term: 
 
 const counted = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
-// counts what mountGraph draws: versions collapsed (its default)
+// counts what the views draw: grouped (versions and synonyms merged) or not
 function summary(g: KgGraph) {
   const count = (t: KgNode['type']) => g.nodes.filter((n) => n.type === t).length
   const [concepts, terms] = [count('concept'), count('term')]
@@ -187,10 +188,32 @@ function NodeDetails({ node, graph }: { node: KgNode; graph: KgGraph }) {
           <dd>{node.description}</dd>
         </>
       )}
-      <dt className="text-muted-foreground">{links.length > 1 ? 'IDs' : 'ID'}</dt>
-      <dd className="flex flex-wrap gap-x-3 font-mono">
-        {links.length ? links.map((l) => <ExternalLink key={l.url} link={l} />) : node.id}
-      </dd>
+      {node.grouped ? (
+        // concepts merged by groupSynonyms (e.g. a search's synonyms): each with its page
+        <>
+          <dt className="text-muted-foreground">Concepts</dt>
+          <dd>
+            <ul className="max-h-32 overflow-y-auto">
+              {node.grouped.map((c) => {
+                const link = nodeLinks(c, graph)[0]
+                return (
+                  <li key={c.id} className="flex flex-wrap items-baseline gap-x-2">
+                    <span>{c.label}</span>
+                    <span className="font-mono">{link ? <ExternalLink link={link} /> : c.id}</span>
+                  </li>
+                )
+              })}
+            </ul>
+          </dd>
+        </>
+      ) : (
+        <>
+          <dt className="text-muted-foreground">{links.length > 1 ? 'IDs' : 'ID'}</dt>
+          <dd className="flex flex-wrap gap-x-3 font-mono">
+            {links.length ? links.map((l) => <ExternalLink key={l.url} link={l} />) : node.id}
+          </dd>
+        </>
+      )}
       {node.type === 'variable' && !all.length && (
         <>
           <dt className="text-muted-foreground">dbGaP</dt>
@@ -425,6 +448,9 @@ type GraphBodyProps = {
   onLayout: (l: KgLayout) => void
   mode: ViewMode
   onMode: (m: ViewMode) => void
+  grouped: boolean // versions and synonyms merged (the views' collapseVersions and groupSynonyms)
+  onGrouped: (on: boolean) => void
+  canGroup: boolean // merging changes something: offer the toggle
   sharedOnly: boolean
   onSharedOnly: (on: boolean) => void
   canShare: boolean // some study connects two or more seeds: offer the filter
@@ -439,7 +465,7 @@ const ZOOM_KEY = /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl'
 
 function GraphBody(props: GraphBodyProps) {
   const { json, shown, canvasClass, layout, onLayout, mode, onMode, sharedOnly, onSharedOnly, canShare, zoomGestures } = props
-  const { sources, source, onSource } = props
+  const { sources, source, onSource, grouped, onGrouped, canGroup } = props
   const relationCount = useMemo(() => relations(shown).length, [shown])
   const withoutStudy = useMemo(() => flowData(shown).withoutStudy.length, [shown])
   const hasTerms = useMemo(() => shown.nodes.some((n) => n.type === 'term'), [shown])
@@ -462,6 +488,8 @@ function GraphBody(props: GraphBodyProps) {
   useEffect(() => {
     const v = mountGraph(container.current!, JSON.parse(json) as KgGraph, {
       layout,
+      collapseVersions: grouped,
+      groupSynonyms: grouped,
       sharedOnly,
       zoomGestures,
       onZoomHint: showZoomHint,
@@ -482,11 +510,13 @@ function GraphBody(props: GraphBodyProps) {
       setFocus(null)
       clearTimeout(hintTimer.current)
     }
-  }, [json]) // eslint-disable-line react-hooks/exhaustive-deps -- layout: see below
+  }, [json]) // eslint-disable-line react-hooks/exhaustive-deps -- layout, grouped, sharedOnly: see below
 
   // the flow (Sankey): its own view of the same graph, kept mounted like the graph
   useEffect(() => {
     const v = mountFlow(flowContainer.current!, JSON.parse(json) as KgGraph, {
+      collapseVersions: grouped,
+      groupSynonyms: grouped,
       sharedOnly,
       onFocus: (f) => {
         setFocus(f)
@@ -501,13 +531,18 @@ function GraphBody(props: GraphBodyProps) {
       v.destroy()
       flowView.current = null
     }
-  }, [json]) // eslint-disable-line react-hooks/exhaustive-deps -- sharedOnly: see below
+  }, [json]) // eslint-disable-line react-hooks/exhaustive-deps -- grouped, sharedOnly: see below
 
   useEffect(() => view.current?.setOptions({ layout }), [layout])
   useEffect(() => {
     view.current?.setOptions({ sharedOnly })
     flowView.current?.setOptions({ sharedOnly })
   }, [sharedOnly])
+  useEffect(() => {
+    const o = { collapseVersions: grouped, groupSynonyms: grouped }
+    view.current?.setOptions(o)
+    flowView.current?.setOptions(o)
+  }, [grouped])
 
   // picked in the list: both views show it too, for when they're switched to
   // (picking the focused row or tag again clears it, like the graph's background)
@@ -524,6 +559,19 @@ function GraphBody(props: GraphBodyProps) {
         <Legend related={relationCount > 0} terms={hasTerms} seeds={hasSeeds} />
         <div className="ml-auto flex min-w-0 items-center gap-3">
           {sources.length > 1 && <SourcePicker sources={sources} source={source} onSource={onSource} />}
+          {canGroup && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <label className="flex items-center gap-1.5">
+                  <input type="checkbox" checked={grouped} onChange={(e) => onGrouped(e.target.checked)} />
+                  Group
+                </label>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                Merge the releases of a study or variable, and concepts linked to exactly the same things
+              </TooltipContent>
+            </Tooltip>
+          )}
           {canShare && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -609,13 +657,18 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
   const [layout, setLayout] = useState<KgLayout>('radial')
   const [mode, setMode] = useState<ViewMode>('graph')
   const [sharedOnlyWanted, setSharedOnly] = useState(false)
+  const [grouped, setGrouped] = useState(true) // versions and synonyms merged, as the views do by default
   const [source, setSource] = useState(-1) // which graph: -1 all merged, else parts[source]
   const current = (source >= 0 && parts[source]?.graph) || graph
   // the message is re-rendered on every stream event, and done delivers the same
   // graph again as a new object: redraw only when the content changes. A new
   // source is a new graph too, so the views start over (and the focus clears).
   const json = JSON.stringify(current)
-  const merged = useMemo(() => collapseVersions(JSON.parse(json) as KgGraph), [json])
+  const raw = useMemo(() => JSON.parse(json) as KgGraph, [json])
+  const all = useMemo(() => groupSynonyms(collapseVersions(raw)), [raw])
+  const merged = grouped ? all : raw
+  // offered only when it changes something
+  const canGroup = all.nodes.length !== raw.nodes.length
   const sharedStudies = useMemo(() => {
     const ids = bridges(merged)
     return merged.nodes.filter((n) => n.type === 'study' && ids.has(n.id)).length
@@ -636,6 +689,9 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
     </>
   )
   const filter = {
+    grouped,
+    onGrouped: setGrouped,
+    canGroup,
     sharedOnly,
     onSharedOnly: setSharedOnly,
     canShare: sharedStudies > 0,

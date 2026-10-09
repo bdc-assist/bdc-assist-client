@@ -51,6 +51,7 @@ type KgNode = {
   seed?: true                      // a call asked about it (any call's `seeds`): what the user asked about
   description?: string             // Dug's, verbatim (search_concepts variables have one)
   related_concepts_count?: number  // variables: how many other concepts it links to
+  grouped?: KgNode[]               // after groupSynonyms: the concepts merged into this node
   versions?: string[]              // after collapseVersions: the versioned ids merged into this node
 }
 
@@ -86,6 +87,7 @@ can switch between them without caring which one is showing.
 ```ts
 type KgViewOptions = {
   collapseVersions?: boolean  // merge a study's or variable's dbGaP releases into one node (default true)
+  groupSynonyms?: boolean     // merge concepts with exactly the same neighbours, e.g. synonyms (default true)
   sharedOnly?: boolean        // only studies with variables on two or more seeds (default false)
   onFocus?: (focus: KgFocus | null) => void  // the user picked something; null: clicked the background
 }
@@ -154,12 +156,13 @@ Set these on the container or any ancestor; any CSS colour works (including
 
 ## Helpers for your own UI
 
-All plain functions of a `KgGraph`. Apply `collapseVersions` (and `sharedOnly`, if
+All plain functions of a `KgGraph`. Apply `collapseVersions`, `groupSynonyms` (and `sharedOnly`, if
 used) first, so ids match what the views draw.
 
 | Function | File | |
 |---|---|---|
 | `collapseVersions(graph)`, `baseId(id)` | `collapse.ts` | merge dbGaP releases (`phs000007.v34.p15` + `.v31.p12` → `phs000007`, with `versions`) |
+| `groupSynonyms(graph)` | `group.ts` | merge concepts with exactly the same neighbours (some variables), e.g. a search's synonyms, into "first + N more" (with `grouped`); never seeds or terms |
 | `bridges(graph)`, `sharedOnly(graph)` | `bridges.ts` | the nodes connecting two or more seeds (other concepts, e.g. synonyms, don't count); the graph reduced to them |
 | `studyList(graph)` | `list.ts` | studies → concepts → variables, shared studies first: for a list or table view, or a text alternative to the graph |
 | `nodeLinks(node, graph)`, `conceptLink(id)` | `links.ts` | pages for a node: dbGaP study and variable pages (one per release; a variable without an accession gets its study, with a `note`); concepts by CURIE prefix (MONDO, EFO, UMLS, GTOPDB, otherwise bioregistry.io), marked "(login)" where an account is needed |

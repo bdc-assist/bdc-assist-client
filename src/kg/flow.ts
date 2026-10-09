@@ -2,6 +2,7 @@ import { sankey, sankeyLinkHorizontal, type SankeyLink, type SankeyNode } from '
 
 import { sharedOnly } from './bridges'
 import { collapseVersions } from './collapse'
+import { groupSynonyms } from './group'
 import { focusConnections, isPair, type KgFocus } from './focus'
 import { isConceptOrTerm, type KgGraph, type KgNode } from './types'
 import type { KgView, KgViewOptions } from './view'
@@ -76,7 +77,7 @@ const fill = {
  * them. No framework required.
  */
 export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowOptions = {}): FlowView {
-  let opts: FlowOptions = { collapseVersions: true, ...options }
+  let opts: FlowOptions = { collapseVersions: true, groupSynonyms: true, ...options }
   let current = graph
   let drawn: KgGraph = graph
   let data: FlowData = { nodes: [], links: [], withoutStudy: [] }
@@ -99,6 +100,7 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
 
   function prepare() {
     drawn = opts.collapseVersions ? collapseVersions(current) : current
+    if (opts.groupSynonyms) drawn = groupSynonyms(drawn)
     if (opts.sharedOnly) drawn = sharedOnly(drawn)
     data = flowData(drawn)
     focused = null
@@ -213,8 +215,8 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
       render()
     },
     setOptions(o) {
-      const changed = (k: 'collapseVersions' | 'sharedOnly') => o[k] !== undefined && o[k] !== opts[k]
-      const redraw = changed('collapseVersions') || changed('sharedOnly')
+      const changed = (k: 'collapseVersions' | 'groupSynonyms' | 'sharedOnly') => o[k] !== undefined && o[k] !== opts[k]
+      const redraw = changed('collapseVersions') || changed('groupSynonyms') || changed('sharedOnly')
       opts = { ...opts, ...o }
       if (!redraw) return
       opts.onFocus?.(null)

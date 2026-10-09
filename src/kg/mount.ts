@@ -3,6 +3,7 @@ import fcose from 'cytoscape-fcose'
 
 import { bridges, sharedOnly } from './bridges'
 import { collapseVersions } from './collapse'
+import { groupSynonyms } from './group'
 import { columnPositions } from './columns'
 import { toElements } from './elements'
 import { focusConnections, isPair, type KgFocus } from './focus'
@@ -37,7 +38,7 @@ export type GraphOptions = KgViewOptions & {
 }
 
 /** The common view interface (KgView; setOptions: a new layout only rearranges the
- * nodes, collapseVersions and sharedOnly redraw and clear the selection), plus: */
+ * nodes, collapseVersions, groupSynonyms and sharedOnly redraw and clear the selection), plus: */
 export type GraphView = KgView<GraphOptions> & {
   /** Zoom in (factor > 1) or out (< 1) around the middle of the view. */
   zoomBy(factor: number): void
@@ -71,7 +72,7 @@ const PADDING = 16
  * No framework required; React, Vue or plain HTML hosts all call this the same way.
  */
 export function mountGraph(container: HTMLElement, graph: KgGraph, options: GraphOptions = {}): GraphView {
-  let opts: GraphOptions = { collapseVersions: true, layout: 'radial', ...options }
+  let opts: GraphOptions = { collapseVersions: true, groupSynonyms: true, layout: 'radial', ...options }
   let current = graph
 
   const cy = cytoscape({
@@ -129,6 +130,7 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
   let drawn: KgGraph = graph
   function draw() {
     drawn = opts.collapseVersions ? collapseVersions(current) : current
+    if (opts.groupSynonyms) drawn = groupSynonyms(drawn)
     if (opts.sharedOnly) drawn = sharedOnly(drawn) // after merging: it can create bridges
     const shared = bridges(drawn)
     cy.batch(() => {
@@ -228,8 +230,8 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
       draw()
     },
     setOptions(o) {
-      const changed = (k: 'collapseVersions' | 'sharedOnly') => o[k] !== undefined && o[k] !== opts[k]
-      const redraw = changed('collapseVersions') || changed('sharedOnly')
+      const changed = (k: 'collapseVersions' | 'groupSynonyms' | 'sharedOnly') => o[k] !== undefined && o[k] !== opts[k]
+      const redraw = changed('collapseVersions') || changed('groupSynonyms') || changed('sharedOnly')
       const relayout = o.layout !== undefined && o.layout !== opts.layout
       opts = { ...opts, ...o }
       cy.userZoomingEnabled(opts.zoomGestures === true)
