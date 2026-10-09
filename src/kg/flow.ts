@@ -8,13 +8,14 @@ import type { KgView, KgViewOptions } from './view'
 
 export type FlowNode = { id: string; node: KgNode } // a concept or a study
 export type FlowLink = { source: string; target: string; variables: string[] } // concept → study
-export type FlowData = { nodes: FlowNode[]; links: FlowLink[] }
+export type FlowData = { nodes: FlowNode[]; links: FlowLink[]; withoutStudy: string[] } // withoutStudy: variables it can't place
 
 /**
  * The graph as flows from concepts to studies: one link per concept and study,
  * carrying the study's variables on that concept (its width). A variable on two
  * concepts counts in both. Only studies with variables appear; concepts and links
- * keep graph order.
+ * keep graph order. Variables whose study isn't given (e.g. from search_concepts)
+ * can't be drawn: `withoutStudy` lists them, so a host can say so.
  */
 export function flowData(graph: KgGraph): FlowData {
   const byId = new Map(graph.nodes.map((n) => [n.id, n]))
@@ -26,9 +27,14 @@ export function flowData(graph: KgGraph): FlowData {
     if (isConceptOrTerm(t)) conceptsOf.set(e.source, [...(conceptsOf.get(e.source) ?? []), e.target])
   }
   const links = new Map<string, FlowLink>()
+  const withoutStudy: string[] = []
   for (const n of graph.nodes) {
-    const study = n.type === 'variable' ? studyOf.get(n.id) : undefined
-    if (!study) continue
+    if (n.type !== 'variable') continue
+    const study = studyOf.get(n.id)
+    if (!study) {
+      withoutStudy.push(n.id)
+      continue
+    }
     for (const concept of conceptsOf.get(n.id) ?? []) {
       const key = JSON.stringify([concept, study])
       const link = links.get(key) ?? { source: concept, target: study, variables: [] }
@@ -38,7 +44,7 @@ export function flowData(graph: KgGraph): FlowData {
   }
   const used = new Set([...links.values()].flatMap((l) => [l.source, l.target]))
   const nodes = graph.nodes.filter((n) => used.has(n.id)).map((n) => ({ id: n.id, node: n }))
-  return { nodes, links: [...links.values()] }
+  return { nodes, links: [...links.values()], withoutStudy }
 }
 
 export type FlowOptions = KgViewOptions
@@ -73,7 +79,7 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
   let opts: FlowOptions = { collapseVersions: true, ...options }
   let current = graph
   let drawn: KgGraph = graph
-  let data: FlowData = { nodes: [], links: [] }
+  let data: FlowData = { nodes: [], links: [], withoutStudy: [] }
   let focused: KgFocus | null = null
 
   const svg = document.createElementNS(SVG, 'svg')

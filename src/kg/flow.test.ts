@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { collapseVersions } from './collapse'
 import asthmaCopd from './fixtures/graph/concept_graph_2.json'
+import search from './fixtures/graph/search_concepts.json'
 import chd from './fixtures/graph/concept_graph.json'
 import { flowData } from './flow'
 import type { KgGraph } from './types'
@@ -44,5 +45,13 @@ describe('flowData', () => {
       ],
     })
     expect(nodes.map((n) => n.id)).toEqual(['C', 'S'])
+  })
+
+  it("lists the variables it can't place: their study isn't given (real BMI search)", () => {
+    const g = collapseVersions(search as KgGraph)
+    const { links, withoutStudy } = flowData(g)
+    expect(links).toEqual([])
+    expect(withoutStudy).toHaveLength(g.nodes.filter((n) => n.type === 'variable').length)
+    expect(flowData(CHD).withoutStudy).toEqual([])
   })
 })

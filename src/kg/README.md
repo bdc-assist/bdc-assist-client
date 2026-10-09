@@ -164,7 +164,7 @@ used) first, so ids match what the views draw.
 | `studyList(graph)` | `list.ts` | studies → concepts → variables, shared studies first: for a list or table view, or a text alternative to the graph |
 | `nodeLinks(node, graph)`, `conceptLink(id)` | `links.ts` | pages for a node: dbGaP study and variable pages (one per release; a variable without an accession gets its study, with a `note`); concepts by CURIE prefix (MONDO, EFO, UMLS, GTOPDB, otherwise bioregistry.io), marked "(login)" where an account is needed |
 | `focusConnections(graph, focus)`, `pairVariables(graph, concept, study)` | `focus.ts` | what a focus lights up; a pair's variables |
-| `flowData(graph)` | `flow.ts` | the flow's concept → study links with their variables, for your own chart |
+| `flowData(graph)` | `flow.ts` | the flow's concept → study links with their variables, for your own chart; `withoutStudy`: the variables it can't place (their study isn't given), so you can say so |
 | `fromKgList(kg)` | `wire.ts` | the API's per-call graphs merged into one |
 | `relations(graph)` | `elements.ts` | the concept → concept edges (drawn dashed in the graph view; the flow view can't show them) |
 | `variableWeights(graph)` | `elements.ts` | `related_concepts_count` scaled to 0..1 within the graph |

@@ -9,7 +9,7 @@ import { collapseVersions } from '@/kg/collapse'
 import { relations } from '@/kg/elements'
 import { nodeLinks, type KgLink } from '@/kg/links'
 import { studyList, type ListVariable } from '@/kg/list'
-import { mountFlow, type FlowView } from '@/kg/flow'
+import { flowData, mountFlow, type FlowView } from '@/kg/flow'
 import { focusConnections, isPair, pairVariables, sameFocus, type KgFocus } from '@/kg/focus'
 import { KG_LAYOUTS, mountGraph, type GraphView, type KgLayout } from '@/kg/mount'
 import type { KgGraph, KgNode } from '@/kg/types'
@@ -441,6 +441,7 @@ function GraphBody(props: GraphBodyProps) {
   const { json, shown, canvasClass, layout, onLayout, mode, onMode, sharedOnly, onSharedOnly, canShare, zoomGestures } = props
   const { sources, source, onSource } = props
   const relationCount = useMemo(() => relations(shown).length, [shown])
+  const withoutStudy = useMemo(() => flowData(shown).withoutStudy.length, [shown])
   const hasTerms = useMemo(() => shown.nodes.some((n) => n.type === 'term'), [shown])
   const hasSeeds = useMemo(() => shown.nodes.some((n) => n.seed), [shown])
   const container = useRef<HTMLDivElement>(null)
@@ -549,11 +550,20 @@ function GraphBody(props: GraphBodyProps) {
           className="h-full w-full"
           aria-label="Knowledge graph as flows from concepts to studies. The List view shows the same as text."
         />
-        {relationCount > 0 && (
-          <p className="text-muted-foreground bg-background/80 absolute bottom-1.5 left-1.5 rounded px-1.5 py-0.5">
-            {relationCount} {relationCount === 1 ? 'relationship' : 'relationships'} between concepts not shown in this
-            view
-          </p>
+        {(relationCount > 0 || withoutStudy > 0) && (
+          <div className="text-muted-foreground absolute bottom-1.5 left-1.5 flex flex-col items-start gap-0.5">
+            {relationCount > 0 && (
+              <p className="bg-background/80 rounded px-1.5 py-0.5">
+                {relationCount} {relationCount === 1 ? 'relationship' : 'relationships'} between concepts not shown in
+                this view
+              </p>
+            )}
+            {withoutStudy > 0 && (
+              <p className="bg-background/80 rounded px-1.5 py-0.5">
+                {withoutStudy} {withoutStudy === 1 ? 'variable' : 'variables'} without a study not shown in this view
+              </p>
+            )}
+          </div>
         )}
       </div>
       {/* kept mounted while another view shows, so the graph keeps its layout and zoom */}
