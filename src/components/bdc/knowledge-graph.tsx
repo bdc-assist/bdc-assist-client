@@ -200,6 +200,7 @@ function NodeDetails({ node, graph }: { node: KgNode; graph: KgGraph }) {
                   <li key={c.id} className="flex flex-wrap items-baseline gap-x-2">
                     <span>{c.label}</span>
                     <span className="font-mono">{link ? <ExternalLink link={link} /> : c.id}</span>
+                    {c.concept_type && <span className="text-muted-foreground">{c.concept_type}</span>}
                   </li>
                 )
               })}
@@ -212,6 +213,13 @@ function NodeDetails({ node, graph }: { node: KgNode; graph: KgGraph }) {
           <dd className="flex flex-wrap gap-x-3 font-mono">
             {links.length ? links.map((l) => <ExternalLink key={l.url} link={l} />) : node.id}
           </dd>
+          {node.concept_type && (
+            <>
+              {/* Dug's category, as sent (e.g. NamedThing, biolink:Activity) */}
+              <dt className="text-muted-foreground">Category</dt>
+              <dd>{node.concept_type}</dd>
+            </>
+          )}
         </>
       )}
       {node.type === 'variable' && !all.length && (
