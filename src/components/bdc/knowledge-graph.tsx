@@ -8,7 +8,7 @@ import { bridges, sharedOnly as onlyShared } from '@/kg/bridges'
 import { collapseVersions } from '@/kg/collapse'
 import { relations } from '@/kg/elements'
 import { nodeLinks, type KgLink } from '@/kg/links'
-import { studyList } from '@/kg/list'
+import { studyList, type ListVariable } from '@/kg/list'
 import { mountFlow, type FlowView } from '@/kg/flow'
 import { focusConnections, isPair, pairVariables, sameFocus, type KgFocus } from '@/kg/focus'
 import { KG_LAYOUTS, mountGraph, type GraphView, type KgLayout } from '@/kg/mount'
@@ -256,10 +256,19 @@ function FocusDetails({ focus, graph }: { focus: KgFocus | null; graph: KgGraph 
 const rowClass = (selected: boolean, dimmed: boolean) =>
   `flex min-w-0 flex-1 items-baseline gap-2 rounded-md px-1.5 py-1 text-start transition-opacity ${selected ? 'bg-muted' : 'hover:bg-muted/60'} ${dimmed ? 'opacity-35' : ''}`
 
+// a concept's swatch in the list: a dot, or a diamond for a seed (what was asked
+// about), as in the graph; hollow for a search term
+function ConceptMark({ concept }: { concept: KgNode }) {
+  const shape = concept.seed ? 'size-1.5 rotate-45' : 'size-2 rounded-full'
+  const colour = concept.type === 'term' ? { border: '1.5px solid var(--kg-concept)' } : { background: 'var(--kg-concept)' }
+  return <span className={`${shape} shrink-0 self-center`} style={colour} />
+}
+
 /** The graph as text: studies (foldable), each with a row per concept (that
- * concept × study pair) and the variables under it (studyList). Study and variable
- * rows focus like nodes in the graph, concept rows focus their pair; picking the
- * focused row again clears it. Rows dim like the graph when not connected to the focus. */
+ * concept × study pair) and the variables under it (studyList). Without any studies
+ * (e.g. a search), concepts (foldable) with their variables instead. Study, concept
+ * and variable rows focus like nodes in the graph, pair rows focus their pair; picking
+ * the focused row again clears it. Rows dim like the graph when not connected to the focus. */
 function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgFocus | null; onPick: (f: KgFocus) => void }) {
   const groups = useMemo(() => studyList(graph), [graph])
   const linked = useMemo(() => (focus ? focusConnections(graph, focus).nodes : null), [graph, focus])
@@ -274,23 +283,87 @@ function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgFocus | 
       if (!next.delete(id)) next.add(id)
       return next
     })
+  const foldButton = (key: string, label: string) => {
+    const open = !folded.has(key)
+    return (
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-label={`${open ? 'Fold' : 'Unfold'} ${label}`}
+        onClick={() => toggle(key)}
+        className="text-muted-foreground hover:text-foreground rounded p-1"
+      >
+        <ChevronRightIcon className={`size-3.5 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+    )
+  }
+  const variableRows = (vs: ListVariable[]) => (
+    <ul className="pl-6">
+      {vs.map(({ variable, weight }) => (
+        <li key={variable.id} className="flex">
+          <button
+            type="button"
+            onClick={() => onPick({ node: variable.id })}
+            className={rowClass(isNode(variable.id), dimmed(variable.id))}
+          >
+            <span
+              className="size-2 shrink-0 self-center rounded-full"
+              style={{
+                background: `color-mix(in srgb, var(--kg-variable-high) ${Math.round(weight * 100)}%, var(--kg-variable-low))`,
+              }}
+            />
+            <span className="font-mono">{variable.label}</span>
+            {variable.description && variable.description !== variable.label && (
+              <span className="truncate">{variable.description}</span>
+            )}
+            <span className="text-muted-foreground truncate font-mono">{variable.id}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+
+  if (groups.length === 1 && !groups[0].study) {
+    // no studies at all (e.g. search_concepts): a heading per concept instead
+    return (
+      <ul aria-label="Concepts and their variables" className="divide-y">
+        {groups[0].byConcept.map(({ concept, variables: vs }) => {
+          const key = concept?.id ?? '(no concept)'
+          return (
+            <li key={key} className="px-1.5 py-1">
+              <div className="flex items-center gap-0.5">
+                {foldButton(key, concept?.label ?? 'variables without a concept')}
+                {concept ? (
+                  <button
+                    type="button"
+                    onClick={() => onPick({ node: concept.id })}
+                    className={rowClass(isNode(concept.id), dimmed(concept.id))}
+                  >
+                    <ConceptMark concept={concept} />
+                    <span className="truncate font-medium">{concept.label}</span>
+                    {concept.type === 'term' && <span className="text-muted-foreground shrink-0">(search term)</span>}
+                    <span className="text-muted-foreground shrink-0">· {vs.length}</span>
+                  </button>
+                ) : (
+                  <span className="text-muted-foreground px-1.5 py-1">No concept</span>
+                )}
+              </div>
+              {!folded.has(key) && variableRows(vs)}
+            </li>
+          )
+        })}
+      </ul>
+    )
+  }
+
   return (
     <ul aria-label="Studies, their concepts and variables" className="divide-y">
       {groups.map(({ study, variables, byConcept }) => {
         const key = study?.id ?? '(no study)'
-        const open = !folded.has(key)
         return (
           <li key={key} className="px-1.5 py-1">
             <div className="flex items-center gap-0.5">
-              <button
-                type="button"
-                aria-expanded={open}
-                aria-label={`${open ? 'Fold' : 'Unfold'} ${study?.label ?? 'variables without a study'}`}
-                onClick={() => toggle(key)}
-                className="text-muted-foreground hover:text-foreground rounded p-1"
-              >
-                <ChevronRightIcon className={`size-3.5 transition-transform ${open ? 'rotate-90' : ''}`} />
-              </button>
+              {foldButton(key, study?.label ?? 'variables whose study is not given')}
               {study ? (
                 <button
                   type="button"
@@ -303,10 +376,11 @@ function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgFocus | 
                   <span className="text-muted-foreground shrink-0">· {variables.length}</span>
                 </button>
               ) : (
-                <span className="text-muted-foreground px-1.5 py-1">Variables without a study</span>
+                // Dug didn't say which study these are in (e.g. search_concepts)
+                <span className="text-muted-foreground px-1.5 py-1">Study not given · {variables.length}</span>
               )}
             </div>
-            {open && (
+            {!folded.has(key) && (
               <ul className="pl-6">
                 {byConcept.map(({ concept, variables: vs }) => (
                   <li key={concept?.id ?? '(no concept)'}>
@@ -319,7 +393,7 @@ function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgFocus | 
                           // a pair row: lit only when both its concept and its study are
                           className={rowClass(isPairOf(concept.id, study.id), dimmed(concept.id) || dimmed(study.id))}
                         >
-                          <span className="size-2 shrink-0 self-center rounded-full" style={{ background: 'var(--kg-concept)' }} />
+                          <ConceptMark concept={concept} />
                           <span>{concept.label}</span>
                           {concept.type === 'term' && <span className="text-muted-foreground shrink-0">(search term)</span>}
                           <span className="text-muted-foreground shrink-0">· {vs.length}</span>
@@ -328,29 +402,7 @@ function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgFocus | 
                         <span className="text-muted-foreground px-1.5 py-1">{concept?.label ?? 'No concept'}</span>
                       )}
                     </div>
-                    <ul className="pl-6">
-                      {vs.map(({ variable, weight }) => (
-                        <li key={variable.id} className="flex">
-                          <button
-                            type="button"
-                            onClick={() => onPick({ node: variable.id })}
-                            className={rowClass(isNode(variable.id), dimmed(variable.id))}
-                          >
-                            <span
-                              className="size-2 shrink-0 self-center rounded-full"
-                              style={{
-                                background: `color-mix(in srgb, var(--kg-variable-high) ${Math.round(weight * 100)}%, var(--kg-variable-low))`,
-                              }}
-                            />
-                            <span className="font-mono">{variable.label}</span>
-                            {variable.description && variable.description !== variable.label && (
-                              <span className="truncate">{variable.description}</span>
-                            )}
-                            <span className="text-muted-foreground truncate font-mono">{variable.id}</span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
+                    {variableRows(vs)}
                   </li>
                 ))}
               </ul>
