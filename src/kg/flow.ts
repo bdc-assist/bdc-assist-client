@@ -50,6 +50,7 @@ type SLink = SankeyLink<FlowNode, FlowLink & { value: number }>
 const SVG = 'http://www.w3.org/2000/svg'
 const NODE_WIDTH = 10
 const FADED = '0.15'
+const SEED_MARK = 12 // room for a seed's diamond, left of its bar
 
 // colours: the same --kg-* custom properties as mountGraph; SVG takes them as-is.
 // Bands are bundles of variables, so they're blue: the middle of the variable ramp.
@@ -148,13 +149,22 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
         rect.dataset.term = ''
         Object.assign(rect.style, { fill: 'none', stroke: fill.concept, strokeWidth: '1.5' })
       } else rect.style.fill = isConcept ? fill.concept : fill.study
+      // what a call asked about: a diamond between the bar and the label, like the
+      // graph's seeds (a bar can't be one); hollow for a search term, like its bar
+      const mark = isConcept && n.node.seed ? SEED_MARK : 0
+      if (mark) {
+        const [cx, cy, r] = [x0 - 9, (y0 + y1) / 2, 4.5]
+        const diamond = item.appendChild(document.createElementNS(SVG, 'path'))
+        diamond.setAttribute('d', `M${cx} ${cy - r}L${cx + r} ${cy}L${cx} ${cy + r}L${cx - r} ${cy}Z`)
+        Object.assign(diamond.style, n.node.type === 'term' ? { fill: 'none', stroke: fill.concept, strokeWidth: '1.5' } : { fill: fill.concept })
+      }
       const text = item.appendChild(document.createElementNS(SVG, 'text'))
-      text.setAttribute('x', String(isConcept ? x0 - 6 : x1 + 6))
+      text.setAttribute('x', String(isConcept ? x0 - 6 - mark : x1 + 6))
       text.setAttribute('y', String((y0 + y1) / 2))
       text.setAttribute('dominant-baseline', 'middle')
       text.setAttribute('text-anchor', isConcept ? 'end' : 'start')
       Object.assign(text.style, { fill: 'var(--kg-label, #475569)', fontSize: isConcept ? '12px' : '10px', fontWeight: isConcept ? '600' : '400' })
-      text.textContent = clip(n.node.label, ((isConcept ? left : right) - 10) / (isConcept ? 6.5 : 5.5))
+      text.textContent = clip(n.node.label, ((isConcept ? left - mark : right) - 10) / (isConcept ? 6.5 : 5.5))
       title(item, `${n.node.label} (${n.value} variable${n.value === 1 ? '' : 's'})`)
     }
     highlight()

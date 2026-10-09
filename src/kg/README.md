@@ -115,8 +115,8 @@ on the others.
 ### `mountGraph(container, graph, options)` (`mount.ts`)
 
 A node-link graph (Cytoscape). Concepts, variables and studies are drawn as distinct
-shapes and colours; variables run light to dark blue with `related_concepts_count`;
-studies (or variables) connecting two or more seeds (what was asked about) get an amber halo.
+shapes and colours; seeds (what was asked about) are diamonds; variables run light to
+dark blue with `related_concepts_count`; studies (or variables) connecting two or more seeds (what was asked about) get an amber halo.
 
 Extra options:
 
@@ -133,7 +133,7 @@ node shows its full label as the browser's tooltip.
 
 A Sankey diagram (d3-sankey layout, plain SVG): concepts on the left, studies on the
 right, each concept → study band as wide as the study's variables on that concept.
-Clicking a band focuses its concept × study pair. Variables aren't drawn, but a
+Seeds have a small diamond beside their bar. Clicking a band focuses its concept × study pair. Variables aren't drawn, but a
 variable focus highlights its band. It lays out for the container's size, so call
 `resize()` (or use a `ResizeObserver`) when that changes.
 

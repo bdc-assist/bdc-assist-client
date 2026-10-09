@@ -181,10 +181,23 @@ function NodeDetails({ node, graph }: { node: KgNode; graph: KgGraph }) {
     <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
       <dt className="text-muted-foreground">{TYPE_LABELS[node.type]}</dt>
       <dd className="font-medium">{node.label}</dd>
+      {node.description && node.description !== node.label && (
+        <>
+          <dt className="text-muted-foreground">Description</dt>
+          <dd>{node.description}</dd>
+        </>
+      )}
       <dt className="text-muted-foreground">{links.length > 1 ? 'IDs' : 'ID'}</dt>
       <dd className="flex flex-wrap gap-x-3 font-mono">
         {links.length ? links.map((l) => <ExternalLink key={l.url} link={l} />) : node.id}
       </dd>
+      {node.type === 'variable' && !all.length && (
+        <>
+          <dt className="text-muted-foreground">dbGaP</dt>
+          {/* its dbGaP page needs the study, and e.g. search_concepts doesn't give it */}
+          <dd className="text-muted-foreground">No link: the result doesn't say which study it's in</dd>
+        </>
+      )}
       {standIns.length > 0 && (
         <>
           <dt className="text-muted-foreground">dbGaP</dt>
@@ -330,6 +343,9 @@ function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgFocus | 
                               }}
                             />
                             <span className="font-mono">{variable.label}</span>
+                            {variable.description && variable.description !== variable.label && (
+                              <span className="truncate">{variable.description}</span>
+                            )}
                             <span className="text-muted-foreground truncate font-mono">{variable.id}</span>
                           </button>
                         </li>
