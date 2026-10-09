@@ -39,7 +39,7 @@
      inkscape:deskcolor="#d1d1d1"
      showgrid="false"
      inkscape:zoom="18.666667"
-     inkscape:cx="11.973214"
+     inkscape:cx="11.946428"
      inkscape:cy="12"
      inkscape:window-width="1280"
      inkscape:window-height="650"
@@ -49,19 +49,24 @@
      inkscape:current-layer="svg6" />
   <path
      d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"
-     id="path1" />
+     id="path1"
+     style="stroke:#14385f;stroke-opacity:1" />
   <path
      d="M2 6h4"
-     id="path2" />
+     id="path2"
+     style="stroke:#14385f;stroke-opacity:1" />
   <path
      d="M2 10h4"
-     id="path3" />
+     id="path3"
+     style="stroke:#14385f;stroke-opacity:1" />
   <path
      d="M2 14h4"
-     id="path4" />
+     id="path4"
+     style="stroke:#14385f;stroke-opacity:1" />
   <path
      d="M2 18h4"
-     id="path5" />
+     id="path5"
+     style="stroke:#14385f;stroke-opacity:1" />
   <path
      d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"
      id="path6"
