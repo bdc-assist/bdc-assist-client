@@ -546,9 +546,14 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
   const sharedOnly = sharedOnlyWanted && sharedStudies > 0
   // what the list and the details see: the same as mountGraph draws
   const shown = useMemo(() => (sharedOnly ? onlyShared(merged) : merged), [merged, sharedOnly])
+  // what was asked about, in this graph (all results, or the one call shown)
+  const asked = merged.nodes.filter((n) => n.seed).map((n) => n.label)
   const title = (
     <>
-      <span className="text-foreground font-medium">Knowledge graph</span> · {summary(merged)}
+      <span className="text-foreground font-medium">
+        Knowledge graph{asked.length > 0 && `: ${asked.join(', ')}`}
+      </span>{' '}
+      · {summary(merged)}
       {sharedStudies > 0 && ` · ${sharedStudies} shared`}
     </>
   )
