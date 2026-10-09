@@ -13,8 +13,8 @@ export const baseId = (id: string) => id.replace(VERSION, '')
  * base id, the first release's label and fields, and lists every versioned id it
  * stands for in `versions` (first-seen order), so links to a specific release
  * stay possible. Every study and variable gets `versions`, even with one release.
- * Concepts are left alone. Edges are re-pointed and deduplicated. Pure: the input
- * is not modified.
+ * Concepts and terms are left alone. Edges are re-pointed and deduplicated, keeping
+ * their predicates. Pure: the input is not modified.
  */
 export function collapseVersions(graph: KgGraph): KgGraph {
   const nodes = new Map<string, KgNode>()
@@ -31,7 +31,11 @@ export function collapseVersions(graph: KgGraph): KgGraph {
   for (const e of graph.edges) {
     const source = idOf.get(e.source) ?? e.source
     const target = idOf.get(e.target) ?? e.target
-    edges.set(JSON.stringify([source, target]), { source, target })
+    const key = JSON.stringify([source, target])
+    const seen = edges.get(key)
+    // releases merged into one pair: keep every way they're related
+    const predicates = [...new Set([...(seen?.predicates ?? []), ...(e.predicates ?? [])])]
+    edges.set(key, { source, target, ...(predicates.length && { predicates }) })
   }
   return { nodes: [...nodes.values()], edges: [...edges.values()] }
 }

@@ -3,7 +3,8 @@
   {
    "id": "phs002752_F106BMI.v1.p1",
    "label": "F106BMI",
-   "type": "variable"
+   "type": "variable",
+   "description": "body mass index"
   },
   {
    "id": "UMLS:C2957659",
@@ -62,47 +63,56 @@
   {
    "id": "phs002907_BMI.v1.p1",
    "label": "Body mass index (kg/m2)",
-   "type": "variable"
+   "type": "variable",
+   "description": "body mass index (kg/m2)"
   },
   {
    "id": "phs002908_BMI.v1.p1",
    "label": "Body mass index (kg/m2)",
-   "type": "variable"
+   "type": "variable",
+   "description": "body mass index (kg/m2)"
   },
   {
    "id": "phs002988_BMI.v1.p1",
    "label": "BMI",
-   "type": "variable"
+   "type": "variable",
+   "description": "body mass index (kg/m2)"
   },
   {
    "id": "phs003045_BMI.v1.p1",
    "label": "BMI",
-   "type": "variable"
+   "type": "variable",
+   "description": "body mass index (kg/m2)"
   },
   {
    "id": "phv00004077.v1.p12",
    "label": "FL517",
-   "type": "variable"
+   "type": "variable",
+   "description": "body mass index, exam19"
   },
   {
    "id": "phv00004077.v1.p15",
    "label": "FL517",
-   "type": "variable"
+   "type": "variable",
+   "description": "body mass index, exam19"
   },
   {
    "id": "phv00004521.v1.p12",
    "label": "FM537",
-   "type": "variable"
+   "type": "variable",
+   "description": "body mass index"
   },
   {
    "id": "phv00004521.v1.p15",
    "label": "FM537",
-   "type": "variable"
+   "type": "variable",
+   "description": "body mass index"
   },
   {
    "id": "phv00004933.v1.p12",
    "label": "FN505",
-   "type": "variable"
+   "type": "variable",
+   "description": "body mass index"
   }
  ],
  "edges": [

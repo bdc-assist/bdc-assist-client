@@ -14,6 +14,8 @@ export type KgNode = {
   label: string
   type: KgNodeType
   concept_type?: string // concepts: Dug's category, verbatim
+  seed?: true // a call asked about it (the API's `seeds`): what the user asked about, not what came back
+  description?: string // Dug's, verbatim (search_concepts variables have one)
   related_concepts_count?: number // variables: other concepts it links to (Dug: rough relevance signal)
   versions?: string[] // after collapseVersions: the versioned ids merged into this node
 }

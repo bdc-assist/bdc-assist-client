@@ -17,7 +17,8 @@ export type KgWireEdge = { subject: string; object: string; predicate?: string }
 export type KgWireEntry = {
   tool: string
   args?: Record<string, unknown>
-  label?: string // proposed: the graph in the user's terms
+  label?: string // the graph in the user's terms
+  seeds?: string[] // ids of the nodes the call asked about (none for searches)
   nodes: KgWireNode[]
   edges: KgWireEdge[]
 }
@@ -35,15 +36,18 @@ function nodeType(n: KgWireNode): KgNodeType {
 
 /**
  * Merge the API's per-call graphs into one graph for the views: nodes by id (the
- * first call's fields win, except that a real name beats a bare id), edges by endpoints (one edge per pair, keeping
- * all its predicates). Concept–concept edges are kept. Returns null when there
- * is nothing to draw (no list, or no edges).
+ * first call's fields win, except that a real name beats a bare id, and a missing
+ * description is taken from a later call), edges by endpoints (one edge per pair, keeping
+ * all its predicates). Concept–concept edges are kept. A node any call asked about
+ * (its `seeds`) is a `seed`. Returns null when there is nothing to draw (no list, or no edges).
  */
 export function fromKgList(value: unknown): KgGraph | null {
   if (!Array.isArray(value)) return null
   const nodes = new Map<string, KgNode>()
   const edges = new Map<string, KgEdge>()
+  const seeds = new Set<string>()
   for (const entry of value as KgWireEntry[]) {
+    for (const id of entry?.seeds ?? []) seeds.add(id)
     for (const n of entry?.nodes ?? []) {
       if (!n?.id) continue
       const seen = nodes.get(n.id)
@@ -51,11 +55,13 @@ export function fromKgList(value: unknown): KgGraph | null {
         // a call may know a node only by id (get_concept_connections names the
         // neighbours, not the concept asked about): take a real name from another
         if (seen.label === n.id && n.name && n.name !== n.id) seen.label = n.name
+        if (!seen.description && n.description) seen.description = n.description
         continue
       }
       const type = nodeType(n)
       const node: KgNode = { id: n.id, label: n.name || n.id, type }
       if (type === 'concept' && n.category) node.concept_type = n.category
+      if (n.description) node.description = n.description
       const count = n.attributes?.related_concepts_count
       if (type === 'variable' && typeof count === 'number') node.related_concepts_count = count
       nodes.set(n.id, node)
@@ -68,6 +74,11 @@ export function fromKgList(value: unknown): KgGraph | null {
       if (e.predicate && !edge.predicates?.includes(e.predicate)) edge.predicates = [...(edge.predicates ?? []), e.predicate]
       edges.set(key, edge)
     }
+  }
+  // a seed no call described (the server drops those) is ignored
+  for (const id of seeds) {
+    const node = nodes.get(id)
+    if (node) node.seed = true
   }
   // an edge to a node no call described (shouldn't happen): keep the graph consistent
   const kept = [...edges.values()].filter((e) => nodes.has(e.source) && nodes.has(e.target))

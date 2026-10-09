@@ -10,7 +10,8 @@
    "id": "MONDO:0005453",
    "label": "congenital heart disease",
    "type": "concept",
-   "concept_type": "biolink:NamedThing"
+   "concept_type": "biolink:NamedThing",
+   "seed": true
   },
   {
    "id": "phs000200.v12.p3",

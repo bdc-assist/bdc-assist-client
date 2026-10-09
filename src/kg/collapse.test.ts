@@ -61,6 +61,26 @@ describe('collapseVersions', () => {
     expect(collapseVersions(COHORT).nodes.filter((n) => n.type === 'term').map((n) => n.id)).toEqual(['asthma', 'COPD'])
   })
 
+  it("keeps edges' predicates, merging those of releases that become one pair", () => {
+    const g = collapseVersions({
+      nodes: [
+        { id: 'C', label: 'c', type: 'concept' },
+        { id: 'D', label: 'd', type: 'concept' },
+        { id: 'phv1.v1.p1', label: 'V', type: 'variable' },
+        { id: 'phv1.v1.p2', label: 'V', type: 'variable' },
+      ],
+      edges: [
+        { source: 'C', target: 'D', predicates: ['treats', 'related_to'] },
+        { source: 'phv1.v1.p1', target: 'C', predicates: ['a'] },
+        { source: 'phv1.v1.p2', target: 'C', predicates: ['a', 'b'] },
+      ],
+    })
+    expect(g.edges).toEqual([
+      { source: 'C', target: 'D', predicates: ['treats', 'related_to'] },
+      { source: 'phv1', target: 'C', predicates: ['a', 'b'] },
+    ])
+  })
+
   it('re-points and deduplicates edges', () => {
     const g = collapseVersions({
       nodes: [

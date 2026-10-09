@@ -3,7 +3,8 @@
   {
    "id": "MONDO:0004979",
    "label": "MONDO:0004979",
-   "type": "concept"
+   "type": "concept",
+   "seed": true
   },
   {
    "id": "CHEBI:88522",

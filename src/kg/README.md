@@ -27,6 +27,7 @@ The API sends the agent's knowledge graphs as `kg`: in the `sources` event of
 ```ts
 type KgWireEntry = {
   tool: string; args?: object; label?: string
+  seeds?: string[]  // ids of the nodes the call asked about (none for searches)
   nodes: { id: string; name?: string; type?: string; category?: string;
            description?: string; attributes?: { related_concepts_count?: number } }[]
   edges: { subject: string; object: string; predicate?: string }[]
@@ -35,7 +36,8 @@ type KgWireEntry = {
 
 `fromKgList(kg)` (`wire.ts`) merges them into the one graph the views draw, or `null`
 when there's nothing to draw. A node's role comes from `type` if it names one, else
-from `category` (`"Study"`, `"StudyVariable"`; anything else is a concept):
+from `category` (`"Study"`, `"StudyVariable"`; anything else is a concept). Edges keep
+all their predicates, also through `collapseVersions`:
 
 ```ts
 type KgGraph = { nodes: KgNode[]; edges: KgEdge[] }
@@ -46,6 +48,8 @@ type KgNode = {
   type: 'concept' | 'term' | 'variable' | 'study'  // term: a search word standing in for a concept
                                                    // (find_cohort_variables): no link, no category
   concept_type?: string            // concepts: Dug's biolink category, verbatim
+  seed?: true                      // a call asked about it (any call's `seeds`): what the user asked about
+  description?: string             // Dug's, verbatim (search_concepts variables have one)
   related_concepts_count?: number  // variables: how many other concepts it links to
   versions?: string[]              // after collapseVersions: the versioned ids merged into this node
 }
