@@ -1,19 +1,21 @@
 import { isConceptOrTerm, type KgGraph } from './types'
 
 /**
- * The nodes that connect two or more concepts: studies whose variables are on at
- * least two concepts between them (cohorts with data on both), and variables that
- * are themselves on two or more. Empty when the graph has fewer than two concepts.
+ * The nodes that connect two or more seeds (what was asked about): studies whose
+ * variables are on at least two seeds between them (cohorts with data on both), and
+ * variables that are themselves on two or more. Other concepts don't count, so a
+ * variable matching several synonyms isn't shared. Empty with fewer than two seeds.
  * Use it on the graph as drawn: merging releases can make a study a bridge.
  */
 export function bridges(graph: KgGraph): Set<string> {
   const type = new Map(graph.nodes.map((n) => [n.id, n.type]))
-  const conceptsOf = new Map<string, Set<string>>() // variable or study → its concepts
+  const seeds = new Set(graph.nodes.filter((n) => n.seed).map((n) => n.id))
+  const conceptsOf = new Map<string, Set<string>>() // variable or study → its seeds
   const studyOf = new Map<string, string>()
   const add = (id: string, concept: string) => conceptsOf.set(id, (conceptsOf.get(id) ?? new Set()).add(concept))
   for (const e of graph.edges) {
-    // variables only: a concept related to other concepts isn't a bridge between them
-    if (isConceptOrTerm(type.get(e.target)) && type.get(e.source) === 'variable') add(e.source, e.target)
+    // variables only: a seed related to other concepts isn't a bridge between them
+    if (seeds.has(e.target) && type.get(e.source) === 'variable') add(e.source, e.target)
     if (type.get(e.target) === 'study') studyOf.set(e.source, e.target)
   }
   for (const [variable, study] of studyOf) for (const c of conceptsOf.get(variable) ?? []) add(study, c)
@@ -21,8 +23,8 @@ export function bridges(graph: KgGraph): Set<string> {
 }
 
 /**
- * Only what the concepts share: the concepts, the bridge studies, all of their
- * variables, and any bridge variable; studies on a single concept and their
+ * Only what the seeds share: the concepts, the bridge studies, all of their
+ * variables, and any bridge variable; studies on a single seed and their
  * variables go. With no bridges, just the concepts are left.
  */
 export function sharedOnly(graph: KgGraph): KgGraph {

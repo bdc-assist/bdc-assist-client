@@ -86,7 +86,7 @@ can switch between them without caring which one is showing.
 ```ts
 type KgViewOptions = {
   collapseVersions?: boolean  // merge a study's or variable's dbGaP releases into one node (default true)
-  sharedOnly?: boolean        // only studies with variables on two or more concepts (default false)
+  sharedOnly?: boolean        // only studies with variables on two or more seeds (default false)
   onFocus?: (focus: KgFocus | null) => void  // the user picked something; null: clicked the background
 }
 
@@ -116,7 +116,7 @@ on the others.
 
 A node-link graph (Cytoscape). Concepts, variables and studies are drawn as distinct
 shapes and colours; variables run light to dark blue with `related_concepts_count`;
-studies (or variables) connecting two or more concepts get an amber halo.
+studies (or variables) connecting two or more seeds (what was asked about) get an amber halo.
 
 Extra options:
 
@@ -160,7 +160,7 @@ used) first, so ids match what the views draw.
 | Function | File | |
 |---|---|---|
 | `collapseVersions(graph)`, `baseId(id)` | `collapse.ts` | merge dbGaP releases (`phs000007.v34.p15` + `.v31.p12` → `phs000007`, with `versions`) |
-| `bridges(graph)`, `sharedOnly(graph)` | `bridges.ts` | the nodes connecting two or more concepts; the graph reduced to them |
+| `bridges(graph)`, `sharedOnly(graph)` | `bridges.ts` | the nodes connecting two or more seeds (other concepts, e.g. synonyms, don't count); the graph reduced to them |
 | `studyList(graph)` | `list.ts` | studies → concepts → variables, shared studies first: for a list or table view, or a text alternative to the graph |
 | `nodeLinks(node, graph)`, `conceptLink(id)` | `links.ts` | pages for a node: dbGaP study and variable pages (one per release; a variable without an accession gets its study, with a `note`); concepts by CURIE prefix (MONDO, EFO, UMLS, GTOPDB, otherwise bioregistry.io), marked "(login)" where an account is needed |
 | `focusConnections(graph, focus)`, `pairVariables(graph, concept, study)` | `focus.ts` | what a focus lights up; a pair's variables |

@@ -359,7 +359,7 @@ type GraphBodyProps = {
   onMode: (m: ViewMode) => void
   sharedOnly: boolean
   onSharedOnly: (on: boolean) => void
-  canShare: boolean // some study connects two or more concepts: offer the filter
+  canShare: boolean // some study connects two or more seeds: offer the filter
   sources: string[] // the per-call graphs' labels (none: nothing to pick)
   source: number // which one is shown; -1: all merged
   onSource: (i: number) => void
@@ -463,7 +463,7 @@ function GraphBody(props: GraphBodyProps) {
                   Shared only
                 </label>
               </TooltipTrigger>
-              <TooltipContent side="bottom">Only the studies with variables on two or more concepts</TooltipContent>
+              <TooltipContent side="bottom">Only the studies with variables on two or more of the concepts asked about</TooltipContent>
             </Tooltip>
           )}
           <ViewPicker layout={layout} mode={mode} onLayout={onLayout} onMode={onMode} />

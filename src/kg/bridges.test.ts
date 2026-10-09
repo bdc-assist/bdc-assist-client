@@ -5,15 +5,37 @@ import { collapseVersions } from './collapse'
 import asthmaCopd from './fixtures/graph/concept_graph_2.json'
 import chd from './fixtures/graph/concept_graph.json'
 import cohort from './fixtures/graph/cohort_variables.json'
+import search from './fixtures/graph/search_concepts.json'
 import type { KgGraph } from './types'
 
 const TWO = collapseVersions(asthmaCopd as KgGraph)
 const CHD = collapseVersions(chd as KgGraph)
 const COHORT = collapseVersions(cohort as KgGraph) // find_cohort_variables: search terms, not concepts
+const SEARCH = collapseVersions(search as KgGraph) // search_concepts: no seeds
 
 describe('bridges', () => {
-  it('finds the studies with variables on both concepts (real asthma + COPD graph)', () => {
+  it('finds the studies with variables on both seeds (real asthma + COPD graph)', () => {
     expect([...bridges(TWO)].sort()).toEqual(['phs000007', 'phs000280']) // Framingham, ARIC
+  })
+
+  it("doesn't count concepts nobody asked about (real BMI search: every variable on 9 synonyms)", () => {
+    expect(SEARCH.nodes.some((n) => n.seed)).toBe(false)
+    expect(bridges(SEARCH).size).toBe(0)
+  })
+
+  it('counts only seeds when there are other concepts too', () => {
+    const g: KgGraph = {
+      nodes: [
+        { id: 'A', label: 'a', type: 'concept', seed: true },
+        { id: 'S', label: 'synonym of a', type: 'concept' },
+        { id: 'v', label: 'v', type: 'variable' },
+      ],
+      edges: [
+        { source: 'v', target: 'A' },
+        { source: 'v', target: 'S' },
+      ],
+    }
+    expect(bridges(g).size).toBe(0)
   })
 
   it('counts search terms like concepts (real asthma + COPD cohort search)', () => {
@@ -22,15 +44,15 @@ describe('bridges', () => {
     expect(sharedOnly(COHORT).nodes.filter((n) => n.type === 'term').map((n) => n.id)).toEqual(['asthma', 'COPD'])
   })
 
-  it('finds none with a single concept', () => {
+  it('finds none with a single seed', () => {
     expect(bridges(CHD).size).toBe(0)
   })
 
   it('counts a study whose releases only become shared once merged', () => {
     const g: KgGraph = {
       nodes: [
-        { id: 'A', label: 'a', type: 'concept' },
-        { id: 'B', label: 'b', type: 'concept' },
+        { id: 'A', label: 'a', type: 'concept', seed: true },
+        { id: 'B', label: 'b', type: 'concept', seed: true },
         { id: 'phv1.v1.p1', label: 'v1', type: 'variable' },
         { id: 'phv2.v1.p2', label: 'v2', type: 'variable' },
         { id: 'phs1.v1.p1', label: 's', type: 'study' },
@@ -47,11 +69,11 @@ describe('bridges', () => {
     expect([...bridges(collapseVersions(g))]).toEqual(['phs1'])
   })
 
-  it('counts a variable on two concepts, and its study', () => {
+  it('counts a variable on two seeds, and its study', () => {
     const g: KgGraph = {
       nodes: [
-        { id: 'A', label: 'a', type: 'concept' },
-        { id: 'B', label: 'b', type: 'concept' },
+        { id: 'A', label: 'a', type: 'concept', seed: true },
+        { id: 'B', label: 'b', type: 'concept', seed: true },
         { id: 'v', label: 'copd or asthma', type: 'variable' },
         { id: 's', label: 's', type: 'study' },
       ],
@@ -67,8 +89,8 @@ describe('bridges', () => {
   it('does not count a concept related to other concepts', () => {
     const g: KgGraph = {
       nodes: [
-        { id: 'A', label: 'a', type: 'concept' },
-        { id: 'B', label: 'b', type: 'concept' },
+        { id: 'A', label: 'a', type: 'concept', seed: true },
+        { id: 'B', label: 'b', type: 'concept', seed: true },
         { id: 'C', label: 'c', type: 'concept' },
       ],
       edges: [

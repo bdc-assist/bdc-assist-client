@@ -64,7 +64,7 @@ const PADDING = 16
 /**
  * Draw `graph` into `container` (which needs a height). Variables are coloured from
  * --kg-variable-low to --kg-variable-high the more other concepts they link to
- * (related_concepts_count); nodes connecting two or more concepts get an amber halo.
+ * (related_concepts_count); nodes connecting two or more seeds get an amber halo.
  * Clicking a node (or focus() from elsewhere, also for a concept × study pair)
  * highlights what it's connected to (see focusConnections) and fades the rest;
  * clicking the background clears it.
@@ -134,7 +134,7 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
     cy.batch(() => {
       cy.elements().remove()
       cy.add(toElements(drawn))
-      // nodes that connect two or more concepts get a halo (`bridge`)
+      // nodes that connect two or more seeds get a halo (`bridge`)
       cy.nodes().forEach((n) => void n.toggleClass('bridge', shared.has(n.id())))
     })
     arrange()
@@ -332,7 +332,7 @@ function styleFor(el: HTMLElement): StylesheetJson {
       style: { 'line-style': 'dashed', 'line-color': color('concept'), 'line-opacity': 0.6 },
     },
     {
-      // connects two or more concepts: a soft halo in the concept colour
+      // connects two or more seeds: a soft halo in the concept colour
       selector: 'node.bridge',
       style: {
         'underlay-color': color('concept'),
