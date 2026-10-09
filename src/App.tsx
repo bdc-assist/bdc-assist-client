@@ -11,6 +11,7 @@ import type { ReactNode } from 'react'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { BdcMessageParts } from '@/components/bdc/message-parts'
 import { NewConversation } from '@/components/bdc/new-conversation'
+import { ThemeToggle } from '@/components/bdc/theme-toggle'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { createBdcAdapter, type Reveal } from '@/lib/bdc-adapter'
 import { browserStorage, createThreadStorage } from '@/lib/thread-storage'
@@ -56,6 +57,7 @@ export default function App() {
           <div className="relative h-dvh">
             <Thread />
             <NewConversation storage={threadStorage} />
+            <ThemeToggle />
           </div>
         </TooltipProvider>
       </Starters>

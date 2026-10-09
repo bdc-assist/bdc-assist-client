@@ -542,6 +542,12 @@ function GraphBody(props: GraphBodyProps) {
   }, [json]) // eslint-disable-line react-hooks/exhaustive-deps -- grouped, sharedOnly: see below
 
   useEffect(() => view.current?.setOptions({ layout }), [layout])
+  // the graph reads its --kg-* colours once: again when the theme (the dark class) changes
+  useEffect(() => {
+    const observer = new MutationObserver(() => view.current?.refreshStyle())
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
   useEffect(() => {
     view.current?.setOptions({ sharedOnly })
     flowView.current?.setOptions({ sharedOnly })

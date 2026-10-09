@@ -15,7 +15,7 @@ export function NewConversation({ storage }: { storage: ThreadStorage }) {
       tooltip="New conversation"
       side="left"
       variant="outline"
-      className="absolute top-3 right-6 z-20 size-8 rounded-full p-2"
+      className="absolute top-3 right-16 z-20 size-8 rounded-full p-2"
       onClick={() => {
         if (aui.thread.getState().isRunning) aui.thread.cancelRun()
         storage.clear()
