@@ -1,0 +1,495 @@
+{
+ "nodes": [
+  {
+   "id": "phv00000484.v1.p12",
+   "label": "MF10",
+   "type": "variable"
+  },
+  {
+   "id": "phs000007.v31.p12",
+   "label": "Framingham Cohort",
+   "type": "study"
+  },
+  {
+   "id": "asthma",
+   "label": "asthma",
+   "type": "concept",
+   "term": true
+  },
+  {
+   "id": "phv00000603.v1.p12",
+   "label": "MF135",
+   "type": "variable"
+  },
+  {
+   "id": "phv00000701.v1.p12",
+   "label": "MF246",
+   "type": "variable"
+  },
+  {
+   "id": "phv00000789.v1.p12",
+   "label": "MF339",
+   "type": "variable"
+  },
+  {
+   "id": "phv00001099.v1.p12",
+   "label": "FA80",
+   "type": "variable"
+  },
+  {
+   "id": "phv00001118.v1.p12",
+   "label": "FA107",
+   "type": "variable"
+  },
+  {
+   "id": "phv00003015.v1.p12",
+   "label": "FJ72",
+   "type": "variable"
+  },
+  {
+   "id": "phv00003399.v1.p12",
+   "label": "FK151",
+   "type": "variable"
+  },
+  {
+   "id": "phv00003856.v1.p12",
+   "label": "FL212",
+   "type": "variable"
+  },
+  {
+   "id": "phv00056802.v2.p12",
+   "label": "hi201c",
+   "type": "variable"
+  },
+  {
+   "id": "COPD",
+   "label": "COPD",
+   "type": "concept",
+   "term": true
+  },
+  {
+   "id": "phv00177574.v4.p12",
+   "label": "g3b0600",
+   "type": "variable"
+  },
+  {
+   "id": "phv00251717.v1.p12",
+   "label": "h661",
+   "type": "variable"
+  },
+  {
+   "id": "phv00000484.v1.p15",
+   "label": "MF10",
+   "type": "variable"
+  },
+  {
+   "id": "phs000007.v34.p15",
+   "label": "Framingham Cohort",
+   "type": "study"
+  },
+  {
+   "id": "phv00000603.v1.p15",
+   "label": "MF135",
+   "type": "variable"
+  },
+  {
+   "id": "phv00000701.v1.p15",
+   "label": "MF246",
+   "type": "variable"
+  },
+  {
+   "id": "phv00000789.v1.p15",
+   "label": "MF339",
+   "type": "variable"
+  },
+  {
+   "id": "phv00001099.v1.p15",
+   "label": "FA80",
+   "type": "variable"
+  },
+  {
+   "id": "phv00001118.v1.p15",
+   "label": "FA107",
+   "type": "variable"
+  },
+  {
+   "id": "phv00003015.v1.p15",
+   "label": "FJ72",
+   "type": "variable"
+  },
+  {
+   "id": "phv00003399.v1.p15",
+   "label": "FK151",
+   "type": "variable"
+  },
+  {
+   "id": "phv00003856.v1.p15",
+   "label": "FL212",
+   "type": "variable"
+  },
+  {
+   "id": "phv00056802.v4.p15",
+   "label": "hi201c",
+   "type": "variable"
+  },
+  {
+   "id": "phv00177574.v6.p15",
+   "label": "g3b0600",
+   "type": "variable"
+  },
+  {
+   "id": "phv00251717.v2.p15",
+   "label": "h661",
+   "type": "variable"
+  },
+  {
+   "id": "phs002752_F106Q01.v1.p1",
+   "label": "F106Q01",
+   "type": "variable"
+  },
+  {
+   "id": "phs002752.v1.p1",
+   "label": "Clinical Trial of COVID-19 Convalescent Plasma in Outpatients (C3PO)",
+   "type": "study"
+  },
+  {
+   "id": "phv00083602.v1.p3",
+   "label": "copdmoa4",
+   "type": "variable"
+  },
+  {
+   "id": "phs000209.v13.p3",
+   "label": "Multi-Ethnic Study of Atherosclerosis (MESA) Cohort",
+   "type": "study"
+  },
+  {
+   "id": "phv00083832.v2.p3",
+   "label": "copdmoa4",
+   "type": "variable"
+  },
+  {
+   "id": "phv00087828.v1.p3",
+   "label": "copdmoa4",
+   "type": "variable"
+  },
+  {
+   "id": "phv00159844.v4.p2",
+   "label": "Exacerbation_Frequency",
+   "type": "variable"
+  },
+  {
+   "id": "phs000179.v6.p2",
+   "label": "Genetic Epidemiology of COPD (COPDGene) Funded by the National Heart, Lung, and Blood Institute",
+   "type": "study"
+  },
+  {
+   "id": "phv00169306.v3.p2",
+   "label": "ExclusionaryDisease",
+   "type": "variable"
+  },
+  {
+   "id": "phv00278174.v1.p2",
+   "label": "Study_Phase",
+   "type": "variable"
+  },
+  {
+   "id": "phv00283510.v2.p3",
+   "label": "BRONCHITISHX",
+   "type": "variable"
+  },
+  {
+   "id": "phs000200.v12.p3",
+   "label": "Women's Health Initiative Clinical Trial and Observational Study",
+   "type": "study"
+  },
+  {
+   "id": "phv00293470.v1.p1",
+   "label": "CMICS",
+   "type": "variable"
+  },
+  {
+   "id": "phs001252.v1.p1",
+   "label": "Evaluation of COPD Longitudinally to Identify Predictive Surrogate Endpoints (ECLIPSE)",
+   "type": "study"
+  },
+  {
+   "id": "phv00293731.v1.p1",
+   "label": "CMICS",
+   "type": "variable"
+  }
+ ],
+ "edges": [
+  {
+   "source": "phv00000484.v1.p12",
+   "target": "phs000007.v31.p12"
+  },
+  {
+   "source": "phv00000484.v1.p12",
+   "target": "asthma"
+  },
+  {
+   "source": "phv00000603.v1.p12",
+   "target": "phs000007.v31.p12"
+  },
+  {
+   "source": "phv00000603.v1.p12",
+   "target": "asthma"
+  },
+  {
+   "source": "phv00000701.v1.p12",
+   "target": "phs000007.v31.p12"
+  },
+  {
+   "source": "phv00000701.v1.p12",
+   "target": "asthma"
+  },
+  {
+   "source": "phv00000789.v1.p12",
+   "target": "phs000007.v31.p12"
+  },
+  {
+   "source": "phv00000789.v1.p12",
+   "target": "asthma"
+  },
+  {
+   "source": "phv00001099.v1.p12",
+   "target": "phs000007.v31.p12"
+  },
+  {
+   "source": "phv00001099.v1.p12",
+   "target": "asthma"
+  },
+  {
+   "source": "phv00001118.v1.p12",
+   "target": "phs000007.v31.p12"
+  },
+  {
+   "source": "phv00001118.v1.p12",
+   "target": "asthma"
+  },
+  {
+   "source": "phv00003015.v1.p12",
+   "target": "phs000007.v31.p12"
+  },
+  {
+   "source": "phv00003015.v1.p12",
+   "target": "asthma"
+  },
+  {
+   "source": "phv00003399.v1.p12",
+   "target": "phs000007.v31.p12"
+  },
+  {
+   "source": "phv00003399.v1.p12",
+   "target": "asthma"
+  },
+  {
+   "source": "phv00003856.v1.p12",
+   "target": "phs000007.v31.p12"
+  },
+  {
+   "source": "phv00003856.v1.p12",
+   "target": "asthma"
+  },
+  {
+   "source": "phv00056802.v2.p12",
+   "target": "phs000007.v31.p12"
+  },
+  {
+   "source": "phv00056802.v2.p12",
+   "target": "COPD"
+  },
+  {
+   "source": "phv00177574.v4.p12",
+   "target": "phs000007.v31.p12"
+  },
+  {
+   "source": "phv00177574.v4.p12",
+   "target": "COPD"
+  },
+  {
+   "source": "phv00251717.v1.p12",
+   "target": "phs000007.v31.p12"
+  },
+  {
+   "source": "phv00251717.v1.p12",
+   "target": "COPD"
+  },
+  {
+   "source": "phv00000484.v1.p15",
+   "target": "phs000007.v34.p15"
+  },
+  {
+   "source": "phv00000484.v1.p15",
+   "target": "asthma"
+  },
+  {
+   "source": "phv00000603.v1.p15",
+   "target": "phs000007.v34.p15"
+  },
+  {
+   "source": "phv00000603.v1.p15",
+   "target": "asthma"
+  },
+  {
+   "source": "phv00000701.v1.p15",
+   "target": "phs000007.v34.p15"
+  },
+  {
+   "source": "phv00000701.v1.p15",
+   "target": "asthma"
+  },
+  {
+   "source": "phv00000789.v1.p15",
+   "target": "phs000007.v34.p15"
+  },
+  {
+   "source": "phv00000789.v1.p15",
+   "target": "asthma"
+  },
+  {
+   "source": "phv00001099.v1.p15",
+   "target": "phs000007.v34.p15"
+  },
+  {
+   "source": "phv00001099.v1.p15",
+   "target": "asthma"
+  },
+  {
+   "source": "phv00001118.v1.p15",
+   "target": "phs000007.v34.p15"
+  },
+  {
+   "source": "phv00001118.v1.p15",
+   "target": "asthma"
+  },
+  {
+   "source": "phv00003015.v1.p15",
+   "target": "phs000007.v34.p15"
+  },
+  {
+   "source": "phv00003015.v1.p15",
+   "target": "asthma"
+  },
+  {
+   "source": "phv00003399.v1.p15",
+   "target": "phs000007.v34.p15"
+  },
+  {
+   "source": "phv00003399.v1.p15",
+   "target": "asthma"
+  },
+  {
+   "source": "phv00003856.v1.p15",
+   "target": "phs000007.v34.p15"
+  },
+  {
+   "source": "phv00003856.v1.p15",
+   "target": "asthma"
+  },
+  {
+   "source": "phv00056802.v4.p15",
+   "target": "phs000007.v34.p15"
+  },
+  {
+   "source": "phv00056802.v4.p15",
+   "target": "COPD"
+  },
+  {
+   "source": "phv00177574.v6.p15",
+   "target": "phs000007.v34.p15"
+  },
+  {
+   "source": "phv00177574.v6.p15",
+   "target": "COPD"
+  },
+  {
+   "source": "phv00251717.v2.p15",
+   "target": "phs000007.v34.p15"
+  },
+  {
+   "source": "phv00251717.v2.p15",
+   "target": "COPD"
+  },
+  {
+   "source": "phs002752_F106Q01.v1.p1",
+   "target": "phs002752.v1.p1"
+  },
+  {
+   "source": "phs002752_F106Q01.v1.p1",
+   "target": "asthma"
+  },
+  {
+   "source": "phv00083602.v1.p3",
+   "target": "phs000209.v13.p3"
+  },
+  {
+   "source": "phv00083602.v1.p3",
+   "target": "COPD"
+  },
+  {
+   "source": "phv00083832.v2.p3",
+   "target": "phs000209.v13.p3"
+  },
+  {
+   "source": "phv00083832.v2.p3",
+   "target": "COPD"
+  },
+  {
+   "source": "phv00087828.v1.p3",
+   "target": "phs000209.v13.p3"
+  },
+  {
+   "source": "phv00087828.v1.p3",
+   "target": "COPD"
+  },
+  {
+   "source": "phv00159844.v4.p2",
+   "target": "phs000179.v6.p2"
+  },
+  {
+   "source": "phv00159844.v4.p2",
+   "target": "COPD"
+  },
+  {
+   "source": "phv00169306.v3.p2",
+   "target": "phs000179.v6.p2"
+  },
+  {
+   "source": "phv00169306.v3.p2",
+   "target": "COPD"
+  },
+  {
+   "source": "phv00278174.v1.p2",
+   "target": "phs000179.v6.p2"
+  },
+  {
+   "source": "phv00278174.v1.p2",
+   "target": "COPD"
+  },
+  {
+   "source": "phv00283510.v2.p3",
+   "target": "phs000200.v12.p3"
+  },
+  {
+   "source": "phv00283510.v2.p3",
+   "target": "COPD"
+  },
+  {
+   "source": "phv00293470.v1.p1",
+   "target": "phs001252.v1.p1"
+  },
+  {
+   "source": "phv00293470.v1.p1",
+   "target": "COPD"
+  },
+  {
+   "source": "phv00293731.v1.p1",
+   "target": "phs001252.v1.p1"
+  },
+  {
+   "source": "phv00293731.v1.p1",
+   "target": "COPD"
+  }
+ ]
+}

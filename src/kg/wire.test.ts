@@ -1,15 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
-import asthmaCopdKg from './fixtures/asthma-copd-kg.json'
-import asthmaCopd from './fixtures/asthma-copd-graph.json'
-import chdKg from './fixtures/chd-kg.json'
-import chd from './fixtures/chd-graph.json'
+import asthmaCopdFixture from './fixtures/kg/concept_graph_2.json'
+import asthmaCopd from './fixtures/graph/concept_graph_2.json'
+import chdFixture from './fixtures/kg/concept_graph.json'
+import chd from './fixtures/graph/concept_graph.json'
 import type { KgGraph } from './types'
 import { toElements } from './elements'
 import { fromKgList, kgLabel, kgParts } from './wire'
 
-// *-kg.json: what the API sends today, made by main's interceptor (to_kg in
-// examples/bdc/interceptors.py, in bdc-assist) from the same Dug results as the *-graph.json fixtures
+// fixtures/kg/: what the API sends (bdc-assist's Dug interceptor on real Dug results);
+// fixtures/graph/: fromKgList of each, made by npm run fixtures
+const chdKg = chdFixture.kg
+const asthmaCopdKg = asthmaCopdFixture.kg
 const count = (g: KgGraph, t: string) => g.nodes.filter((n) => n.type === t).length
 
 describe('fromKgList', () => {
@@ -35,7 +37,7 @@ describe('fromKgList', () => {
       label: 'Framingham Cohort',
       type: 'study',
     })
-    expect(g.nodes.find((n) => n.id === 'MONDO:0004979')).toMatchObject({ type: 'concept', concept_type: 'NamedThing' })
+    expect(g.nodes.find((n) => n.id === 'MONDO:0004979')).toMatchObject({ type: 'concept', concept_type: 'biolink:NamedThing' })
   })
 
   it('takes the proposed fields too: type, attributes.related_concepts_count, predicate', () => {

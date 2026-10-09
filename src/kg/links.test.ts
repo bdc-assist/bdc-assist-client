@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { collapseVersions } from './collapse'
-import chd from './fixtures/chd-graph.json'
+import chd from './fixtures/graph/concept_graph.json'
 // every CURIE prefix Dug can return, per biolink category (from the Dug team)
 import dugPrefixes from './fixtures/dug_curie_prefixes.json'
 import { conceptLink, nodeLinks } from './links'

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { collapseVersions } from './collapse'
 import { toElements } from './elements'
-import chd from './fixtures/chd-graph.json'
+import chd from './fixtures/graph/concept_graph.json'
 import type { KgGraph } from './types'
 
 const CHD = collapseVersions(chd as KgGraph)

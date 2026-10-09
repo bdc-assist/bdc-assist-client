@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import { baseId, collapseVersions } from './collapse'
-import asthmaCopd from './fixtures/asthma-copd-graph.json'
-import chd from './fixtures/chd-graph.json'
+import asthmaCopd from './fixtures/graph/concept_graph_2.json'
+import chd from './fixtures/graph/concept_graph.json'
 import type { KgGraph } from './types'
 
 // real server output for Dug get_concept_graph on congenital heart disease (MONDO:0005453),
-// made from bdc-assist's tests/fixtures/dug_concept_graph_chd.json; the same graph fromKgList makes of chd-kg.json
+// fromKgList of fixtures/kg/concept_graph.json (bdc-assist's tests/fixtures/dug_concept_graph_chd.json)
 const CHD = chd as KgGraph
 
 const count = (g: KgGraph, type: string) => g.nodes.filter((n) => n.type === type).length

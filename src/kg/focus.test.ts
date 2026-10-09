@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { collapseVersions } from './collapse'
-import asthmaCopd from './fixtures/asthma-copd-graph.json'
+import asthmaCopd from './fixtures/graph/concept_graph_2.json'
 import { focusConnections, pairVariables, sameFocus } from './focus'
 import type { KgGraph } from './types'
 

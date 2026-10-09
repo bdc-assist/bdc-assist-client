@@ -1,0 +1,740 @@
+{
+ "nodes": [
+  {
+   "id": "phs002752_F106BMI.v1.p1",
+   "label": "F106BMI",
+   "type": "variable"
+  },
+  {
+   "id": "UMLS:C2957659",
+   "label": "body mass index documented",
+   "type": "concept",
+   "concept_type": "biolink:Activity"
+  },
+  {
+   "id": "UMLS:C3698309",
+   "label": "Measurement of body mass index",
+   "type": "concept",
+   "concept_type": "biolink:Activity"
+  },
+  {
+   "id": "UMLS:C1305855",
+   "label": "Body mass index",
+   "type": "concept",
+   "concept_type": "biolink:NamedThing"
+  },
+  {
+   "id": "UMLS:C1648313",
+   "label": "Deprecated Body mass index (BMI)",
+   "type": "concept",
+   "concept_type": "biolink:NamedThing"
+  },
+  {
+   "id": "EFO:0004340",
+   "label": "body mass index",
+   "type": "concept",
+   "concept_type": "biolink:NamedThing"
+  },
+  {
+   "id": "UMLS:C2911062",
+   "label": "body mass index, pediatric",
+   "type": "concept",
+   "concept_type": "biolink:NamedThing"
+  },
+  {
+   "id": "UMLS:C5547467",
+   "label": "Body mass index for age percentile",
+   "type": "concept",
+   "concept_type": "biolink:NamedThing"
+  },
+  {
+   "id": "UMLS:C5566395",
+   "label": "Body mass index prime ratio",
+   "type": "concept",
+   "concept_type": "biolink:NamedThing"
+  },
+  {
+   "id": "NCIT:C138901",
+   "label": "Body Mass Index Finding",
+   "type": "concept",
+   "concept_type": "biolink:NamedThing"
+  },
+  {
+   "id": "phs002907_BMI.v1.p1",
+   "label": "Body mass index (kg/m2)",
+   "type": "variable"
+  },
+  {
+   "id": "phs002908_BMI.v1.p1",
+   "label": "Body mass index (kg/m2)",
+   "type": "variable"
+  },
+  {
+   "id": "phs002988_BMI.v1.p1",
+   "label": "BMI",
+   "type": "variable"
+  },
+  {
+   "id": "phs003045_BMI.v1.p1",
+   "label": "BMI",
+   "type": "variable"
+  },
+  {
+   "id": "phv00004077.v1.p12",
+   "label": "FL517",
+   "type": "variable"
+  },
+  {
+   "id": "phv00004077.v1.p15",
+   "label": "FL517",
+   "type": "variable"
+  },
+  {
+   "id": "phv00004521.v1.p12",
+   "label": "FM537",
+   "type": "variable"
+  },
+  {
+   "id": "phv00004521.v1.p15",
+   "label": "FM537",
+   "type": "variable"
+  },
+  {
+   "id": "phv00004933.v1.p12",
+   "label": "FN505",
+   "type": "variable"
+  }
+ ],
+ "edges": [
+  {
+   "source": "phs002752_F106BMI.v1.p1",
+   "target": "UMLS:C2957659",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002752_F106BMI.v1.p1",
+   "target": "UMLS:C3698309",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002752_F106BMI.v1.p1",
+   "target": "UMLS:C1305855",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002752_F106BMI.v1.p1",
+   "target": "UMLS:C1648313",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002752_F106BMI.v1.p1",
+   "target": "EFO:0004340",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002752_F106BMI.v1.p1",
+   "target": "UMLS:C2911062",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002752_F106BMI.v1.p1",
+   "target": "UMLS:C5547467",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002752_F106BMI.v1.p1",
+   "target": "UMLS:C5566395",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002752_F106BMI.v1.p1",
+   "target": "NCIT:C138901",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002907_BMI.v1.p1",
+   "target": "UMLS:C2957659",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002907_BMI.v1.p1",
+   "target": "UMLS:C3698309",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002907_BMI.v1.p1",
+   "target": "UMLS:C1305855",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002907_BMI.v1.p1",
+   "target": "UMLS:C1648313",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002907_BMI.v1.p1",
+   "target": "EFO:0004340",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002907_BMI.v1.p1",
+   "target": "UMLS:C2911062",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002907_BMI.v1.p1",
+   "target": "UMLS:C5547467",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002907_BMI.v1.p1",
+   "target": "UMLS:C5566395",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002907_BMI.v1.p1",
+   "target": "NCIT:C138901",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002908_BMI.v1.p1",
+   "target": "UMLS:C2957659",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002908_BMI.v1.p1",
+   "target": "UMLS:C3698309",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002908_BMI.v1.p1",
+   "target": "UMLS:C1305855",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002908_BMI.v1.p1",
+   "target": "UMLS:C1648313",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002908_BMI.v1.p1",
+   "target": "EFO:0004340",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002908_BMI.v1.p1",
+   "target": "UMLS:C2911062",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002908_BMI.v1.p1",
+   "target": "UMLS:C5547467",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002908_BMI.v1.p1",
+   "target": "UMLS:C5566395",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002908_BMI.v1.p1",
+   "target": "NCIT:C138901",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002988_BMI.v1.p1",
+   "target": "UMLS:C2957659",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002988_BMI.v1.p1",
+   "target": "UMLS:C3698309",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002988_BMI.v1.p1",
+   "target": "UMLS:C1305855",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002988_BMI.v1.p1",
+   "target": "UMLS:C1648313",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002988_BMI.v1.p1",
+   "target": "EFO:0004340",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002988_BMI.v1.p1",
+   "target": "UMLS:C2911062",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002988_BMI.v1.p1",
+   "target": "UMLS:C5547467",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002988_BMI.v1.p1",
+   "target": "UMLS:C5566395",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs002988_BMI.v1.p1",
+   "target": "NCIT:C138901",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs003045_BMI.v1.p1",
+   "target": "UMLS:C2957659",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs003045_BMI.v1.p1",
+   "target": "UMLS:C3698309",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs003045_BMI.v1.p1",
+   "target": "UMLS:C1305855",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs003045_BMI.v1.p1",
+   "target": "UMLS:C1648313",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs003045_BMI.v1.p1",
+   "target": "EFO:0004340",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs003045_BMI.v1.p1",
+   "target": "UMLS:C2911062",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs003045_BMI.v1.p1",
+   "target": "UMLS:C5547467",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs003045_BMI.v1.p1",
+   "target": "UMLS:C5566395",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phs003045_BMI.v1.p1",
+   "target": "NCIT:C138901",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004077.v1.p12",
+   "target": "UMLS:C2957659",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004077.v1.p12",
+   "target": "UMLS:C3698309",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004077.v1.p12",
+   "target": "UMLS:C1305855",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004077.v1.p12",
+   "target": "UMLS:C1648313",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004077.v1.p12",
+   "target": "EFO:0004340",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004077.v1.p12",
+   "target": "UMLS:C2911062",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004077.v1.p12",
+   "target": "UMLS:C5547467",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004077.v1.p12",
+   "target": "UMLS:C5566395",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004077.v1.p12",
+   "target": "NCIT:C138901",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004077.v1.p15",
+   "target": "UMLS:C2957659",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004077.v1.p15",
+   "target": "UMLS:C3698309",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004077.v1.p15",
+   "target": "UMLS:C1305855",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004077.v1.p15",
+   "target": "UMLS:C1648313",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004077.v1.p15",
+   "target": "EFO:0004340",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004077.v1.p15",
+   "target": "UMLS:C2911062",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004077.v1.p15",
+   "target": "UMLS:C5547467",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004077.v1.p15",
+   "target": "UMLS:C5566395",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004077.v1.p15",
+   "target": "NCIT:C138901",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004521.v1.p12",
+   "target": "UMLS:C2957659",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004521.v1.p12",
+   "target": "UMLS:C3698309",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004521.v1.p12",
+   "target": "UMLS:C1305855",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004521.v1.p12",
+   "target": "UMLS:C1648313",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004521.v1.p12",
+   "target": "EFO:0004340",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004521.v1.p12",
+   "target": "UMLS:C2911062",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004521.v1.p12",
+   "target": "UMLS:C5547467",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004521.v1.p12",
+   "target": "UMLS:C5566395",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004521.v1.p12",
+   "target": "NCIT:C138901",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004521.v1.p15",
+   "target": "UMLS:C2957659",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004521.v1.p15",
+   "target": "UMLS:C3698309",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004521.v1.p15",
+   "target": "UMLS:C1305855",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004521.v1.p15",
+   "target": "UMLS:C1648313",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004521.v1.p15",
+   "target": "EFO:0004340",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004521.v1.p15",
+   "target": "UMLS:C2911062",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004521.v1.p15",
+   "target": "UMLS:C5547467",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004521.v1.p15",
+   "target": "UMLS:C5566395",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004521.v1.p15",
+   "target": "NCIT:C138901",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004933.v1.p12",
+   "target": "UMLS:C2957659",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004933.v1.p12",
+   "target": "UMLS:C3698309",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004933.v1.p12",
+   "target": "UMLS:C1305855",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004933.v1.p12",
+   "target": "UMLS:C1648313",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004933.v1.p12",
+   "target": "EFO:0004340",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004933.v1.p12",
+   "target": "UMLS:C2911062",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004933.v1.p12",
+   "target": "UMLS:C5547467",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004933.v1.p12",
+   "target": "UMLS:C5566395",
+   "predicates": [
+    "related_to"
+   ]
+  },
+  {
+   "source": "phv00004933.v1.p12",
+   "target": "NCIT:C138901",
+   "predicates": [
+    "related_to"
+   ]
+  }
+ ]
+}
