@@ -466,6 +466,7 @@ type GraphBodyProps = {
   source: number // which one is shown; -1: all merged
   onSource: (i: number) => void
   zoomGestures: boolean | 'modifier' // see mountGraph: 'modifier' where the chat scrolls around the graph
+  detailsBeside?: boolean // details in a column on the right, not below: picking a node never resizes the views
 }
 
 const ZOOM_STEP = 1.3
@@ -473,7 +474,7 @@ const ZOOM_KEY = /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl'
 
 function GraphBody(props: GraphBodyProps) {
   const { json, shown, canvasClass, layout, onLayout, mode, onMode, sharedOnly, onSharedOnly, canShare, zoomGestures } = props
-  const { sources, source, onSource, grouped, onGrouped, canGroup } = props
+  const { sources, source, onSource, grouped, onGrouped, canGroup, detailsBeside } = props
   const relationCount = useMemo(() => relations(shown).length, [shown])
   const withoutStudy = useMemo(() => flowData(shown).withoutStudy.length, [shown])
   const hasTerms = useMemo(() => shown.nodes.some((n) => n.type === 'term'), [shown])
@@ -600,65 +601,72 @@ function GraphBody(props: GraphBodyProps) {
           <ViewPicker layout={layout} mode={mode} onLayout={onLayout} onMode={onMode} />
         </div>
       </div>
-      {mode === 'list' && (
-        <div className={`overflow-y-auto border-t ${canvasClass}`}>
-          <StudyList graph={shown} focus={focus} onPick={pickFromList} />
-        </div>
-      )}
-      {/* the flow's own box (mountFlow fills it), plus a note on what it can't show */}
-      <div className={`relative border-t ${canvasClass} ${mode === 'flow' ? '' : 'hidden'}`}>
-        <div
-          ref={flowContainer}
-          className="h-full w-full"
-          aria-label="Knowledge graph as flows from concepts to studies. The List view shows the same as text."
-        />
-        {(relationCount > 0 || withoutStudy > 0) && (
-          <div className="text-muted-foreground absolute bottom-1.5 left-1.5 flex flex-col items-start gap-0.5">
-            {relationCount > 0 && (
-              <p className="bg-background/80 rounded px-1.5 py-0.5">
-                {relationCount} {relationCount === 1 ? 'relationship' : 'relationships'} between concepts not shown in
-                this view
-              </p>
-            )}
-            {withoutStudy > 0 && (
-              <p className="bg-background/80 rounded px-1.5 py-0.5">
-                {withoutStudy} {withoutStudy === 1 ? 'variable' : 'variables'} without a study not shown in this view
-              </p>
+      {/* beside: the views in a column, the details next to it; below: no wrappers */}
+      <div className={detailsBeside ? 'flex min-h-0 flex-1' : 'contents'}>
+        <div className={detailsBeside ? 'flex min-w-0 flex-1 flex-col' : 'contents'}>
+          {mode === 'list' && (
+            <div className={`overflow-y-auto border-t ${canvasClass}`}>
+              <StudyList graph={shown} focus={focus} onPick={pickFromList} />
+            </div>
+          )}
+          {/* the flow's own box (mountFlow fills it), plus a note on what it can't show */}
+          <div className={`relative border-t ${canvasClass} ${mode === 'flow' ? '' : 'hidden'}`}>
+            <div
+              ref={flowContainer}
+              className="h-full w-full"
+              aria-label="Knowledge graph as flows from concepts to studies. The List view shows the same as text."
+            />
+            {(relationCount > 0 || withoutStudy > 0) && (
+              <div className="text-muted-foreground absolute bottom-1.5 left-1.5 flex flex-col items-start gap-0.5">
+                {relationCount > 0 && (
+                  <p className="bg-background/80 rounded px-1.5 py-0.5">
+                    {relationCount} {relationCount === 1 ? 'relationship' : 'relationships'} between concepts not shown in
+                    this view
+                  </p>
+                )}
+                {withoutStudy > 0 && (
+                  <p className="bg-background/80 rounded px-1.5 py-0.5">
+                    {withoutStudy} {withoutStudy === 1 ? 'variable' : 'variables'} without a study not shown in this view
+                  </p>
+                )}
+              </div>
             )}
           </div>
-        )}
-      </div>
-      {/* kept mounted while another view shows, so the graph keeps its layout and zoom */}
-      <div className={`relative border-t ${canvasClass} ${mode === 'graph' ? '' : 'hidden'}`}>
-        {/* sized by height, not `absolute inset-0`: Cytoscape gives its container
-            `position: relative` from an unlayered style sheet, which beats Tailwind's
-            layered utilities, so `absolute` would be dropped and the box collapse */}
-        <div
-          ref={container}
-          className="h-full w-full"
-          role="img"
-          aria-label="Knowledge graph. The List view shows the same studies and variables as text."
-        />
-        <p
-          aria-hidden
-          className={`bg-foreground/75 text-background pointer-events-none absolute inset-x-0 top-1/2 mx-auto w-fit -translate-y-1/2 rounded-md px-3 py-1.5 transition-opacity ${zoomHint ? 'opacity-100' : 'opacity-0'}`}
-        >
-          Hold {ZOOM_KEY} and scroll to zoom
-        </p>
-        <div className="bg-background/80 absolute right-1.5 bottom-1.5 flex rounded-md border">
-          <TooltipIconButton tooltip="Zoom in" side="top" onClick={() => view.current?.zoomBy(ZOOM_STEP)}>
-            <PlusIcon />
-          </TooltipIconButton>
-          <TooltipIconButton tooltip="Zoom out" side="top" onClick={() => view.current?.zoomBy(1 / ZOOM_STEP)}>
-            <MinusIcon />
-          </TooltipIconButton>
-          <TooltipIconButton tooltip="Show all" side="top" onClick={() => view.current?.fit()}>
-            <ScanIcon />
-          </TooltipIconButton>
+          {/* kept mounted while another view shows, so the graph keeps its layout and zoom */}
+          <div className={`relative border-t ${canvasClass} ${mode === 'graph' ? '' : 'hidden'}`}>
+            {/* sized by height, not `absolute inset-0`: Cytoscape gives its container
+                `position: relative` from an unlayered style sheet, which beats Tailwind's
+                layered utilities, so `absolute` would be dropped and the box collapse */}
+            <div
+              ref={container}
+              className="h-full w-full"
+              role="img"
+              aria-label="Knowledge graph. The List view shows the same studies and variables as text."
+            />
+            <p
+              aria-hidden
+              className={`bg-foreground/75 text-background pointer-events-none absolute inset-x-0 top-1/2 mx-auto w-fit -translate-y-1/2 rounded-md px-3 py-1.5 transition-opacity ${zoomHint ? 'opacity-100' : 'opacity-0'}`}
+            >
+              Hold {ZOOM_KEY} and scroll to zoom
+            </p>
+            <div className="bg-background/80 absolute right-1.5 bottom-1.5 flex rounded-md border">
+              <TooltipIconButton tooltip="Zoom in" side="top" onClick={() => view.current?.zoomBy(ZOOM_STEP)}>
+                <PlusIcon />
+              </TooltipIconButton>
+              <TooltipIconButton tooltip="Zoom out" side="top" onClick={() => view.current?.zoomBy(1 / ZOOM_STEP)}>
+                <MinusIcon />
+              </TooltipIconButton>
+              <TooltipIconButton tooltip="Show all" side="top" onClick={() => view.current?.fit()}>
+                <ScanIcon />
+              </TooltipIconButton>
+            </div>
+          </div>
         </div>
-      </div>
-      <div className="border-t px-3 py-2">
-        <FocusDetails focus={focus} graph={shown} />
+        <div
+          className={detailsBeside ? 'w-80 shrink-0 overflow-y-auto border-t border-l px-3 py-2' : 'border-t px-3 py-2'}
+        >
+          <FocusDetails focus={focus} graph={shown} />
+        </div>
       </div>
     </div>
   )
@@ -760,6 +768,7 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
               onMode={setMode}
               {...filter}
               zoomGestures
+              detailsBeside
             />
           )}
         </DialogContent>
