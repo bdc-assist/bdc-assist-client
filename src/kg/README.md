@@ -128,8 +128,8 @@ Extra options:
 
 | Option | |
 |---|---|
-| `layout` | `'radial'` (default: the seeds in the middle, or the concepts when there are none; variables around, studies outside), `'force'` (force-directed, turned wide), `'columns'` (concepts \| variables \| studies). All listed in `KG_LAYOUTS` |
-| `variables` | `false` (default): one link per concept and study, as wide as its variables (√count), flat mid-blue; variables without a study link to a grey "No study provided" placeholder. Clicking a link focuses its concept × study pair. Without any studies, every link goes to the placeholder. `true`: each variable. Variables are drawn anyway in `'columns'` |
+| `layout` | `'radial'` (default: the seeds in the middle, or the concepts when there are none; variables around, studies outside), `'force'` (force-directed, turned wide). Both listed in `KG_LAYOUTS` |
+| `variables` | `false` (default): one link per concept and study, as wide as its variables (√count), flat mid-blue; variables without a study link to a grey "No study provided" placeholder. Clicking a link focuses its concept × study pair. Without any studies, every link goes to the placeholder. `true`: each variable |
 | `zoomGestures` | `false` (default: the wheel scrolls the page), `'modifier'` (Ctrl/⌘ + wheel zooms; trackpad pinch counts), `true` (the wheel always zooms). Use `'modifier'` where a page scrolls around the graph |
 | `onZoomHint` | `'modifier'` mode: called when the wheel turns over the graph without Ctrl/⌘, so you can say how to zoom |
 | `forcePositions` | a `Map` where Force keeps its node positions. Give two views of the same graph (inline and maximized) the same empty `Map`, and the second shows the first's layout, drags included. It's for one graph: give `update()` a new `Map` with a new graph |

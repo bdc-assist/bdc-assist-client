@@ -66,13 +66,13 @@ Computed on the graph being shown (the source picked, grouped or not), **before*
 | Force | — | everything: concepts and studies joined by bundles, or individual variables with Variables on | — |
 | Flow | studies | concept → study bands, width = variable count; variables without a study go to the placeholder | inter-concept links |
 | Matrix **(planned)** | variables | studies × concepts (or variables × concepts when there are no studies) | concepts without variables |
-| List | — | studies → concepts → variables; no studies: grouped by concept; star: grouped by predicate **(planned)** | — |
+| List | — | studies → concepts → variables; no studies: grouped by concept; no variables (star): the concepts, seeds first (grouped by predicate: parked) | — |
 
 Flow and Matrix both show bundles, and both stay. Flow shows proportions: how each
 concept's and each study's total splits. Matrix is for finding a value, comparing
 studies, and seeing which studies cover which seeds, and it scales to many studies.
 
-Columns (concepts | variables | studies) has been dropped. Radial and Force can show
+Columns (concepts | variables | studies) has been dropped (step 6). Radial and Force can show
 individual variables, and the Matrix covers the no-studies case.
 
 **Variables without a study** go under a **"No study provided"** placeholder, placed last,
@@ -180,8 +180,6 @@ the variables between them.
   concepts. It matches the other views.
 - **Stability:** switching adds or removes nodes, so Force lays out afresh (§2's simple
   rule); concepts and studies don't keep their places.
-- **Columns** always draws each variable (its layout needs them), with the checkbox
-  greyed out, until Columns is dropped.
 - **Code:** `bundles` (bundle.ts), shared with Flow, turns variable paths into bundle
   edges listing their variables (`toElements(graph, true)`; `variables` option). A bundle edge is drawn in the bundle style (flat mid-blue,
   width = count, §4), so it's never confused with an edge from Dug.
@@ -354,6 +352,7 @@ type KgFocus = { node: string } | { concept: string; study: string }
 4. ~~Collapsed links in node-link~~ (done): the default, with the Variables toggle.
 5. ~~`graphShape`~~ (done): availability, the Force default, greyed-out views, the
    pick carried over. List without variables (a star): the concepts, seeds first.
-6. Star list grouped by predicate, and removing the Columns layout.
+6. ~~Removing the Columns layout~~ (done). The star's list became a plain list of its
+   concepts in step 5; grouping it by predicate is parked.
 7. Matrix.
 8. Parked views from §3 (seed-combination chart, predicate sectors), if they're picked up again.

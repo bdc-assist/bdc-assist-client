@@ -121,7 +121,6 @@ type ViewMode = 'graph' | 'flow' | 'list'
 
 const VIEW_LABELS: Record<KgViewName, string> = {
   radial: 'Radial',
-  columns: 'Columns',
   force: 'Force',
   flow: 'Flow',
   list: 'List',
@@ -573,10 +572,7 @@ function GraphBody(props: GraphBodyProps) {
   const layout: KgLayout | undefined = mode === 'graph' ? (choice as KgLayout) : undefined
   const types = useMemo(() => new Set(shown.nodes.map((n) => n.type)), [shown])
   const hasSeeds = useMemo(() => shown.nodes.some((n) => n.seed), [shown])
-  // why the graph draws each variable whatever the toggle says (as mountGraph does), or
-  // null: it can bundle them
-  const variablesOnly = choice === 'columns' ? 'Columns always shows each variable' : null
-  const bundled = mode === 'graph' && !variables && !variablesOnly
+  const bundled = mode === 'graph' && !variables
   const container = useRef<HTMLDivElement>(null)
   const view = useRef<GraphView | null>(null)
   const flowContainer = useRef<HTMLDivElement>(null)
@@ -709,18 +705,13 @@ function GraphBody(props: GraphBodyProps) {
           {mode === 'graph' && types.has('variable') && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <label className={`flex items-center gap-1.5 ${variablesOnly ? 'opacity-50' : ''}`}>
-                  <input
-                    type="checkbox"
-                    checked={variables || !!variablesOnly}
-                    disabled={!!variablesOnly}
-                    onChange={(e) => onVariables(e.target.checked)}
-                  />
+                <label className="flex items-center gap-1.5">
+                  <input type="checkbox" checked={variables} onChange={(e) => onVariables(e.target.checked)} />
                   Variables
                 </label>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                {variablesOnly ?? 'Show each variable, instead of one link per concept and study'}
+                Show each variable, instead of one link per concept and study
               </TooltipContent>
             </Tooltip>
           )}

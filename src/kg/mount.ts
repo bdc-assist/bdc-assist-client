@@ -5,7 +5,6 @@ import { bridges, sharedOnly } from './bridges'
 import { collapseVersions } from './collapse'
 import { backgroundOf, haloOf, mix, toRgb } from './colour'
 import { groupSynonyms } from './group'
-import { columnPositions } from './columns'
 import { toElements } from './elements'
 import { focusConnections, isPair, type KgFocus } from './focus'
 import { orient } from './orient'
@@ -20,9 +19,8 @@ cytoscape.use(fcose)
  * - radial: the seeds (what was asked about) in the middle, or without seeds the concepts;
  *   their variables around them, studies outside
  * - force: a force-directed layout (fCoSE, cytoscape-fcose); clusters form on their own
- * - columns: a left-to-right flow, concepts | variables | studies
  */
-export const KG_LAYOUTS = ['radial', 'force', 'columns'] as const
+export const KG_LAYOUTS = ['radial', 'force'] as const
 export type KgLayout = (typeof KG_LAYOUTS)[number]
 
 /** mountGraph's options: the common view options (KgViewOptions), plus: */
@@ -33,7 +31,7 @@ export type GraphOptions = KgViewOptions & {
    * default): a link as wide as its variables, with variables whose study isn't
    * provided bundled to a "No study provided" placeholder. Clicking a bundle focuses
    * its concept × study pair (without any studies, every bundle goes to the
-   * placeholder). Variables are drawn anyway in columns, which lays them out. */
+   * placeholder). */
   variables?: boolean
   /** Zoom with the mouse wheel and pinch. false (default): no, the wheel scrolls
    * the page. 'modifier': only with Ctrl/⌘ held (trackpad pinch counts: browsers
@@ -193,9 +191,9 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
     arrange()
   }
 
-  // bundles unless variables are wanted, or columns lays them out (or there are none)
+  // bundles unless variables are wanted (or there are none)
   function wantBundles() {
-    return !opts.variables && opts.layout !== 'columns' && drawn.nodes.some((n) => n.type === 'variable')
+    return !opts.variables && drawn.nodes.some((n) => n.type === 'variable')
   }
 
   // everything not connected to the focus gets `faded`; null clears it. Worked out on
@@ -221,10 +219,12 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
   }
 
   function arrange() {
-    // labels sit beside the nodes in columns (concepts' on the left), below otherwise
-    cy.nodes().toggleClass('columns', opts.layout === 'columns')
-    if (opts.layout === 'force') arrangeForce()
-    else cy.layout(layoutOptions(opts.layout ?? 'radial')).run()
+    if (opts.layout === 'force') return arrangeForce()
+    // without a box, breadthfirst spreads over cy.extent(): the visible area at the
+    // current zoom. Zoomed out to fit, that's bigger than the container, so every
+    // redraw (e.g. toggling sharedOnly) would spread wider and fit smaller. Use the
+    // container's own size (a fallback while it's hidden, e.g. in the list view).
+    cy.layout(radialOptions({ x1: 0, y1: 0, w: container.clientWidth || 600, h: container.clientHeight || 300 })).run()
   }
 
   // Stable Force: if every node has a known place (maximized, dragged, Shared only just
@@ -272,18 +272,6 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
     // (bundled, concepts link to studies directly)
     const withVariables = concepts.filter((c) => c.neighborhood('node[type = "variable"], node[type = "study"]').length > 0)
     return (withVariables.length ? withVariables : concepts).map((n) => n.id())
-  }
-
-  function layoutOptions(layout: 'radial' | 'columns'): LayoutOptions {
-    if (layout === 'columns') {
-      const pos = columnPositions(drawn)
-      return { name: 'preset', positions: Object.fromEntries(pos), padding: PADDING, animate: false }
-    }
-    // without a box, breadthfirst spreads over cy.extent(): the visible area at the
-    // current zoom. Zoomed out to fit, that's bigger than the container, so every
-    // redraw (e.g. toggling sharedOnly) would spread wider and fit smaller. Use the
-    // container's own size (a fallback while it's hidden, e.g. in the list view).
-    return radialOptions({ x1: 0, y1: 0, w: container.clientWidth || 600, h: container.clientHeight || 300 })
   }
 
   // fcose from the nodes' current positions (randomize: false), so arrangeForce decides
@@ -431,11 +419,6 @@ function styleFor(el: HTMLElement): StylesheetJson {
       style: { 'background-color': color('study'), shape: 'round-rectangle', width: 16, height: 16 },
     },
     {
-      selector: 'node.columns',
-      style: { 'text-valign': 'center', 'text-halign': 'right', 'text-margin-x': 5, 'text-margin-y': 0, 'text-max-width': '200px' },
-    },
-    { selector: 'node.columns[type = "concept"], node.columns[type = "term"]', style: { 'text-halign': 'left', 'text-margin-x': -5 } },
-    {
       // "No study provided": a stand-in, not a study: outlined in grey, never study green
       selector: 'node.placeholder',
       style: {
@@ -486,7 +469,6 @@ function styleFor(el: HTMLElement): StylesheetJson {
         'text-margin-y': 5,
       },
     },
-    { selector: 'node.columns[?seed]', style: { 'text-margin-y': 0 } },
     { selector: 'node.bridge[type = "study"], node[?seed][type = "study"]', style: { 'underlay-shape': 'round-rectangle' } },
     { selector: '.faded', style: { opacity: 0.15 } },
     {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Position } from './columns'
+import type { Position } from './orient'
 import { orient } from './orient'
 
 const extent = (ps: Position[]) => ({

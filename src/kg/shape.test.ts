@@ -21,14 +21,13 @@ describe('graphShape', () => {
     expect(first).toBe('force')
   })
 
-  it('says why a view is missing: no seed, no studies, no variables', () => {
+  it('says why a view is missing: no seed, no studies', () => {
     expect(graphShape(search as KgGraph).available).toMatchObject({
       radial: 'Needs a concept that was asked about',
       flow: 'Needs studies',
-      columns: true,
       force: true,
       list: true,
     })
-    expect(graphShape(connections as KgGraph).available).toMatchObject({ columns: 'Needs variables', radial: true })
+    expect(graphShape(connections as KgGraph).available).toMatchObject({ flow: 'Needs studies', radial: true })
   })
 })

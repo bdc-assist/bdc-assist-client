@@ -4,7 +4,7 @@ import type { KgGraph } from './types'
 
 /** Every view of a graph: mountGraph's layouts, the flow (mountFlow) and the list
  * (studyList), in the order a picker lists them: the default (Force) first. */
-export const KG_VIEWS = ['force', 'radial', 'columns', 'flow', 'list'] as const
+export const KG_VIEWS = ['force', 'radial', 'flow', 'list'] as const
 export type KgViewName = KgLayout | 'flow' | 'list'
 
 /** What a graph contains, whichever tool made it. */
@@ -29,8 +29,8 @@ export function shapeOf(graph: KgGraph): KgShape {
 export type KgViewChoice = { available: Record<KgViewName, true | string>; default: KgViewName }
 
 /**
- * Which views suit `graph` (see shapeOf): Radial needs a seed to centre on, Columns
- * variables, Flow studies; Force and List always work. The default is Force, for
+ * Which views suit `graph` (see shapeOf): Radial needs a seed to centre on, Flow
+ * studies; Force and List always work. The default is Force, for
  * every shape. Work it out before "Shared only", so the filter never changes which
  * views are offered.
  */
@@ -40,7 +40,6 @@ export function graphShape(graph: KgGraph): KgViewChoice {
     available: {
       radial: shape.seeds > 0 || 'Needs a concept that was asked about',
       force: true,
-      columns: shape.variables || 'Needs variables',
       flow: shape.studies || 'Needs studies',
       list: true,
     },
