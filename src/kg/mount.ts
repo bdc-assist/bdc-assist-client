@@ -58,14 +58,26 @@ const COLORS = {
   edge: ['--kg-edge', '#cbd5e1'],
   label: ['--kg-label', '#475569'],
   selected: ['--kg-selected', '#0f172a'],
+  // seeds and shared nodes: a halo (and the seeds' label) in a highlighter colour that
+  // isn't a type's, since a seed can be of any type
+  halo: ['--kg-halo', '#fde047'],
 } as const
+
+// the halo's opacity: a number in --kg-halo-opacity (pale colours need more on light
+// backgrounds, less on dark ones)
+const HALO_OPACITY = 0.85
+
+// halo padding: wide for a seed, narrow for a shared node
+const SEED_HALO = 14
+const SHARED_HALO = 5
 
 const PADDING = 16
 
 /**
  * Draw `graph` into `container` (which needs a height). Variables are coloured from
  * --kg-variable-low to --kg-variable-high the more other concepts they link to
- * (related_concepts_count); nodes connecting two or more seeds get an amber halo.
+ * (related_concepts_count). Seeds get a wide --kg-halo halo and a highlighted label;
+ * nodes connecting two or more seeds (shared) get a narrow one.
  * Clicking a node (or focus() from elsewhere, also for a concept × study pair)
  * highlights what it's connected to (see focusConnections) and fades the rest;
  * clicking the background clears it.
@@ -277,6 +289,8 @@ function styleFor(el: HTMLElement): StylesheetJson {
     const value = css.getPropertyValue(name).trim()
     return (value && toRgb(value)) || fallback
   }
+  const haloOpacity = Number.parseFloat(css.getPropertyValue('--kg-halo-opacity'))
+  const halo = { color: color('halo'), opacity: Number.isFinite(haloOpacity) ? haloOpacity : HALO_OPACITY }
   return [
     {
       selector: 'node',
@@ -310,11 +324,6 @@ function styleFor(el: HTMLElement): StylesheetJson {
       style: { 'background-opacity': 0, 'border-width': 2, 'border-color': color('concept') },
     },
     {
-      // what a call asked about (the API's seeds): a diamond, in its own type's colour
-      selector: 'node[?seed]',
-      style: { shape: 'diamond', width: 30, height: 30 },
-    },
-    {
       selector: 'node[type = "variable"]',
       style: { 'background-color': (n) => mix(color('variableLow'), color('variableHigh'), n.data('weight') ?? 1) },
     },
@@ -334,16 +343,34 @@ function styleFor(el: HTMLElement): StylesheetJson {
       style: { 'line-style': 'dashed', 'line-color': color('concept'), 'line-opacity': 0.6 },
     },
     {
-      // connects two or more seeds: a soft halo in the concept colour
+      // connects two or more seeds (shared): a narrow halo
       selector: 'node.bridge',
       style: {
-        'underlay-color': color('concept'),
-        'underlay-padding': 6,
-        'underlay-opacity': 0.35,
+        'underlay-color': halo.color,
+        'underlay-padding': SHARED_HALO,
+        'underlay-opacity': halo.opacity,
         'underlay-shape': 'ellipse',
       },
     },
-    { selector: 'node.bridge[type = "study"]', style: { 'underlay-shape': 'round-rectangle' } },
+    {
+      // what a call asked about (the API's seeds), of any type: a wide halo, and the
+      // label highlighted in the same colour. After .bridge, so a shared seed gets the wide one
+      selector: 'node[?seed]',
+      style: {
+        'underlay-color': halo.color,
+        'underlay-padding': SEED_HALO,
+        'underlay-opacity': halo.opacity,
+        'underlay-shape': 'ellipse',
+        'text-background-color': halo.color,
+        'text-background-opacity': Math.max(halo.opacity, HALO_OPACITY),
+        'text-background-padding': '2px',
+        'text-background-shape': 'roundrectangle', // the types only know the old spelling
+        color: textOn(halo.color),
+        'text-margin-y': 5,
+      },
+    },
+    { selector: 'node.columns[?seed]', style: { 'text-margin-y': 0 } },
+    { selector: 'node.bridge[type = "study"], node[?seed][type = "study"]', style: { 'underlay-shape': 'round-rectangle' } },
     { selector: '.faded', style: { opacity: 0.15 } },
     { selector: 'node:selected', style: { 'border-width': 3, 'border-color': color('selected') } },
   ]
@@ -355,6 +382,12 @@ function mix(a: string, b: string, t: number): string {
   const [x, y] = [a, b].map(channels)
   const c = x.map((v, i) => Math.round(v + (y[i] - v) * Math.min(1, Math.max(0, t))))
   return `rgb(${c.join(', ')})`
+}
+
+/** Black or white text, whichever reads on `background` (toRgb's or a "#rrggbb" colour). */
+function textOn(background: string): string {
+  const [r, g, b] = channels(background)
+  return 0.299 * r + 0.587 * g + 0.114 * b > 150 ? '#0a0a0a' : '#fafafa'
 }
 
 function channels(color: string): number[] {

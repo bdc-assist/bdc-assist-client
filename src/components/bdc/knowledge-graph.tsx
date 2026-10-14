@@ -45,7 +45,12 @@ const LEGEND: { type: KgNode['type']; shape: string }[] = [
   { type: 'study', shape: 'size-2.5 rounded-[2px]' },
 ]
 
-function Legend({ related, terms, seeds }: { related: boolean; terms: boolean; seeds: boolean }) {
+// the halo colour at its opacity, for the shared swatch; a seed's highlighted label is
+// at least 85% (as mountGraph draws it), with dark text
+const HALO = 'color-mix(in srgb, var(--kg-halo) calc(var(--kg-halo-opacity) * 100%), transparent)'
+const HALO_LABEL = 'color-mix(in srgb, var(--kg-halo) calc(max(var(--kg-halo-opacity), 0.85) * 100%), transparent)'
+
+function Legend({ related, terms, seeds, shared }: { related: boolean; terms: boolean; seeds: boolean; shared: boolean }) {
   return (
     <ul aria-label="Legend" className="flex flex-wrap items-center gap-x-3 gap-y-1">
       {LEGEND.map(({ type, shape }) => (
@@ -64,9 +69,17 @@ function Legend({ related, terms, seeds }: { related: boolean; terms: boolean; s
         </li>
       ))}
       {seeds && (
+        // highlighted, like a seed's label in the graph
+        <li>
+          <span className="rounded-sm px-1 text-neutral-950" style={{ background: HALO_LABEL }}>
+            Asked about
+          </span>
+        </li>
+      )}
+      {shared && (
         <li className="flex items-center gap-1.5">
-          <span className="size-2.5 rotate-45" style={{ background: 'var(--kg-concept)' }} />
-          Asked about
+          <span className="bg-muted-foreground size-2 rounded-full" style={{ boxShadow: `0 0 0 3px ${HALO}` }} />
+          Shared: links two or more of them
         </li>
       )}
       {terms && (
@@ -571,7 +584,7 @@ function GraphBody(props: GraphBodyProps) {
   return (
     <div data-slot="bdc-graph" className="flex min-h-0 flex-1 flex-col text-xs">
       <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 border-t px-3 py-1.5">
-        <Legend related={relationCount > 0} terms={hasTerms} seeds={hasSeeds} />
+        <Legend related={relationCount > 0} terms={hasTerms} seeds={hasSeeds} shared={canShare} />
         <div className="ml-auto flex min-w-0 items-center gap-3">
           {sources.length > 1 && <SourcePicker sources={sources} source={source} onSource={onSource} />}
           {canGroup && (

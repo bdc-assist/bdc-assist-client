@@ -215,7 +215,8 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
 **Values**
 
 - **Halo:** highlighter yellow, `#fde047` at 0.85 on light and `#facc15` at 0.45 on dark.
-  Not a type hue, so it says nothing about type. Easy to change: it's one custom property.
+  Not a type hue, so it says nothing about type. Easy to change: `--kg-halo` and
+  `--kg-halo-opacity`.
   Node-link padding is 14 for a seed and 5 for shared; a seed that's also shared gets the
   wide one.
 - **Highlighted label:** the halo colour at 0.85 or more behind the text, with black or
@@ -247,9 +248,6 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
 
 **Deviations to fix**
 
-- Node-link draws seeds as larger diamonds, with no seed halo or highlighted label.
-- Node-link's shared halo is amber (`--kg-concept`, padding 6); it moves to `--kg-halo`
-  (planned, with light and dark values).
 - Node-link marks the focus with the border, not an outline ring.
 - Node-link draws terms outlined (`background-opacity: 0`), not tinted.
 - Node-link draws inter-concept links dashed, at 0.6 opacity.

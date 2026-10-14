@@ -117,8 +117,10 @@ on the others.
 ### `mountGraph(container, graph, options)` (`mount.ts`)
 
 A node-link graph (Cytoscape). Concepts, variables and studies are drawn as distinct
-shapes and colours; seeds (what was asked about) are diamonds; variables run light to
-dark blue with `related_concepts_count`; studies (or variables) connecting two or more seeds (what was asked about) get an amber halo.
+shapes and colours; variables run light to dark blue with `related_concepts_count`.
+Seeds (what was asked about), of any type, get a wide `--kg-halo` halo and a label
+highlighted in the same colour; studies (or variables) connecting two or more seeds
+(shared) get a narrow one.
 
 Extra options:
 
@@ -146,13 +148,15 @@ Set these on the container or any ancestor; any CSS colour works (including
 
 | Property | Default | Used for |
 |---|---|---|
-| `--kg-concept` | `#d97706` | concepts, the shared-study halo |
+| `--kg-concept` | `#d97706` | concepts |
 | `--kg-variable-low` | `#93c5fd` | variables with the fewest related concepts |
 | `--kg-variable-high` | `#1e40af` | variables with the most; flow bands are a mix of the two |
 | `--kg-study` | `#059669` | studies |
 | `--kg-edge` | `#cbd5e1` | graph edges |
 | `--kg-label` | `#475569` | labels |
 | `--kg-selected` | `#0f172a` | the outline of the focused node |
+| `--kg-halo` | `#fde047` | the halo of seeds (wide) and shared nodes (narrow), and seeds' highlighted labels (graph view) |
+| `--kg-halo-opacity` | `0.85` | a number, not a colour: the halo's opacity (labels use at least 0.85). Lower it on dark backgrounds |
 
 ## Helpers for your own UI
 
