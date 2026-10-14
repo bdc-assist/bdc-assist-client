@@ -307,16 +307,34 @@ function FocusDetails({ focus, graph }: { focus: KgFocus | null; graph: KgGraph 
   return <p className="text-muted-foreground">Click a node for details.</p>
 }
 
-// selected: shaded; outside the selection's connections: dimmed, as in the graph
+// The list marks the focus its own way (DESIGN.md §4): the focused row is shaded,
+// clearly more than a hovered one; rows outside the focus's connections dim to 0.35,
+// since they're text to read
 const rowClass = (selected: boolean, dimmed: boolean) =>
-  `flex min-w-0 flex-1 items-baseline gap-2 rounded-md px-1.5 py-1 text-start transition-opacity ${selected ? 'bg-muted' : 'hover:bg-muted/60'} ${dimmed ? 'opacity-35' : ''}`
+  `flex min-w-0 flex-1 items-baseline gap-2 rounded-md px-1.5 py-1 text-start transition-opacity ${selected ? 'bg-foreground/10' : 'hover:bg-foreground/5'} ${dimmed ? 'opacity-35' : ''}`
 
-// a concept's swatch in the list: a dot, or a diamond for a seed (what was asked
-// about), as in the graph; hollow for a search term
-function ConceptMark({ concept }: { concept: KgNode }) {
-  const shape = concept.seed ? 'size-1.5 rotate-45' : 'size-2 rounded-full'
-  const colour = concept.type === 'term' ? { border: '1.5px solid var(--kg-concept)' } : { background: 'var(--kg-concept)' }
-  return <span className={`${shape} shrink-0 self-center`} style={colour} />
+// a shared node's swatch (it connects two or more seeds): a narrow halo, as in the graph
+const sharedHalo = (shared: boolean) => (shared ? { boxShadow: `0 0 0 2px ${HALO}` } : {})
+
+// a node's name; a seed's (what was asked about) is highlighted and bold, as in the legend
+function NodeLabel({ node, className = '' }: { node: KgNode; className?: string }) {
+  if (!node.seed) return <span className={className}>{node.label}</span>
+  // bold replaces any other weight, rather than competing with it
+  const rest = className.replace(/\bfont-(medium|semibold|normal)\b/, '')
+  return (
+    <span className={`${rest} text-foreground rounded-sm px-1 font-bold`} style={{ background: HALO }}>
+      {node.label}
+    </span>
+  )
+}
+
+// a concept's swatch in the list: a dot, tinted with a border for a search term
+function ConceptMark({ concept, shared }: { concept: KgNode; shared: boolean }) {
+  const colour =
+    concept.type === 'term'
+      ? { border: '1.5px solid var(--kg-concept)', background: 'color-mix(in srgb, var(--kg-concept) 30%, transparent)' }
+      : { background: 'var(--kg-concept)' }
+  return <span className="size-2 shrink-0 self-center rounded-full" style={{ ...colour, ...sharedHalo(shared) }} />
 }
 
 /** The graph as text: studies (foldable), each with a row per concept (that
@@ -327,6 +345,7 @@ function ConceptMark({ concept }: { concept: KgNode }) {
 function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgFocus | null; onPick: (f: KgFocus) => void }) {
   const groups = useMemo(() => studyList(graph), [graph])
   const linked = useMemo(() => (focus ? focusConnections(graph, focus).nodes : null), [graph, focus])
+  const shared = useMemo(() => bridges(graph), [graph])
   const dimmed = (id: string) => linked !== null && !linked.has(id)
   const isNode = (id: string) => !!focus && !isPair(focus) && focus.node === id
   const isPairOf = (concept: string, study: string) =>
@@ -359,15 +378,17 @@ function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgFocus | 
           <button
             type="button"
             onClick={() => onPick({ node: variable.id })}
+            aria-current={isNode(variable.id) || undefined}
             className={rowClass(isNode(variable.id), dimmed(variable.id))}
           >
             <span
               className="size-2 shrink-0 self-center rounded-full"
               style={{
                 background: `color-mix(in srgb, var(--kg-variable-high) ${Math.round(weight * 100)}%, var(--kg-variable-low))`,
+                ...sharedHalo(shared.has(variable.id)),
               }}
             />
-            <span className="font-mono">{variable.label}</span>
+            <NodeLabel node={variable} className="font-mono" />
             {variable.description && variable.description !== variable.label && (
               <span className="truncate">{variable.description}</span>
             )}
@@ -392,10 +413,11 @@ function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgFocus | 
                   <button
                     type="button"
                     onClick={() => onPick({ node: concept.id })}
+                    aria-current={isNode(concept.id) || undefined}
                     className={rowClass(isNode(concept.id), dimmed(concept.id))}
                   >
-                    <ConceptMark concept={concept} />
-                    <span className="truncate font-medium">{concept.label}</span>
+                    <ConceptMark concept={concept} shared={shared.has(concept.id)} />
+                    <NodeLabel node={concept} className="truncate font-medium" />
                     {concept.type === 'term' && <span className="text-muted-foreground shrink-0">(search term)</span>}
                     <span className="text-muted-foreground shrink-0">· {vs.length}</span>
                   </button>
@@ -423,10 +445,14 @@ function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgFocus | 
                 <button
                   type="button"
                   onClick={() => onPick({ node: study.id })}
+                  aria-current={isNode(study.id) || undefined}
                   className={rowClass(isNode(study.id), dimmed(study.id))}
                 >
-                  <span className="size-2 shrink-0 self-center rounded-[2px]" style={{ background: 'var(--kg-study)' }} />
-                  <span className="truncate font-medium">{study.label}</span>
+                  <span
+                    className="size-2 shrink-0 self-center rounded-[2px]"
+                    style={{ background: 'var(--kg-study)', ...sharedHalo(shared.has(study.id)) }}
+                  />
+                  <NodeLabel node={study} className="truncate font-medium" />
                   <span className="text-muted-foreground shrink-0 font-mono">{study.id}</span>
                   <span className="text-muted-foreground shrink-0">· {variables.length}</span>
                 </button>
@@ -445,11 +471,12 @@ function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgFocus | 
                           type="button"
                           title={`What this study has on ${concept.label}`}
                           onClick={() => onPick({ concept: concept.id, study: study.id })}
+                          aria-current={isPairOf(concept.id, study.id) || undefined}
                           // a pair row: lit only when both its concept and its study are
                           className={rowClass(isPairOf(concept.id, study.id), dimmed(concept.id) || dimmed(study.id))}
                         >
-                          <ConceptMark concept={concept} />
-                          <span>{concept.label}</span>
+                          <ConceptMark concept={concept} shared={shared.has(concept.id)} />
+                          <NodeLabel node={concept} />
                           {concept.type === 'term' && <span className="text-muted-foreground shrink-0">(search term)</span>}
                           <span className="text-muted-foreground shrink-0">· {vs.length}</span>
                         </button>

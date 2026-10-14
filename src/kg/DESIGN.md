@@ -210,10 +210,10 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
 | Amount | Blue ramp `--kg-variable-low → -high` | one variable; more contrast = links more concepts (`related_concepts_count`) | node-link with Variables on |
 | Amount | Size / width | variable count (bundles only) | Flow band width, Matrix circle area, node-link bundle width (`1 + 2.2·√count`) |
 | Query | Wide halo `--kg-halo` | seed: what a call asked about, of any type | all |
-| Query | Highlighted label: `--kg-halo` behind the label text | seed | node-link, Flow; List, Matrix **(planned)** |
-| Query | Narrow halo `--kg-halo` | shared: connects two or more seeds | node-link, Flow; List, Matrix **(planned)** |
-| Interaction | `--kg-selected` outline ring, outside the border | the focus itself | node-link, Flow; List and Matrix **(planned)** |
-| Interaction | Opacity 0.15 | faded: not connected to the focus | all |
+| Query | Highlighted label: `--kg-halo` behind the label text | seed | node-link, Flow, List; Matrix **(planned)** |
+| Query | Narrow halo `--kg-halo` | shared: connects two or more seeds | node-link, Flow, List (on the swatch); Matrix **(planned)** |
+| Interaction | `--kg-selected` outline ring, outside the border | the focus itself | node-link, Flow; Matrix **(planned)**. List: a shaded row |
+| Interaction | Opacity 0.15 | faded: not connected to the focus | all but List, which fades to 0.35 |
 
 **Values**
 
@@ -238,6 +238,12 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
   and opacity respond to the user. So size never marks a seed, and hue never marks context.
 - **Opacity only ever means faded.** The exception is Flow's band translucency, which
   keeps overlapping bands readable. Matrix circles are solid.
+- **List is a different kind of view** and marks the interaction layer its own way: the
+  focus is a shaded row (not a ring, which in HTML reads as keyboard focus), and rows
+  fade to 0.35, since they're text to read rather than context. Its swatches still
+  follow the category and query layers, with one adaptation: a seed gets only its
+  highlighted (bold) name, and a halo on a swatch means shared. Wide and narrow halos
+  can't be told apart on an 8px swatch, and full-size names don't need the halo's help.
 - **Outlined shapes are clickable all over:** an outlined shape has a coloured border
   and a transparent fill, but its whole area takes clicks, not just the border. In
   SVG that means `pointer-events: all` (or `fill: transparent`, never `fill: none`).
@@ -251,10 +257,6 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
 
 **Deviations to fix**
 
-- List draws seeds as diamonds and terms outlined, and doesn't mark shared studies.
-- List fades to 0.35, not 0.15.
-- List marks the focus with row shading instead of the `--kg-selected` outline.
-  **(open)** Should an HTML list follow the canvas, or is shading the list's equivalent?
 - Node-link's "No study given" uses `background-opacity: 0`: check that the inside of the
   shape takes clicks (Cytoscape probably tests the whole shape).
 
@@ -332,7 +334,7 @@ type KgFocus = { node: string } | { concept: string; study: string }
 1. This spec.
 2. Grammar fixes: the §4 marks in node-link (seed halo and highlighted label, `--kg-halo`,
    the selection ring, tinted terms, solid inter-concept links, the dark-mode ramp); then
-   Flow and List (seed and shared marks, tinted terms, List fades to 0.15), and outlined
+   Flow and List (seed and shared marks, tinted terms), and outlined
    shapes clickable all over.
    The "No study given" placeholder in Flow (and List's label); remove Flow's
    "without a study" note.
