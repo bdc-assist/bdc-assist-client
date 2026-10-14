@@ -267,7 +267,7 @@ const STRIPS = [
     title: 'Intrinsic: category', note: 'Hue and shape give the type; fill says real or stand-in; bundles (summaries) are flat mid-blue.',
     items: [
       node('concept', 'concept'), node('term (stand-in)', 'term'), node('study', 'study'), node('variable', 'variable'),
-      node('No study given', 'nostudy'), edge('variable edge'), edge('inter-concept link', 'link'),
+      node('No study provided', 'nostudy'), edge('variable edge'), edge('inter-concept link', 'link'),
       edge('bundle edge (summary)', 'bundle', { count: 4 }), node('bundle node (summary)', 'bundle', '', { count: 4 }),
     ],
   },
@@ -344,7 +344,7 @@ const STUDIES = [
   { id: 'A', label: 'phs000001', type: 'study', pos: [560, 90] },
   { id: 'B', label: 'phs000002', type: 'study', pos: [560, 210] },
   { id: 'C', label: 'phs000003', type: 'study', pos: [560, 300] },
-  { id: 'NS', label: 'No study given', type: 'nostudy', pos: [560, 390] },
+  { id: 'NS', label: 'No study provided', type: 'nostudy', pos: [560, 390] },
 ]
 const LINKS = [['asthma', 'copd']]
 // [id, concepts, study, weight]

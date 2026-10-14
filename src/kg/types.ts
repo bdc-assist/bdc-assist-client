@@ -27,3 +27,10 @@ export type KgNode = {
 export type KgEdge = { source: string; target: string; predicates?: string[] }
 
 export type KgGraph = { nodes: KgNode[]; edges: KgEdge[] }
+
+/** The "No study provided" placeholder: views gather the variables whose study Dug didn't
+ * provide under it. It's never a node in a KgGraph (nothing is inferred), so this id can't
+ * clash with one; it's left out of study counts and "shared". Focus it like a study:
+ * { node: NO_STUDY }, or { concept, study: NO_STUDY } for a concept's study-less variables. */
+export const NO_STUDY = '(no study provided)'
+export const NO_STUDY_LABEL = 'No study provided'

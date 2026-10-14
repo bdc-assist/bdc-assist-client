@@ -13,7 +13,7 @@ import { studyList, type ListVariable } from '@/kg/list'
 import { flowData, mountFlow, type FlowView } from '@/kg/flow'
 import { focusConnections, isPair, pairVariables, sameFocus, type KgFocus } from '@/kg/focus'
 import { KG_LAYOUTS, mountGraph, type GraphView, type KgLayout } from '@/kg/mount'
-import type { KgGraph, KgNode } from '@/kg/types'
+import { NO_STUDY, NO_STUDY_LABEL, type KgGraph, type KgNode } from '@/kg/types'
 import type { KgPart } from '@/kg/wire'
 
 // The demo's wrapper around src/kg (loaded on demand: see GraphUI in message-parts.tsx):
@@ -250,7 +250,7 @@ function NodeDetails({ node, graph }: { node: KgNode; graph: KgGraph }) {
         <>
           <dt className="text-muted-foreground">dbGaP</dt>
           {/* its dbGaP page needs the study, and e.g. search_concepts doesn't give it */}
-          <dd className="text-muted-foreground">No link: the result doesn't say which study it's in</dd>
+          <dd className="text-muted-foreground">No study provided</dd>
         </>
       )}
       {standIns.length > 0 && (
@@ -296,8 +296,19 @@ function PairDetails({ concept, study, graph }: { concept: KgNode; study: KgNode
   )
 }
 
+// the "No study provided" placeholder as a node, for the details (it's never in the graph)
+const PLACEHOLDER: KgNode = { id: NO_STUDY, label: NO_STUDY_LABEL, type: 'study' }
+
 function FocusDetails({ focus, graph }: { focus: KgFocus | null; graph: KgGraph }) {
-  const byId = (id: string) => graph.nodes.find((n) => n.id === id)
+  const byId = (id: string) => (id === NO_STUDY ? PLACEHOLDER : graph.nodes.find((n) => n.id === id))
+  if (focus && !isPair(focus) && focus.node === NO_STUDY) {
+    return (
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+        <dt className="text-muted-foreground">Study</dt>
+        <dd className="font-medium">{NO_STUDY_LABEL}</dd>
+      </dl>
+    )
+  }
   if (focus && isPair(focus)) {
     const [concept, study] = [byId(focus.concept), byId(focus.study)]
     if (concept && study) return <PairDetails concept={concept} study={study} graph={graph} />
@@ -435,41 +446,42 @@ function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgFocus | 
 
   return (
     <ul aria-label="Studies, their concepts and variables" className="divide-y">
-      {groups.map(({ study, variables, byConcept }) => {
-        const key = study?.id ?? '(no study)'
+      {groups.map(({ study: real, variables, byConcept }) => {
+        // variables whose study Dug didn't provide (e.g. search_concepts): the "No study provided"
+        // placeholder, last, outlined in grey; it focuses like a study
+        const study = real ?? PLACEHOLDER
         return (
-          <li key={key} className="px-1.5 py-1">
+          <li key={study.id} className="px-1.5 py-1">
             <div className="flex items-center gap-0.5">
-              {foldButton(key, study?.label ?? 'variables whose study is not given')}
-              {study ? (
-                <button
-                  type="button"
-                  onClick={() => onPick({ node: study.id })}
-                  aria-current={isNode(study.id) || undefined}
-                  className={rowClass(isNode(study.id), dimmed(study.id))}
-                >
-                  <span
-                    className="size-2 shrink-0 self-center rounded-[2px]"
-                    style={{ background: 'var(--kg-study)', ...sharedHalo(shared.has(study.id)) }}
-                  />
-                  <NodeLabel node={study} className="truncate font-medium" />
-                  <span className="text-muted-foreground shrink-0 font-mono">{study.id}</span>
-                  <span className="text-muted-foreground shrink-0">· {variables.length}</span>
-                </button>
-              ) : (
-                // Dug didn't say which study these are in (e.g. search_concepts)
-                <span className="text-muted-foreground px-1.5 py-1">Study not given · {variables.length}</span>
-              )}
+              {foldButton(study.id, real ? study.label : 'variables whose study is not provided')}
+              <button
+                type="button"
+                onClick={() => onPick({ node: study.id })}
+                aria-current={isNode(study.id) || undefined}
+                className={rowClass(isNode(study.id), dimmed(study.id))}
+              >
+                <span
+                  className="size-2 shrink-0 self-center rounded-[2px]"
+                  style={
+                    real
+                      ? { background: 'var(--kg-study)', ...sharedHalo(shared.has(study.id)) }
+                      : { border: '1.5px solid var(--kg-label)' }
+                  }
+                />
+                <NodeLabel node={study} className={`truncate font-medium ${real ? '' : 'text-muted-foreground'}`} />
+                {real && <span className="text-muted-foreground shrink-0 font-mono">{study.id}</span>}
+                <span className="text-muted-foreground shrink-0">· {variables.length}</span>
+              </button>
             </div>
-            {!folded.has(key) && (
+            {!folded.has(study.id) && (
               <ul className="pl-6">
                 {byConcept.map(({ concept, variables: vs }) => (
                   <li key={concept?.id ?? '(no concept)'}>
                     <div className="flex">
-                      {concept && study ? (
+                      {concept ? (
                         <button
                           type="button"
-                          title={`What this study has on ${concept.label}`}
+                          title={real ? `What this study has on ${concept.label}` : `${concept.label}: variables with no study provided`}
                           onClick={() => onPick({ concept: concept.id, study: study.id })}
                           aria-current={isPairOf(concept.id, study.id) || undefined}
                           // a pair row: lit only when both its concept and its study are
@@ -481,7 +493,7 @@ function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgFocus | 
                           <span className="text-muted-foreground shrink-0">· {vs.length}</span>
                         </button>
                       ) : (
-                        <span className="text-muted-foreground px-1.5 py-1">{concept?.label ?? 'No concept'}</span>
+                        <span className="text-muted-foreground px-1.5 py-1">No concept</span>
                       )}
                     </div>
                     {variableRows(vs)}
@@ -527,7 +539,12 @@ function GraphBody(props: GraphBodyProps) {
   const { json, shown, canvasClass, layout, onLayout, mode, onMode, sharedOnly, onSharedOnly, canShare, zoomGestures } = props
   const { sources, source, onSource, grouped, onGrouped, canGroup, detailsBeside } = props
   const relationCount = useMemo(() => relations(shown).length, [shown])
-  const withoutStudy = useMemo(() => flowData(shown).withoutStudy.length, [shown])
+  // Flow draws variables with no study provided under "No study provided", but only alongside real
+  // studies: with none, it's empty, so say why (until graphShape greys Flow out)
+  const withoutStudy = useMemo(() => {
+    const f = flowData(shown)
+    return f.links.length ? 0 : f.withoutStudy.length
+  }, [shown])
   const types = useMemo(() => new Set(shown.nodes.map((n) => n.type)), [shown])
   const hasSeeds = useMemo(() => shown.nodes.some((n) => n.seed), [shown])
   const container = useRef<HTMLDivElement>(null)
@@ -680,7 +697,7 @@ function GraphBody(props: GraphBodyProps) {
                 )}
                 {withoutStudy > 0 && (
                   <p className="bg-background/80 rounded px-1.5 py-0.5">
-                    {withoutStudy} {withoutStudy === 1 ? 'variable' : 'variables'} without a study not shown in this view
+                    {withoutStudy} {withoutStudy === 1 ? 'variable' : 'variables'} with no study provided: this view needs studies
                   </p>
                 )}
               </div>

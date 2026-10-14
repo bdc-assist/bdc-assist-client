@@ -75,13 +75,15 @@ studies, and seeing which studies cover which seeds, and it scales to many studi
 Columns (concepts | variables | studies) has been dropped. Radial and Force can show
 individual variables, and the Matrix covers the no-studies case.
 
-**Variables without a study** go under a **"No study given"** placeholder, placed last,
+**Variables without a study** go under a **"No study provided"** placeholder, placed last,
 in List, Flow, Matrix (a row) and collapsed node-link. The placeholder belongs to the view, not the graph:
 it's never a node in `KgGraph`, so nothing is inferred. It's drawn outlined in grey,
 never study green. It's left out of study counts, the title summary and "shared", so it
 never gets a halo. When some variables have studies and some don't, it sits alongside
 the real studies. A view that needs studies (Flow) still needs at least one real study.
-List's "Study not given" label is reworded to match.
+List uses the same label. Say "provided", not "given": the result didn't provide the
+study, which doesn't mean there isn't one. Elsewhere, "no study provided", not "without
+a study".
 
 Unavailable views stay in the picker, greyed out, with the reason as their tooltip
 ("Needs a concept that was asked about", "Needs studies", "Needs variables").
@@ -128,7 +130,7 @@ A term differs from a concept only where the concept's identity is used:
 
 ### Matrix (planned)
 
-- Rows are studies, then the "No study given" placeholder; columns are concepts and
+- Rows are studies, then the "No study provided" placeholder; columns are concepts and
   terms, seeds first. With no studies at all, rows
   are variables and each cell is just filled or empty: grouped concepts show up as
   matching columns.
@@ -154,7 +156,7 @@ the variables between them.
 - **Clicking a bundle** focuses the concept × study pair, the same as a Flow band or a
   Matrix cell, and the details list its variables. A bundle doesn't expand in place:
   that would add nodes and move the layout. The toggle is how you see all variables.
-- **Variables without a study** bundle to the "No study given" placeholder.
+- **Variables without a study** bundle to the "No study provided" placeholder.
 - **Graphs without studies** (search_concepts): collapsing would leave only concept →
   placeholder. Variables are shown and the checkbox is greyed out, with the reason as
   its tooltip.
@@ -203,7 +205,7 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
 | Category | Tinted amber fill, amber border | search term: a stand-in for a concept | all |
 | Category | Green `--kg-study`, rounded square | study | all |
 | Category | Blue, small circle | variable | node-link with Variables on |
-| Category | Grey outline, placed last: "No study given" | the variables without a study: a stand-in | List, Flow, Matrix, node-link bundles |
+| Category | Grey outline, placed last: "No study provided" | the variables without a study: a stand-in | List, Flow, Matrix, node-link bundles |
 | Category | Flat mid-blue (middle of the ramp) | a bundle: a summary of variables | Flow bands, Matrix circles, node-link bundles |
 | Category | Solid grey line | a stated variable edge | node-link |
 | Category | Solid light-amber line (amber mixed towards the background) | an inter-concept link: concept → concept, with Dug's predicates | node-link |
@@ -257,7 +259,7 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
 
 **Deviations to fix**
 
-- Node-link's "No study given" uses `background-opacity: 0`: check that the inside of the
+- Node-link's "No study provided" uses `background-opacity: 0`: check that the inside of the
   shape takes clicks (Cytoscape probably tests the whole shape).
 
 ## 5. Selection model
@@ -282,7 +284,7 @@ type KgFocus = { node: string } | { concept: string; study: string }
 - **Redraws:** changing grouping, the source or "Shared only" redraws the graph and
   clears the focus. **(open)** Should the focus be kept when the node is still there?
 - **Pairs as bundles:** a pair is exactly a concept–study bundle, so Flow bands, Matrix
-  cells and node-link bundles all focus as pairs. A pair with the "No study given"
+  cells and node-link bundles all focus as pairs. A pair with the "No study provided"
   placeholder means the concept's variables without a study: `pairVariables` handles
   it as a special case, and the other views highlight the concept and those variables.
   **(open)** For concept–concept bundles,
@@ -332,12 +334,10 @@ type KgFocus = { node: string } | { concept: string; study: string }
 ## 8. Build order
 
 1. This spec.
-2. Grammar fixes: the §4 marks in node-link (seed halo and highlighted label, `--kg-halo`,
-   the selection ring, tinted terms, solid inter-concept links, the dark-mode ramp); then
-   Flow and List (seed and shared marks, tinted terms), and outlined
-   shapes clickable all over.
-   The "No study given" placeholder in Flow (and List's label); remove Flow's
-   "without a study" note.
+2. ~~Grammar fixes~~ (done): the §4 marks in node-link, Flow and List; the "No study
+   provided" placeholder in Flow and List (`NO_STUDY`, focusable like a study). Flow's
+   "without a study" note stays only for when Flow is empty (no real studies), until
+   `graphShape` greys Flow out there.
 3. Stable Force: start from the Radial positions, a fixed seed, positions kept across
    toggles.
 4. Collapsed links in node-link, the default, with the Variables toggle.

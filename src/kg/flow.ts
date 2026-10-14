@@ -5,19 +5,21 @@ import { collapseVersions } from './collapse'
 import { haloOf } from './colour'
 import { groupSynonyms } from './group'
 import { focusConnections, isPair, type KgFocus } from './focus'
-import { isConceptOrTerm, type KgGraph, type KgNode } from './types'
+import { isConceptOrTerm, NO_STUDY, NO_STUDY_LABEL, type KgGraph, type KgNode } from './types'
 import type { KgView, KgViewOptions } from './view'
 
-export type FlowNode = { id: string; node: KgNode } // a concept or a study
+// a concept or a study, or the "No study provided" placeholder (id NO_STUDY, placeholder: true)
+export type FlowNode = { id: string; node: KgNode; placeholder?: true }
 export type FlowLink = { source: string; target: string; variables: string[] } // concept → study
-export type FlowData = { nodes: FlowNode[]; links: FlowLink[]; withoutStudy: string[] } // withoutStudy: variables it can't place
+export type FlowData = { nodes: FlowNode[]; links: FlowLink[]; withoutStudy: string[] } // withoutStudy: variables whose study isn't provided
 
 /**
  * The graph as flows from concepts to studies: one link per concept and study,
  * carrying the study's variables on that concept (its width). A variable on two
  * concepts counts in both. Only studies with variables appear; concepts and links
- * keep graph order. Variables whose study isn't given (e.g. from search_concepts)
- * can't be drawn: `withoutStudy` lists them, so a host can say so.
+ * keep graph order. Variables whose study isn't provided (`withoutStudy`) flow to the
+ * "No study provided" placeholder, last, but only alongside real studies: with none
+ * (e.g. search_concepts) there's nothing to draw.
  */
 export function flowData(graph: KgGraph): FlowData {
   const byId = new Map(graph.nodes.map((n) => [n.id, n]))
@@ -29,24 +31,28 @@ export function flowData(graph: KgGraph): FlowData {
     if (isConceptOrTerm(t)) conceptsOf.set(e.source, [...(conceptsOf.get(e.source) ?? []), e.target])
   }
   const links = new Map<string, FlowLink>()
+  const loose = new Map<string, FlowLink>() // concept → the placeholder
   const withoutStudy: string[] = []
   for (const n of graph.nodes) {
     if (n.type !== 'variable') continue
     const study = studyOf.get(n.id)
-    if (!study) {
-      withoutStudy.push(n.id)
-      continue
-    }
+    if (!study) withoutStudy.push(n.id)
+    const into = study ? links : loose
     for (const concept of conceptsOf.get(n.id) ?? []) {
-      const key = JSON.stringify([concept, study])
-      const link = links.get(key) ?? { source: concept, target: study, variables: [] }
+      const key = JSON.stringify([concept, study ?? NO_STUDY])
+      const link = into.get(key) ?? { source: concept, target: study ?? NO_STUDY, variables: [] }
       link.variables.push(n.id)
-      links.set(key, link)
+      into.set(key, link)
     }
   }
-  const used = new Set([...links.values()].flatMap((l) => [l.source, l.target]))
-  const nodes = graph.nodes.filter((n) => used.has(n.id)).map((n) => ({ id: n.id, node: n }))
-  return { nodes, links: [...links.values()], withoutStudy }
+  if (!links.size) return { nodes: [], links: [], withoutStudy }
+  const all = [...links.values(), ...loose.values()]
+  const used = new Set(all.flatMap((l) => [l.source, l.target]))
+  const nodes: FlowNode[] = graph.nodes.filter((n) => used.has(n.id)).map((n) => ({ id: n.id, node: n }))
+  if (loose.size) {
+    nodes.push({ id: NO_STUDY, node: { id: NO_STUDY, label: NO_STUDY_LABEL, type: 'study' }, placeholder: true })
+  }
+  return { nodes, links: all, withoutStudy }
 }
 
 export type FlowOptions = KgViewOptions
@@ -71,6 +77,7 @@ const fill = {
   study: 'var(--kg-study, #059669)',
   band: 'color-mix(in srgb, var(--kg-variable-low, #93c5fd), var(--kg-variable-high, #1e40af))',
   selected: 'var(--kg-selected, #0f172a)',
+  placeholder: 'var(--kg-label, #475569)',
 } as const
 
 /**
@@ -122,18 +129,21 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
     // room for labels: concepts' on the left, studies' (longer) on the right
     const left = Math.min(150, width * 0.22)
     const right = Math.min(260, width * 0.38)
+    const padding = Math.max(2, Math.min(10, height / (data.nodes.length * 3)))
     const layout = sankey<FlowNode, FlowLink & { value: number }>()
       .nodeId((n) => n.id)
       .nodeWidth(NODE_WIDTH)
-      .nodePadding(Math.max(2, Math.min(10, height / (data.nodes.length * 3))))
+      .nodePadding(padding)
       .extent([
         [left, 8],
         [width - right, height - 8],
       ])
-    const { nodes, links } = layout({
+    const laid = layout({
       nodes: data.nodes.map((n) => ({ ...n })),
       links: data.links.map((l) => ({ ...l, value: l.variables.length })),
     })
+    if (placeLast(laid.nodes, NO_STUDY, padding)) layout.update(laid) // its bands follow it
+    const { nodes, links } = laid
     const path = sankeyLinkHorizontal()
     const g = (cls: string) => {
       const el = svg.appendChild(document.createElementNS(SVG, 'g'))
@@ -170,6 +180,9 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
       const bar = rect(item, { x: x0, y: y0, width: w, height: h, rx: 2 }, { fill: isConcept ? fill.concept : fill.study })
       // a search word standing in for a concept: tinted, with a border in the concept colour
       if (n.node.type === 'term') Object.assign(bar.style, { fill: fill.term, stroke: fill.concept, strokeWidth: '1.5' })
+      // "No study provided": outlined in grey, never study green; transparent, not none, so
+      // all of it takes clicks
+      if (n.placeholder) Object.assign(bar.style, { fill: 'transparent', stroke: fill.placeholder, strokeWidth: '1.5' })
       // the focus's ring, shown by highlight(); clicks go to the bar
       const ring = rect(item, { x: x0 - RING, y: y0 - RING, width: w + 2 * RING, height: h + 2 * RING, rx: 4 }, {
         fill: 'none',
@@ -253,6 +266,26 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
       svg.remove()
     },
   }
+}
+
+/** Move node `id` to the bottom of its column, which d3-sankey orders to reduce
+ * crossings: the nodes below it move up to close the gap. True if it moved. */
+function placeLast(nodes: SNode[], id: string, padding: number): boolean {
+  const node = nodes.find((n) => n.id === id)
+  if (!node) return false
+  const column = nodes.filter((n) => n.x0 === node.x0) // a column shares its x (its layer isn't in the types)
+  const bottom = Math.max(...column.map((n) => n.y1 ?? 0))
+  const [y0, y1] = [node.y0 ?? 0, node.y1 ?? 0]
+  if (y1 >= bottom) return false
+  const shift = y1 - y0 + padding
+  for (const n of column) {
+    if (n === node || (n.y0 ?? 0) < y0) continue
+    n.y0 = (n.y0 ?? 0) - shift
+    n.y1 = (n.y1 ?? 0) - shift
+  }
+  node.y0 = bottom - (y1 - y0)
+  node.y1 = bottom
+  return true
 }
 
 function rect(parent: Element, attrs: Record<string, number>, style: Partial<CSSStyleDeclaration>): SVGRectElement {

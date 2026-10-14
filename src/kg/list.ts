@@ -24,7 +24,7 @@ export type ListStudy = {
  * The graph as a list, grouped by study: each study with the concepts it covers
  * and its variables, also grouped by concept (study → concept → variables).
  * Studies covering more seeds (or concepts, without seeds) come first, then by name,
- * so with several seeds the shared studies lead; variables whose study isn't given last. For a list or table view, or a text
+ * so with several seeds the shared studies lead; variables whose study isn't provided last. For a list or table view, or a text
  * alternative to the graph.
  */
 export function studyList(graph: KgGraph): ListStudy[] {

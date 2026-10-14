@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import { collapseVersions } from './collapse'
 import asthmaCopd from './fixtures/graph/concept_graph_2.json'
-import { focusConnections, pairVariables, sameFocus } from './focus'
-import type { KgGraph } from './types'
+import { focusConnections, pairVariables, sameFocus, studylessVariables } from './focus'
+import { NO_STUDY, type KgGraph } from './types'
 
 const TWO = collapseVersions(asthmaCopd as KgGraph)
 const ASTHMA = 'MONDO:0004979'
@@ -40,6 +40,44 @@ describe('focusConnections', () => {
       (s) => s.startsWith('phs') && pairVariables(TWO, ASTHMA, s).length === 0,
     )!
     expect(focusConnections(TWO, { concept: ASTHMA, study: onlyCopd }).nodes.size).toBe(0)
+  })
+})
+
+describe('the "No study provided" placeholder', () => {
+  const g: KgGraph = {
+    nodes: [
+      { id: 'C', label: 'c', type: 'concept' },
+      { id: 'D', label: 'd', type: 'concept' },
+      { id: 'v', label: 'v', type: 'variable' },
+      { id: 'loose', label: 'l', type: 'variable' },
+      { id: 'S', label: 's', type: 'study' },
+    ],
+    edges: [
+      { source: 'v', target: 'C' },
+      { source: 'v', target: 'S' },
+      { source: 'loose', target: 'C' },
+      { source: 'loose', target: 'D' },
+    ],
+  }
+
+  it('its variables are the ones without a study', () => {
+    expect([...studylessVariables(g)]).toEqual(['loose'])
+    expect(pairVariables(g, 'C', NO_STUDY).map((v) => v.id)).toEqual(['loose'])
+    expect(pairVariables(g, 'C', 'S').map((v) => v.id)).toEqual(['v'])
+  })
+
+  it('focused: its variables and their concepts', () => {
+    const c = focusConnections(g, { node: NO_STUDY })
+    expect([...c.nodes].sort()).toEqual([NO_STUDY, 'C', 'D', 'loose'].sort())
+    expect(c.edges).toEqual(new Set(['loose->C', 'loose->D']))
+  })
+
+  it('lights up with its variables, and as a pair', () => {
+    expect(focusConnections(g, { node: 'D' }).nodes).toContain(NO_STUDY)
+    expect(focusConnections(g, { node: 'S' }).nodes.has(NO_STUDY)).toBe(false)
+    const pair = focusConnections(g, { concept: 'C', study: NO_STUDY })
+    expect([...pair.nodes].sort()).toEqual([NO_STUDY, 'C', 'loose'].sort())
+    expect(pair.edges).toEqual(new Set(['loose->C']))
   })
 })
 
