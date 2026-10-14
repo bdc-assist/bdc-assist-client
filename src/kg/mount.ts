@@ -9,6 +9,7 @@ import { columnPositions } from './columns'
 import { toElements } from './elements'
 import { focusConnections, isPair, type KgFocus } from './focus'
 import { orient } from './orient'
+import { withSeed } from './seeded'
 import type { KgGraph } from './types'
 import type { KgView, KgViewOptions } from './view'
 
@@ -36,6 +37,11 @@ export type GraphOptions = KgViewOptions & {
   /** 'modifier' mode: the wheel turned over the graph without Ctrl/⌘ held, so the
    * host can say how to zoom. */
   onZoomHint?: () => void
+  /** Where Force has put the nodes, by id. Pass the same (empty) Map to two views of
+   * the same graph, e.g. inline and maximized, and the second shows the first's
+   * layout, drags included, instead of laying out on its own. It's for one graph: read
+   * at mount and by update(), so give update() a new Map along with a new graph. */
+  forcePositions?: Map<string, { x: number; y: number }>
 }
 
 /** The common view interface (KgView; setOptions: a new layout only rearranges the
@@ -45,6 +51,9 @@ export type GraphView = KgView<GraphOptions> & {
   zoomBy(factor: number): void
   /** Show the whole graph. */
   fit(): void
+  /** Force: put the nodes back where forcePositions says, after another view sharing
+   * it has moved them (e.g. dragged in the maximized one). */
+  restorePositions(): void
 }
 
 // Colours come from CSS custom properties on the container (or any ancestor), so
@@ -65,6 +74,12 @@ const SEED_HALO = 14
 const SHARED_HALO = 5
 
 const PADDING = 16
+
+// Force is stable: the same graph always gets the same layout. It starts from Radial
+// in this fixed box (not the container's, so inline and maximized start alike), with
+// a fixed seed for whatever randomness fcose uses
+const FORCE_START = { x1: 0, y1: 0, w: 800, h: 500 }
+const FORCE_SEED = 1
 
 /**
  * Draw `graph` into `container` (which needs a height). Variables are coloured from
@@ -116,6 +131,10 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
     container.title = `${s} — ${predicate} — ${t}`
   })
   cy.on('mouseout', 'edge.relation', () => container.removeAttribute('title'))
+  // a node dragged in Force stays where it was put, also across redraws
+  cy.on('dragfree', 'node', (e) => {
+    if (opts.layout === 'force') placed.set(e.target.id(), { ...e.target.position() })
+  })
 
   // 'modifier' zoom: Cytoscape's own wheel zoom is off, so handle Ctrl/⌘ + wheel here
   // (non-passive, to keep the browser from zooming the page instead)
@@ -133,6 +152,9 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
   container.addEventListener('wheel', onWheel, { passive: false })
 
   let drawn: KgGraph = graph
+  // Force's positions by node id, kept across redraws (Group, Shared only) and drags,
+  // and shared with other views given the same forcePositions; a new one for another graph
+  let placed = opts.forcePositions ?? new Map<string, { x: number; y: number }>()
   function draw() {
     drawn = opts.collapseVersions ? collapseVersions(current) : current
     if (opts.groupSynonyms) drawn = groupSynonyms(drawn)
@@ -164,18 +186,44 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
   function arrange() {
     // labels sit beside the nodes in columns (concepts' on the left), below otherwise
     cy.nodes().toggleClass('columns', opts.layout === 'columns')
-    const layout = cy.layout(layoutOptions(opts.layout ?? 'radial'))
-    // force layouts settle at any angle: turn them to match the container's shape
-    if (opts.layout === 'force') layout.one('layoutstop', orientToContainer)
-    layout.run()
+    if (opts.layout === 'force') arrangeForce()
+    else cy.layout(layoutOptions(opts.layout ?? 'radial')).run()
   }
 
-  function orientToContainer() {
+  // Stable Force: if every node has a known place (maximized, dragged, Shared only just
+  // hid some), they go there and nothing moves. Otherwise it lays out afresh: from
+  // Radial (seeds in the middle) in a fixed box, fcose with a fixed seed, turned wide.
+  // So the same graph always looks the same, whatever was shown before.
+  function arrangeForce() {
+    if (restorePlaced()) return
     const nodes = cy.nodes()
-    const turned = orient(
-      nodes.map((n) => ({ ...n.position() })),
-      container.clientWidth >= container.clientHeight,
-    )
+    cy.layout(radialOptions(FORCE_START)).run()
+    const layout = cy.layout(forceOptions())
+    layout.one('layoutstop', () => {
+      orientWide()
+      // only this layout's places: none left over from another, to mix with it later
+      placed.clear()
+      nodes.forEach((n) => void placed.set(n.id(), { ...n.position() }))
+    })
+    // fcose (cose-base) draws on Math.random when it puts back the tree branches it
+    // set aside while settling the rest
+    withSeed(FORCE_SEED, () => layout.run()) // synchronous: it doesn't animate
+  }
+
+  // every node has a known place: put them there (and fit) and say so
+  function restorePlaced(): boolean {
+    const nodes = cy.nodes()
+    if (nodes.empty() || nodes.filter((n) => !placed.has(n.id())).nonempty()) return false
+    cy.batch(() => nodes.forEach((n) => void n.position(placed.get(n.id())!)))
+    cy.fit(undefined, PADDING)
+    return true
+  }
+
+  // force layouts settle at any angle: turn them wide, always (not to the container's
+  // shape), so inline and maximized get the same layout whichever runs it
+  function orientWide() {
+    const nodes = cy.nodes()
+    const turned = orient(nodes.map((n) => ({ ...n.position() })), true)
     cy.batch(() => nodes.forEach((n, i) => void n.position(turned[i])))
     cy.fit(undefined, PADDING)
   }
@@ -188,33 +236,40 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
     return (withVariables.length ? withVariables : concepts).map((n) => n.id())
   }
 
-  function layoutOptions(layout: KgLayout): LayoutOptions {
+  function layoutOptions(layout: 'radial' | 'columns'): LayoutOptions {
     if (layout === 'columns') {
       const pos = columnPositions(drawn)
       return { name: 'preset', positions: Object.fromEntries(pos), padding: PADDING, animate: false }
     }
-    if (layout === 'force') {
-      return {
-        name: 'fcose',
-        quality: 'proof', // the slower, better pass; our graphs are small (tens of nodes)
-        randomize: true,
-        animate: false,
-        padding: PADDING,
-        nodeDimensionsIncludeLabels: true, // keep long study labels from piling up
-        nodeRepulsion: 8000,
-        idealEdgeLength: 70,
-        edgeElasticity: 0.45,
-        nodeSeparation: 80,
-        packComponents: true, // separate pieces (unconnected nodes) sit side by side
-      } as LayoutOptions // fcose's options aren't in Cytoscape's types
-    }
+    // without a box, breadthfirst spreads over cy.extent(): the visible area at the
+    // current zoom. Zoomed out to fit, that's bigger than the container, so every
+    // redraw (e.g. toggling sharedOnly) would spread wider and fit smaller. Use the
+    // container's own size (a fallback while it's hidden, e.g. in the list view).
+    return radialOptions({ x1: 0, y1: 0, w: container.clientWidth || 600, h: container.clientHeight || 300 })
+  }
+
+  // fcose from the nodes' current positions (randomize: false), so arrangeForce decides
+  // where it starts. The one place that knows it's fcose: another layout could take over
+  // as long as it starts from the current positions and runs synchronously
+  function forceOptions(): LayoutOptions {
+    return {
+      name: 'fcose',
+      quality: 'proof', // the slower, better pass; our graphs are small (tens of nodes)
+      randomize: false,
+      animate: false,
+      padding: PADDING,
+      nodeDimensionsIncludeLabels: true, // keep long study labels from piling up
+      nodeRepulsion: 8000,
+      idealEdgeLength: 70,
+      edgeElasticity: 0.45,
+      nodeSeparation: 80,
+    } as LayoutOptions // fcose's options aren't in Cytoscape's types
+  }
+
+  function radialOptions(boundingBox: { x1: number; y1: number; w: number; h: number }): LayoutOptions {
     return {
       name: 'breadthfirst',
-      // without a box, breadthfirst spreads over cy.extent(): the visible area at the
-      // current zoom. Zoomed out to fit, that's bigger than the container, so every
-      // redraw (e.g. toggling sharedOnly) would spread wider and fit smaller. Use the
-      // container's own size (a fallback while it's hidden, e.g. in the list view).
-      boundingBox: { x1: 0, y1: 0, w: container.clientWidth || 600, h: container.clientHeight || 300 },
+      boundingBox,
       // the seeds in the middle, so related concepts and the seeds' variables ring them.
       // Without seeds (searches): the concepts with variables; concepts only related to
       // them (no variables of their own) form a ring around them instead of joining the middle
@@ -231,6 +286,8 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
     update(g, o) {
       if (o) opts = { ...opts, ...o }
       current = g
+      // another graph: its own stable layout. A shared Map is the host's to replace
+      placed = opts.forcePositions ?? new Map()
       opts.onFocus?.(null) // the focused node may be gone or renamed
       draw()
     },
@@ -260,6 +317,15 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
     },
     fit() {
       cy.fit(undefined, PADDING)
+    },
+    restorePositions() {
+      if (opts.layout !== 'force') return
+      // nothing moved: keep the user's zoom and pan
+      const moved = cy.nodes().filter((n) => {
+        const [p, q] = [placed.get(n.id()), n.position()]
+        return !p || p.x !== q.x || p.y !== q.y
+      })
+      if (moved.nonempty()) restorePlaced()
     },
     resize() {
       cy.resize()

@@ -10,8 +10,8 @@ It is self-contained so it can be lifted into another system:
 - no framework: plain TypeScript and the DOM; React, Vue, Angular or plain HTML all
   call it the same way
 - no imports from the rest of this app
-- dependencies: [`cytoscape`](https://js.cytoscape.org) (graph view) and
-  [`d3-sankey`](https://github.com/d3/d3-sankey) (flow view)
+- dependencies: [`cytoscape`](https://js.cytoscape.org) with `cytoscape-fcose` (graph
+  view) and [`d3-sankey`](https://github.com/d3/d3-sankey) (flow view)
 - styling through CSS custom properties, so the host restyles it from its own CSS
 
 The demo client's wrapper, [`components/bdc/knowledge-graph.tsx`](../components/bdc/knowledge-graph.tsx),
@@ -128,11 +128,13 @@ Extra options:
 
 | Option | |
 |---|---|
-| `layout` | `'radial'` (default: the seeds in the middle, or the concepts when there are none; variables around, studies outside), `'force'` (force-directed, turned to fit the container), `'columns'` (concepts \| variables \| studies). All listed in `KG_LAYOUTS` |
+| `layout` | `'radial'` (default: the seeds in the middle, or the concepts when there are none; variables around, studies outside), `'force'` (force-directed, turned wide), `'columns'` (concepts \| variables \| studies). All listed in `KG_LAYOUTS` |
 | `zoomGestures` | `false` (default: the wheel scrolls the page), `'modifier'` (Ctrl/⌘ + wheel zooms; trackpad pinch counts), `true` (the wheel always zooms). Use `'modifier'` where a page scrolls around the graph |
 | `onZoomHint` | `'modifier'` mode: called when the wheel turns over the graph without Ctrl/⌘, so you can say how to zoom |
+| `forcePositions` | a `Map` where Force keeps its node positions. Give two views of the same graph (inline and maximized) the same empty `Map`, and the second shows the first's layout, drags included. It's for one graph: give `update()` a new `Map` with a new graph |
 
-Extra methods: `zoomBy(factor)` and `fit()`, for your own zoom buttons. Hovering a
+Extra methods: `zoomBy(factor)` and `fit()`, for your own zoom buttons, and
+`restorePositions()`, to show what another view sharing `forcePositions` moved. Hovering a
 node shows its full label as the browser's tooltip.
 
 ### `mountFlow(container, graph, options)` (`flow.ts`)
@@ -196,5 +198,8 @@ used) first, so ids match what the views draw.
   data dictionary from PIC-SURE, and there's no dbGaP variable page. `nodeLinks` gives
   their study's page instead, with `note: NO_VARIABLE_ACCESSION` ("No dbGaP variable
   accession available") so you can say why.
-- **The force layout is recomputed** on every redraw, so it differs from one draw to
-  the next.
+- **The force layout is stable:** the same graph always gets the same layout (it
+  starts from the radial one, with a fixed seed, and is turned wide). Where every node
+  already has a place, nothing moves: dragged nodes stay, and `sharedOnly` turned on
+  only hides some. A redraw that brings in new nodes lays out afresh. Give a second
+  view (e.g. maximized) the same `forcePositions` to show the first one's drags too.

@@ -93,16 +93,25 @@ node-link view that shows everything in a mixed graph. The user's pick carries o
 when switching "Show", as long as it's available there.
 
 **Force must be stable** before it becomes the default. The same graph should always
-look the same: inline, in the maximized dialog, and after a reload. The planned
-approach:
+look the same: inline, in the maximized dialog, and after a reload. How (`arrangeForce`
+in mount.ts):
 
-- start from the Radial positions (seeds in the middle), with a fixed random seed, so
-  the result is deterministic and seeds tend to stay central
-- when a toggle (Group, Shared only) redraws the graph, nodes that are still there keep
-  their positions; dragged positions are kept the same way
-- time it on large graphs: concept_graph_2 has 104 nodes, and each graph in the chat
-  runs its own layout
-- it depends on the verdict on fcose
+- it starts from Radial (seeds in the middle) in a fixed box, not the container's, and
+  runs fcose from there (`randomize: false`) with `Math.random` seeded (`withSeed`,
+  seeded.ts), so the result is deterministic and seeds tend to stay central
+- it's always turned wide, not to the container's shape, so it doesn't matter which
+  view lays it out
+- if every node already has a place, nothing moves: Shared only turned on (it only
+  hides nodes), drags, and maximizing (inline and maximized share their positions,
+  `forcePositions`). Anything that brings in new nodes (Group or Shared only turned
+  off) lays out afresh, so the picture can jump and drags are lost. Kept simple on
+  purpose; if the jumps bother, start from the current positions instead, with new
+  nodes placed around their known neighbours
+- fcose for now: only `forceOptions` knows it, so another layout can replace it if it
+  starts from the nodes' positions (Radial's) and runs synchronously. Candidates: Cola (built
+  for incremental, stable updates), d3-force (seedable), ELK stress
+- **(open)** time it on large graphs: concept_graph_2 has 104 nodes, and each graph in
+  the chat runs its own layout
 
 **Mixed graphs:** every view that's available shows the part it can and notes what it
 leaves out ("N relationships between concepts not shown in this view"), as Flow does
@@ -338,8 +347,8 @@ type KgFocus = { node: string } | { concept: string; study: string }
    provided" placeholder in Flow and List (`NO_STUDY`, focusable like a study). Flow's
    "without a study" note stays only for when Flow is empty (no real studies), until
    `graphShape` greys Flow out there.
-3. Stable Force: start from the Radial positions, a fixed seed, positions kept across
-   toggles.
+3. ~~Stable Force~~ (done, timing to check): start from the Radial positions, a fixed
+   seed, positions kept across toggles.
 4. Collapsed links in node-link, the default, with the Variables toggle.
 5. `graphShape`: availability, the Force default, greyed options (views and the
    Variables toggle), the pick carried over.

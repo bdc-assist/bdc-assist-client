@@ -529,6 +529,8 @@ type GraphBodyProps = {
   source: number // which one is shown; -1: all merged
   onSource: (i: number) => void
   zoomGestures: boolean | 'modifier' // see mountGraph: 'modifier' where the chat scrolls around the graph
+  forcePositions: Map<string, { x: number; y: number }> // see mountGraph: shared by the panel and the dialog
+  covered?: boolean // the maximized dialog is over it: when it closes, show what was moved there
   detailsBeside?: boolean // details in a column on the right, not below: picking a node never resizes the views
 }
 
@@ -537,7 +539,7 @@ const ZOOM_KEY = /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl'
 
 function GraphBody(props: GraphBodyProps) {
   const { json, shown, canvasClass, layout, onLayout, mode, onMode, sharedOnly, onSharedOnly, canShare, zoomGestures } = props
-  const { sources, source, onSource, grouped, onGrouped, canGroup, detailsBeside } = props
+  const { sources, source, onSource, grouped, onGrouped, canGroup, forcePositions, covered, detailsBeside } = props
   const relationCount = useMemo(() => relations(shown).length, [shown])
   // Flow draws variables with no study provided under "No study provided", but only alongside real
   // studies: with none, it's empty, so say why (until graphShape greys Flow out)
@@ -569,6 +571,7 @@ function GraphBody(props: GraphBodyProps) {
       groupSynonyms: grouped,
       sharedOnly,
       zoomGestures,
+      forcePositions,
       onZoomHint: showZoomHint,
       onFocus: (f) => {
         setFocus(f)
@@ -611,6 +614,10 @@ function GraphBody(props: GraphBodyProps) {
   }, [json]) // eslint-disable-line react-hooks/exhaustive-deps -- grouped, sharedOnly: see below
 
   useEffect(() => view.current?.setOptions({ layout }), [layout])
+  // nodes dragged in the maximized dialog moved in forcePositions only: catch up on closing
+  useEffect(() => {
+    if (!covered) view.current?.restorePositions()
+  }, [covered])
   // the views read their --kg-* colours once: again when the theme (the dark class) changes
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -758,6 +765,13 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
   // source is a new graph too, so the views start over (and the focus clears).
   const json = JSON.stringify(current)
   const raw = useMemo(() => JSON.parse(json) as KgGraph, [json])
+  // Force's positions, shared by the panel and the dialog so maximizing keeps the layout;
+  // a new graph starts afresh (React redoes the render before showing it). State, not
+  // useMemo: React may drop a memo (it does on every hot reload), and the panel would
+  // keep the old Map while the dialog got a new one
+  const [positions, setPositions] = useState(() => ({ json, map: new Map<string, { x: number; y: number }>() }))
+  if (positions.json !== json) setPositions({ json, map: new Map() })
+  const forcePositions = positions.map
   const all = useMemo(() => groupSynonyms(collapseVersions(raw)), [raw])
   const merged = grouped ? all : raw
   // offered only when it changes something
@@ -819,6 +833,8 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
           mode={mode}
           onMode={setMode}
           {...filter}
+          forcePositions={forcePositions}
+          covered={maximized}
           zoomGestures="modifier"
         />
       </details>
@@ -838,6 +854,7 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
               mode={mode}
               onMode={setMode}
               {...filter}
+              forcePositions={forcePositions}
               zoomGestures
               detailsBeside
             />
