@@ -1,10 +1,11 @@
 import { sankey, sankeyLinkHorizontal, type SankeyLink, type SankeyNode } from 'd3-sankey'
 
 import { bridges, sharedOnly } from './bridges'
+import { bundles } from './bundle'
 import { collapseVersions } from './collapse'
 import { haloOf } from './colour'
 import { groupSynonyms } from './group'
-import { focusConnections, isPair, type KgFocus } from './focus'
+import { focusConnections, isPair, studylessVariables, type KgFocus } from './focus'
 import { isConceptOrTerm, NO_STUDY, NO_STUDY_LABEL, type KgGraph, type KgNode } from './types'
 import type { KgView, KgViewOptions } from './view'
 
@@ -22,37 +23,16 @@ export type FlowData = { nodes: FlowNode[]; links: FlowLink[]; withoutStudy: str
  * (e.g. search_concepts) there's nothing to draw.
  */
 export function flowData(graph: KgGraph): FlowData {
-  const byId = new Map(graph.nodes.map((n) => [n.id, n]))
-  const studyOf = new Map<string, string>()
-  const conceptsOf = new Map<string, string[]>()
-  for (const e of graph.edges) {
-    const t = byId.get(e.target)?.type
-    if (t === 'study') studyOf.set(e.source, e.target)
-    if (isConceptOrTerm(t)) conceptsOf.set(e.source, [...(conceptsOf.get(e.source) ?? []), e.target])
-  }
-  const links = new Map<string, FlowLink>()
-  const loose = new Map<string, FlowLink>() // concept → the placeholder
-  const withoutStudy: string[] = []
-  for (const n of graph.nodes) {
-    if (n.type !== 'variable') continue
-    const study = studyOf.get(n.id)
-    if (!study) withoutStudy.push(n.id)
-    const into = study ? links : loose
-    for (const concept of conceptsOf.get(n.id) ?? []) {
-      const key = JSON.stringify([concept, study ?? NO_STUDY])
-      const link = into.get(key) ?? { source: concept, target: study ?? NO_STUDY, variables: [] }
-      link.variables.push(n.id)
-      into.set(key, link)
-    }
-  }
-  if (!links.size) return { nodes: [], links: [], withoutStudy }
-  const all = [...links.values(), ...loose.values()]
-  const used = new Set(all.flatMap((l) => [l.source, l.target]))
+  const all = bundles(graph)
+  const withoutStudy = [...studylessVariables(graph)]
+  if (all.every((b) => b.study === NO_STUDY)) return { nodes: [], links: [], withoutStudy }
+  const links = all.map((b) => ({ source: b.concept, target: b.study, variables: b.variables }))
+  const used = new Set(links.flatMap((l) => [l.source, l.target]))
   const nodes: FlowNode[] = graph.nodes.filter((n) => used.has(n.id)).map((n) => ({ id: n.id, node: n }))
-  if (loose.size) {
+  if (used.has(NO_STUDY)) {
     nodes.push({ id: NO_STUDY, node: { id: NO_STUDY, label: NO_STUDY_LABEL, type: 'study' }, placeholder: true })
   }
-  return { nodes, links: all, withoutStudy }
+  return { nodes, links, withoutStudy }
 }
 
 export type FlowOptions = KgViewOptions

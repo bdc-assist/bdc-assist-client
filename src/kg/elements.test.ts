@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { collapseVersions } from './collapse'
 import { toElements } from './elements'
 import chd from './fixtures/graph/concept_graph.json'
-import type { KgGraph } from './types'
+import { NO_STUDY, type KgGraph } from './types'
 
 const CHD = collapseVersions(chd as KgGraph)
 
@@ -65,5 +65,46 @@ describe('toElements', () => {
   it('gives edges stable ids', () => {
     const edge = toElements(CHD).find((e) => e.group === 'edges')!
     expect(edge.data.id).toBe(`${edge.data.source}->${edge.data.target}`)
+  })
+
+  describe('bundled', () => {
+    const graph: KgGraph = {
+      nodes: [
+        { id: 'C', label: 'c', type: 'concept' },
+        { id: 'D', label: 'd', type: 'concept' },
+        { id: 'v', label: 'v', type: 'variable' },
+        { id: 'w', label: 'w', type: 'variable' },
+        { id: 'loose', label: 'l', type: 'variable' },
+        { id: 'S', label: 's', type: 'study' },
+      ],
+      edges: [
+        { source: 'C', target: 'D', predicates: ['related_to'] },
+        { source: 'v', target: 'C' },
+        { source: 'v', target: 'S' },
+        { source: 'w', target: 'C' },
+        { source: 'w', target: 'S' },
+        { source: 'loose', target: 'C' },
+      ],
+    }
+    const els = toElements(graph, true)
+
+    it('drops variables for one edge per concept and study, keeping inter-concept links', () => {
+      expect(els.filter((e) => e.group === 'nodes').map((e) => e.data.id)).toEqual(['C', 'D', 'S', NO_STUDY])
+      const edges = els.filter((e) => e.group === 'edges')
+      expect(edges.map((e) => [e.data.id, e.classes])).toEqual([
+        ['C->D', 'relation'],
+        ['bundle:C->S', 'bundle'],
+        [`bundle:C->${NO_STUDY}`, 'bundle'],
+      ])
+      expect(edges[1].data).toMatchObject({ concept: 'C', study: 'S', variables: ['v', 'w'], count: 2 })
+    })
+
+    it('adds the placeholder, last in its ring, only for variables without a study', () => {
+      const placeholder = els.find((e) => e.data.id === NO_STUDY)
+      expect(placeholder?.classes).toBe('placeholder')
+      expect(placeholder?.data.order > 'phs999999').toBe(true)
+      const withStudies = toElements({ ...graph, edges: graph.edges.filter((e) => e.source !== 'loose') }, true)
+      expect(withStudies.some((e) => e.data.id === NO_STUDY)).toBe(false)
+    })
   })
 })

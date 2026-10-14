@@ -129,6 +129,7 @@ Extra options:
 | Option | |
 |---|---|
 | `layout` | `'radial'` (default: the seeds in the middle, or the concepts when there are none; variables around, studies outside), `'force'` (force-directed, turned wide), `'columns'` (concepts \| variables \| studies). All listed in `KG_LAYOUTS` |
+| `variables` | `false` (default): one link per concept and study, as wide as its variables (√count), flat mid-blue; variables without a study link to a grey "No study provided" placeholder. Clicking a link focuses its concept × study pair. Without any studies, every link goes to the placeholder. `true`: each variable. Variables are drawn anyway in `'columns'` |
 | `zoomGestures` | `false` (default: the wheel scrolls the page), `'modifier'` (Ctrl/⌘ + wheel zooms; trackpad pinch counts), `true` (the wheel always zooms). Use `'modifier'` where a page scrolls around the graph |
 | `onZoomHint` | `'modifier'` mode: called when the wheel turns over the graph without Ctrl/⌘, so you can say how to zoom |
 | `forcePositions` | a `Map` where Force keeps its node positions. Give two views of the same graph (inline and maximized) the same empty `Map`, and the second shows the first's layout, drags included. It's for one graph: give `update()` a new `Map` with a new graph |
@@ -179,6 +180,7 @@ used) first, so ids match what the views draw.
 | `nodeLinks(node, graph)`, `conceptLink(id)` | `links.ts` | pages for a node: dbGaP study and variable pages (one per release; a variable without an accession gets its study, with a `note`); concepts by CURIE prefix (MONDO, EFO, UMLS, GTOPDB, otherwise bioregistry.io), marked "(login)" where an account is needed |
 | `focusConnections(graph, focus)`, `pairVariables(graph, concept, study)`, `studylessVariables(graph)` | `focus.ts` | what a focus lights up; a pair's variables; the variables whose study isn't provided |
 | `NO_STUDY`, `NO_STUDY_LABEL` | `types.ts` | the "No study provided" placeholder for variables whose study isn't provided: never a node in the graph, but views draw it and it focuses like a study (`{ node: NO_STUDY }`, `{ concept, study: NO_STUDY }`) |
+| `bundles(graph)` | `bundle.ts` | one `{ concept, study, variables }` per concept and study (the study can be `NO_STUDY`): what Flow's bands and node-link's links draw |
 | `flowData(graph)` | `flow.ts` | the flow's concept → study links with their variables, for your own chart; variables without a study go to the placeholder (`placeholder: true`, last), but only alongside real studies; `withoutStudy` lists them |
 | `fromKgList(kg)` | `wire.ts` | the API's per-call graphs merged into one |
 | `relations(graph)` | `elements.ts` | the concept → concept edges (drawn as light amber lines in the graph view; the flow view can't show them) |

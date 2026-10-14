@@ -66,13 +66,20 @@ const HALO = 'color-mix(in srgb, var(--kg-halo) calc(var(--kg-halo-opacity) * 10
 
 // only what the graph has (its node types, seeds, shared nodes, inter-concept links),
 // drawn as the view draws it
-type LegendProps = { types: ReadonlySet<KgNode['type']>; related: boolean; seeds: boolean; shared: boolean; mode: ViewMode }
+type LegendProps = {
+  types: ReadonlySet<KgNode['type']>
+  related: boolean
+  seeds: boolean
+  shared: boolean
+  mode: ViewMode
+  bundled: boolean // the graph draws bundles, not variables
+}
 
-function Legend({ types, related, seeds, shared, mode }: LegendProps) {
+function Legend({ types, related, seeds, shared, mode, bundled }: LegendProps) {
   return (
     <ul aria-label="Legend" className="flex flex-wrap items-center gap-x-3 gap-y-1">
       {LEGEND.filter((l) => types.has(l.type)).map((l) => {
-        const bands = l.type === 'variable' && mode === 'flow'
+        const bands = l.type === 'variable' && (mode === 'flow' || bundled)
         const { shape, background, border } = bands ? BAND : l
         return (
           <li key={l.type} className="flex items-center gap-1.5">
@@ -522,6 +529,8 @@ type GraphBodyProps = {
   grouped: boolean // versions and synonyms merged (the views' collapseVersions and groupSynonyms)
   onGrouped: (on: boolean) => void
   canGroup: boolean // merging changes something: offer the toggle
+  variables: boolean // the graph draws each variable, not bundles (see mountGraph)
+  onVariables: (on: boolean) => void
   sharedOnly: boolean
   onSharedOnly: (on: boolean) => void
   canShare: boolean // some study connects two or more seeds: offer the filter
@@ -540,6 +549,7 @@ const ZOOM_KEY = /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl'
 function GraphBody(props: GraphBodyProps) {
   const { json, shown, canvasClass, layout, onLayout, mode, onMode, sharedOnly, onSharedOnly, canShare, zoomGestures } = props
   const { sources, source, onSource, grouped, onGrouped, canGroup, forcePositions, covered, detailsBeside } = props
+  const { variables, onVariables } = props
   const relationCount = useMemo(() => relations(shown).length, [shown])
   // Flow draws variables with no study provided under "No study provided", but only alongside real
   // studies: with none, it's empty, so say why (until graphShape greys Flow out)
@@ -549,6 +559,10 @@ function GraphBody(props: GraphBodyProps) {
   }, [shown])
   const types = useMemo(() => new Set(shown.nodes.map((n) => n.type)), [shown])
   const hasSeeds = useMemo(() => shown.nodes.some((n) => n.seed), [shown])
+  // why the graph draws each variable whatever the toggle says (as mountGraph does), or
+  // null: it can bundle them
+  const variablesOnly = layout === 'columns' ? 'Columns always shows each variable' : null
+  const bundled = mode === 'graph' && !variables && !variablesOnly
   const container = useRef<HTMLDivElement>(null)
   const view = useRef<GraphView | null>(null)
   const flowContainer = useRef<HTMLDivElement>(null)
@@ -571,6 +585,7 @@ function GraphBody(props: GraphBodyProps) {
       groupSynonyms: grouped,
       sharedOnly,
       zoomGestures,
+      variables,
       forcePositions,
       onZoomHint: showZoomHint,
       onFocus: (f) => {
@@ -590,7 +605,7 @@ function GraphBody(props: GraphBodyProps) {
       setFocus(null)
       clearTimeout(hintTimer.current)
     }
-  }, [json]) // eslint-disable-line react-hooks/exhaustive-deps -- layout, grouped, sharedOnly: see below
+  }, [json]) // eslint-disable-line react-hooks/exhaustive-deps -- layout, grouped, sharedOnly, variables: see below
 
   // the flow (Sankey): its own view of the same graph, kept mounted like the graph
   useEffect(() => {
@@ -614,6 +629,7 @@ function GraphBody(props: GraphBodyProps) {
   }, [json]) // eslint-disable-line react-hooks/exhaustive-deps -- grouped, sharedOnly: see below
 
   useEffect(() => view.current?.setOptions({ layout }), [layout])
+  useEffect(() => view.current?.setOptions({ variables }), [variables])
   // nodes dragged in the maximized dialog moved in forcePositions only: catch up on closing
   useEffect(() => {
     if (!covered) view.current?.restorePositions()
@@ -649,7 +665,14 @@ function GraphBody(props: GraphBodyProps) {
   return (
     <div data-slot="bdc-graph" className="flex min-h-0 flex-1 flex-col text-xs">
       <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 border-t px-3 py-1.5">
-        <Legend types={types} related={relationCount > 0} seeds={hasSeeds} shared={canShare} mode={mode} />
+        <Legend
+          types={types}
+          related={relationCount > 0}
+          seeds={hasSeeds}
+          shared={canShare}
+          mode={mode}
+          bundled={bundled}
+        />
         <div className="ml-auto flex min-w-0 items-center gap-3">
           {sources.length > 1 && <SourcePicker sources={sources} source={source} onSource={onSource} />}
           {canGroup && (
@@ -662,6 +685,24 @@ function GraphBody(props: GraphBodyProps) {
               </TooltipTrigger>
               <TooltipContent side="bottom">
                 Merge the releases of a study or variable, and concepts linked to exactly the same things
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {mode === 'graph' && types.has('variable') && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <label className={`flex items-center gap-1.5 ${variablesOnly ? 'opacity-50' : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={variables || !!variablesOnly}
+                    disabled={!!variablesOnly}
+                    onChange={(e) => onVariables(e.target.checked)}
+                  />
+                  Variables
+                </label>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {variablesOnly ?? 'Show each variable, instead of one link per concept and study'}
               </TooltipContent>
             </Tooltip>
           )}
@@ -758,6 +799,7 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
   const [mode, setMode] = useState<ViewMode>('graph')
   const [sharedOnlyWanted, setSharedOnly] = useState(false)
   const [grouped, setGrouped] = useState(true) // versions and synonyms merged, as the views do by default
+  const [variables, setVariables] = useState(false) // each variable, not bundles, as mountGraph does by default
   const [source, setSource] = useState(-1) // which graph: -1 all merged, else parts[source]
   const current = (source >= 0 && parts[source]?.graph) || graph
   // the message is re-rendered on every stream event, and done delivers the same
@@ -799,6 +841,8 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
     grouped,
     onGrouped: setGrouped,
     canGroup,
+    variables,
+    onVariables: setVariables,
     sharedOnly,
     onSharedOnly: setSharedOnly,
     canShare: sharedStudies > 0,

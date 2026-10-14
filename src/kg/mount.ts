@@ -1,4 +1,4 @@
-import cytoscape, { type LayoutOptions, type StylesheetJson } from 'cytoscape'
+import cytoscape, { type EdgeSingular, type LayoutOptions, type StylesheetJson } from 'cytoscape'
 import fcose from 'cytoscape-fcose'
 
 import { bridges, sharedOnly } from './bridges'
@@ -29,6 +29,12 @@ export type KgLayout = (typeof KG_LAYOUTS)[number]
 export type GraphOptions = KgViewOptions & {
   /** How to arrange the nodes (default 'radial'). */
   layout?: KgLayout
+  /** Draw each variable (true), or one bundle per concept and study (false, the
+   * default): a link as wide as its variables, with variables whose study isn't
+   * provided bundled to a "No study provided" placeholder. Clicking a bundle focuses
+   * its concept × study pair (without any studies, every bundle goes to the
+   * placeholder). Variables are drawn anyway in columns, which lays them out. */
+  variables?: boolean
   /** Zoom with the mouse wheel and pinch. false (default): no, the wheel scrolls
    * the page. 'modifier': only with Ctrl/⌘ held (trackpad pinch counts: browsers
    * send it as Ctrl + wheel), so a plain wheel still scrolls the page around the
@@ -131,6 +137,22 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
     container.title = `${s} — ${predicate} — ${t}`
   })
   cy.on('mouseout', 'edge.relation', () => container.removeAttribute('title'))
+  // a bundle: its concept × study pair, like a band in Flow
+  cy.on('tap', 'edge.bundle', (e) => {
+    const f = { concept: e.target.data('concept') as string, study: e.target.data('study') as string }
+    highlight(f)
+    opts.onFocus?.(f)
+  })
+  cy.on('mouseover', 'edge.bundle', (e) => {
+    const [s, t] = [e.target.source().data('label'), e.target.target().data('label')]
+    const n = e.target.data('count') as number
+    container.title = `${s} — ${n} ${n === 1 ? 'variable' : 'variables'} — ${t}`
+    container.style.cursor = 'pointer'
+  })
+  cy.on('mouseout', 'edge.bundle', () => {
+    container.removeAttribute('title')
+    container.style.cursor = ''
+  })
   // a node dragged in Force stays where it was put, also across redraws
   cy.on('dragfree', 'node', (e) => {
     if (opts.layout === 'force') placed.set(e.target.id(), { ...e.target.position() })
@@ -152,6 +174,7 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
   container.addEventListener('wheel', onWheel, { passive: false })
 
   let drawn: KgGraph = graph
+  let bundled = false // drawn with bundles instead of variables
   // Force's positions by node id, kept across redraws (Group, Shared only) and drags,
   // and shared with other views given the same forcePositions; a new one for another graph
   let placed = opts.forcePositions ?? new Map<string, { x: number; y: number }>()
@@ -160,25 +183,39 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
     if (opts.groupSynonyms) drawn = groupSynonyms(drawn)
     if (opts.sharedOnly) drawn = sharedOnly(drawn) // after merging: it can create bridges
     const shared = bridges(drawn)
+    bundled = wantBundles()
     cy.batch(() => {
       cy.elements().remove()
-      cy.add(toElements(drawn))
+      cy.add(toElements(drawn, bundled))
       // nodes that connect two or more seeds get a halo (`bridge`)
       cy.nodes().forEach((n) => void n.toggleClass('bridge', shared.has(n.id())))
     })
     arrange()
   }
 
-  // everything not connected to the focus gets `faded`; null clears it
+  // bundles unless variables are wanted, or columns lays them out (or there are none)
+  function wantBundles() {
+    return !opts.variables && opts.layout !== 'columns' && drawn.nodes.some((n) => n.type === 'variable')
+  }
+
+  // everything not connected to the focus gets `faded`; null clears it. Worked out on
+  // the whole graph (variables included); a bundle stays when its two ends and some
+  // of its variables do
   function highlight(focus: KgFocus | null) {
     const c = focus ? focusConnections(drawn, focus) : null
     cy.batch(() => {
       cy.elements().removeClass('faded')
       if (!c?.nodes.size) return
-      cy.elements().forEach((el) => {
-        const elId = el.id()
-        const on = el.isNode() ? c.nodes.has(elId) : c.edges.has(elId)
-        if (!on) el.addClass('faded')
+      cy.nodes().forEach((n) => {
+        if (!c.nodes.has(n.id())) n.addClass('faded')
+      })
+      cy.edges().forEach((e) => {
+        const on = e.hasClass('bundle')
+          ? c.nodes.has(e.data('concept')) &&
+            c.nodes.has(e.data('study')) &&
+            (e.data('variables') as string[]).some((v) => c.nodes.has(v))
+          : c.edges.has(e.id())
+        if (!on) e.addClass('faded')
       })
     })
   }
@@ -232,7 +269,8 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
     const seeds = cy.nodes('[?seed]')
     if (seeds.length) return seeds.map((n) => n.id())
     const concepts = cy.nodes('[type = "concept"], [type = "term"]')
-    const withVariables = concepts.filter((c) => c.neighborhood('node[type = "variable"]').length > 0)
+    // (bundled, concepts link to studies directly)
+    const withVariables = concepts.filter((c) => c.neighborhood('node[type = "variable"], node[type = "study"]').length > 0)
     return (withVariables.length ? withVariables : concepts).map((n) => n.id())
   }
 
@@ -297,7 +335,7 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
       const relayout = o.layout !== undefined && o.layout !== opts.layout
       opts = { ...opts, ...o }
       cy.userZoomingEnabled(opts.zoomGestures === true)
-      if (redraw) {
+      if (redraw || wantBundles() !== bundled) {
         opts.onFocus?.(null)
         draw()
       } else if (relayout) arrange()
@@ -397,7 +435,25 @@ function styleFor(el: HTMLElement): StylesheetJson {
       style: { 'text-valign': 'center', 'text-halign': 'right', 'text-margin-x': 5, 'text-margin-y': 0, 'text-max-width': '200px' },
     },
     { selector: 'node.columns[type = "concept"], node.columns[type = "term"]', style: { 'text-halign': 'left', 'text-margin-x': -5 } },
+    {
+      // "No study provided": a stand-in, not a study: outlined in grey, never study green
+      selector: 'node.placeholder',
+      style: {
+        'background-opacity': 0,
+        'border-width': 1.5,
+        'border-color': color('label'),
+      },
+    },
     { selector: 'edge', style: { width: 1, 'line-color': color('edge'), 'curve-style': 'straight' } },
+    {
+      // a concept's variables in one study: flat mid-blue (a summary of variables, as
+      // Flow's bands), as wide as there are (area-like: 1 + 2.2·√count)
+      selector: 'edge.bundle',
+      style: {
+        'line-color': mix(color('variableLow'), color('variableHigh'), 0.5),
+        width: (e: EdgeSingular) => 1 + 2.2 * Math.sqrt(e.data('count') as number),
+      },
+    },
     {
       // concept → concept: a light tint of the concept colour (not opacity: that means faded)
       selector: 'edge.relation',

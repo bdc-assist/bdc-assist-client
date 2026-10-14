@@ -110,8 +110,8 @@ in mount.ts):
 - fcose for now: only `forceOptions` knows it, so another layout can replace it if it
   starts from the nodes' positions (Radial's) and runs synchronously. Candidates: Cola (built
   for incremental, stable updates), d3-force (seedable), ELK stress
-- **(open)** time it on large graphs: concept_graph_2 has 104 nodes, and each graph in
-  the chat runs its own layout
+- timing is fine on large graphs (concept_graph_2, 104 nodes), each graph in the chat
+  running its own layout
 
 **Mixed graphs:** every view that's available shows the part it can and notes what it
 leaves out ("N relationships between concepts not shown in this view"), as Flow does
@@ -154,7 +154,7 @@ A term differs from a concept only where the concept's identity is used:
 - Concepts with no variables (e.g. from concept_connections) aren't drawn and get a
   "not shown" note.
 
-### Collapsed links in node-link (planned)
+### Collapsed links in node-link
 
 Radial and Force draw bundles by default: one link per concept and study, instead of
 the variables between them.
@@ -166,9 +166,9 @@ the variables between them.
   Matrix cell, and the details list its variables. A bundle doesn't expand in place:
   that would add nodes and move the layout. The toggle is how you see all variables.
 - **Variables without a study** bundle to the "No study provided" placeholder.
-- **Graphs without studies** (search_concepts): collapsing would leave only concept →
-  placeholder. Variables are shown and the checkbox is greyed out, with the reason as
-  its tooltip.
+- **Graphs without studies** (search_concepts) bundle too: every concept links to the
+  placeholder, as wide as its variables. Same behaviour everywhere (decided 2026-10-14,
+  over showing variables with the checkbox greyed out).
 - **Not drawn by default:** the blue ramp (variable weight) and halos on shared
   *variables*. Shared studies keep their halo. The legend follows the toggle, and the
   view: it lists only what the view draws, as the view draws it. Today it follows the
@@ -177,10 +177,12 @@ the variables between them.
 - **Highlighting** is computed on the full graph and mapped to bundles: a concept
   lights up its bundles and their studies, and a study lights up its bundles and their
   concepts. It matches the other views.
-- **Stability:** when switching, concepts and studies keep their positions, and
-  variables start between their two ends (this builds on stable Force).
-- **Code:** a pure transform in `src/kg` that turns variable paths into bundle edges
-  listing their variables. A bundle edge is drawn in the bundle style (flat mid-blue,
+- **Stability:** switching adds or removes nodes, so Force lays out afresh (§2's simple
+  rule); concepts and studies don't keep their places.
+- **Columns** always draws each variable (its layout needs them), with the checkbox
+  greyed out, until Columns is dropped.
+- **Code:** `bundles` (bundle.ts), shared with Flow, turns variable paths into bundle
+  edges listing their variables (`toElements(graph, true)`; `variables` option). A bundle edge is drawn in the bundle style (flat mid-blue,
   width = count, §4), so it's never confused with an edge from Dug.
 
 ### Parked (revisit later)
@@ -347,11 +349,11 @@ type KgFocus = { node: string } | { concept: string; study: string }
    provided" placeholder in Flow and List (`NO_STUDY`, focusable like a study). Flow's
    "without a study" note stays only for when Flow is empty (no real studies), until
    `graphShape` greys Flow out there.
-3. ~~Stable Force~~ (done, timing to check): start from the Radial positions, a fixed
-   seed, positions kept across toggles.
-4. Collapsed links in node-link, the default, with the Variables toggle.
-5. `graphShape`: availability, the Force default, greyed options (views and the
-   Variables toggle), the pick carried over.
+3. ~~Stable Force~~ (done): start from the Radial positions, a fixed seed, turned
+   wide; positions kept when every node has one (maximize, drags, Shared only on).
+4. ~~Collapsed links in node-link~~ (done): the default, with the Variables toggle.
+5. `graphShape`: availability, the Force default, greyed-out views, the pick carried
+   over.
 6. Star list grouped by predicate, and removing the Columns layout.
 7. Matrix.
 8. Parked views from §3 (seed-combination chart, predicate sectors), if they're picked up again.
