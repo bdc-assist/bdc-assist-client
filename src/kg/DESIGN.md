@@ -56,7 +56,7 @@ Computed on the graph being shown (the source picked, grouped or not), **before*
 | Mixed | several calls in "All results" | any | any | any | any |
 
 `graphShape(graph) → { available: Record<View, true | reason>, default: View }`
-**(planned)** turns a shape into the views on offer.
+(shape.ts) turns a shape into the views on offer.
 
 ## 3. Views
 
@@ -85,8 +85,9 @@ List uses the same label. Say "provided", not "given": the result didn't provide
 study, which doesn't mean there isn't one. Elsewhere, "no study provided", not "without
 a study".
 
-Unavailable views stay in the picker, greyed out, with the reason as their tooltip
-("Needs a concept that was asked about", "Needs studies", "Needs variables").
+Unavailable views stay in the picker, greyed out, with the reason as their native
+tooltip (`title`; some browsers don't show it on an `<option>`): "Needs a concept that
+was asked about", "Needs studies", "Needs variables".
 
 **Default view:** Force, for every shape. It's always available, and it's the only
 node-link view that shows everything in a mixed graph. The user's pick carries over
@@ -347,13 +348,12 @@ type KgFocus = { node: string } | { concept: string; study: string }
 1. This spec.
 2. ~~Grammar fixes~~ (done): the §4 marks in node-link, Flow and List; the "No study
    provided" placeholder in Flow and List (`NO_STUDY`, focusable like a study). Flow's
-   "without a study" note stays only for when Flow is empty (no real studies), until
-   `graphShape` greys Flow out there.
+   "without a study" note went with step 5: Flow is greyed out without studies.
 3. ~~Stable Force~~ (done): start from the Radial positions, a fixed seed, turned
    wide; positions kept when every node has one (maximize, drags, Shared only on).
 4. ~~Collapsed links in node-link~~ (done): the default, with the Variables toggle.
-5. `graphShape`: availability, the Force default, greyed-out views, the pick carried
-   over.
+5. ~~`graphShape`~~ (done): availability, the Force default, greyed-out views, the
+   pick carried over. List without variables (a star): the concepts, seeds first.
 6. Star list grouped by predicate, and removing the Columns layout.
 7. Matrix.
 8. Parked views from §3 (seed-combination chart, predicate sectors), if they're picked up again.

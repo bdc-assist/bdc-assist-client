@@ -10,10 +10,11 @@ import { groupSynonyms } from '@/kg/group'
 import { relations } from '@/kg/elements'
 import { nodeLinks, type KgLink } from '@/kg/links'
 import { studyList, type ListVariable } from '@/kg/list'
-import { flowData, mountFlow, type FlowView } from '@/kg/flow'
+import { mountFlow, type FlowView } from '@/kg/flow'
 import { focusConnections, isPair, pairVariables, sameFocus, type KgFocus } from '@/kg/focus'
-import { KG_LAYOUTS, mountGraph, type GraphView, type KgLayout } from '@/kg/mount'
-import { NO_STUDY, NO_STUDY_LABEL, type KgGraph, type KgNode } from '@/kg/types'
+import { mountGraph, type GraphView, type KgLayout } from '@/kg/mount'
+import { graphShape, KG_VIEWS, type KgViewChoice, type KgViewName } from '@/kg/shape'
+import { isConceptOrTerm, NO_STUDY, NO_STUDY_LABEL, type KgGraph, type KgNode } from '@/kg/types'
 import type { KgPart } from '@/kg/wire'
 
 // The demo's wrapper around src/kg (loaded on demand: see GraphUI in message-parts.tsx):
@@ -117,9 +118,8 @@ function Legend({ types, related, seeds, shared, mode, bundled }: LegendProps) {
 }
 
 type ViewMode = 'graph' | 'flow' | 'list'
-type ViewChoice = KgLayout | 'flow' | 'list'
 
-const VIEW_LABELS: Record<ViewChoice, string> = {
+const VIEW_LABELS: Record<KgViewName, string> = {
   radial: 'Radial',
   columns: 'Columns',
   force: 'Force',
@@ -130,24 +130,19 @@ const VIEW_LABELS: Record<ViewChoice, string> = {
 /** One dropdown for the graph's layouts, the flow (Sankey) and the list: a layout is a
  * mountGraph option, flow is mountFlow, the list is this wrapper's own, but to the
  * user they're all ways to view it. */
-function ViewPicker({ layout, mode, onLayout, onMode }: Pick<GraphBodyProps, 'layout' | 'mode' | 'onLayout' | 'onMode'>) {
+function ViewPicker({ choice, available, onChoice }: Pick<GraphBodyProps, 'choice' | 'available' | 'onChoice'>) {
   return (
     <label className="flex items-center gap-1.5">
       View
       <select
-        value={mode === 'graph' ? layout : mode}
-        onChange={(e) => {
-          const v = e.target.value as ViewChoice
-          if (v === 'flow' || v === 'list') onMode(v)
-          else {
-            onMode('graph')
-            onLayout(v)
-          }
-        }}
+        value={choice}
+        onChange={(e) => onChoice(e.target.value as KgViewName)}
         className="bg-background text-foreground rounded-md border px-1 py-0.5"
       >
-        {[...KG_LAYOUTS, 'flow' as const, 'list' as const].map((v) => (
-          <option key={v} value={v}>
+        {/* one the graph can't show stays listed, greyed out; why is its native tooltip
+            (shown by some browsers only: an <option> can't hold a styled one) */}
+        {KG_VIEWS.map((v) => (
+          <option key={v} value={v} disabled={available[v] !== true} title={available[v] === true ? undefined : available[v]}>
             {VIEW_LABELS[v]}
           </option>
         ))}
@@ -417,6 +412,30 @@ function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgFocus | 
     </ul>
   )
 
+  if (!groups.length) {
+    // no variables (e.g. concept_connections): just the concepts, the ones asked about first
+    const concepts = graph.nodes.filter((n) => isConceptOrTerm(n.type)).sort((a, b) => Number(!!b.seed) - Number(!!a.seed))
+    return (
+      <ul aria-label="Concepts" className="divide-y">
+        {concepts.map((concept) => (
+          <li key={concept.id} className="flex px-1.5 py-1">
+            <button
+              type="button"
+              onClick={() => onPick({ node: concept.id })}
+              aria-current={isNode(concept.id) || undefined}
+              className={rowClass(isNode(concept.id), dimmed(concept.id))}
+            >
+              <ConceptMark concept={concept} shared={shared.has(concept.id)} />
+              <NodeLabel node={concept} className="truncate font-medium" />
+              {concept.type === 'term' && <span className="text-muted-foreground shrink-0">(search term)</span>}
+              {concept.concept_type && <span className="text-muted-foreground truncate">{concept.concept_type}</span>}
+            </button>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
   if (groups.length === 1 && !groups[0].study) {
     // no studies at all (e.g. search_concepts): a heading per concept instead
     return (
@@ -522,10 +541,9 @@ type GraphBodyProps = {
   json: string
   shown: KgGraph
   canvasClass: string
-  layout: KgLayout
-  onLayout: (l: KgLayout) => void
-  mode: ViewMode
-  onMode: (m: ViewMode) => void
+  choice: KgViewName // the view shown: the user's pick where this graph has it
+  onChoice: (v: KgViewName) => void
+  available: KgViewChoice['available'] // what the graph can show (graphShape)
   grouped: boolean // versions and synonyms merged (the views' collapseVersions and groupSynonyms)
   onGrouped: (on: boolean) => void
   canGroup: boolean // merging changes something: offer the toggle
@@ -547,21 +565,17 @@ const ZOOM_STEP = 1.3
 const ZOOM_KEY = /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl'
 
 function GraphBody(props: GraphBodyProps) {
-  const { json, shown, canvasClass, layout, onLayout, mode, onMode, sharedOnly, onSharedOnly, canShare, zoomGestures } = props
+  const { json, shown, canvasClass, choice, onChoice, available, sharedOnly, onSharedOnly, canShare, zoomGestures } = props
   const { sources, source, onSource, grouped, onGrouped, canGroup, forcePositions, covered, detailsBeside } = props
   const { variables, onVariables } = props
   const relationCount = useMemo(() => relations(shown).length, [shown])
-  // Flow draws variables with no study provided under "No study provided", but only alongside real
-  // studies: with none, it's empty, so say why (until graphShape greys Flow out)
-  const withoutStudy = useMemo(() => {
-    const f = flowData(shown)
-    return f.links.length ? 0 : f.withoutStudy.length
-  }, [shown])
+  const mode: ViewMode = choice === 'flow' || choice === 'list' ? choice : 'graph'
+  const layout: KgLayout | undefined = mode === 'graph' ? (choice as KgLayout) : undefined
   const types = useMemo(() => new Set(shown.nodes.map((n) => n.type)), [shown])
   const hasSeeds = useMemo(() => shown.nodes.some((n) => n.seed), [shown])
   // why the graph draws each variable whatever the toggle says (as mountGraph does), or
   // null: it can bundle them
-  const variablesOnly = layout === 'columns' ? 'Columns always shows each variable' : null
+  const variablesOnly = choice === 'columns' ? 'Columns always shows each variable' : null
   const bundled = mode === 'graph' && !variables && !variablesOnly
   const container = useRef<HTMLDivElement>(null)
   const view = useRef<GraphView | null>(null)
@@ -577,10 +591,11 @@ function GraphBody(props: GraphBodyProps) {
     hintTimer.current = window.setTimeout(() => setZoomHint(false), 1500)
   }
 
-  // mounts with the layout of the moment; later changes go through setOptions below
+  // mounts with the layout of the moment (Force while another view shows); later changes
+  // go through setOptions below
   useEffect(() => {
     const v = mountGraph(container.current!, JSON.parse(json) as KgGraph, {
-      layout,
+      layout: layout ?? 'force',
       collapseVersions: grouped,
       groupSynonyms: grouped,
       sharedOnly,
@@ -628,7 +643,10 @@ function GraphBody(props: GraphBodyProps) {
     }
   }, [json]) // eslint-disable-line react-hooks/exhaustive-deps -- grouped, sharedOnly: see below
 
-  useEffect(() => view.current?.setOptions({ layout }), [layout])
+  // another view keeps the graph's last layout
+  useEffect(() => {
+    if (layout) view.current?.setOptions({ layout })
+  }, [layout])
   useEffect(() => view.current?.setOptions({ variables }), [variables])
   // nodes dragged in the maximized dialog moved in forcePositions only: catch up on closing
   useEffect(() => {
@@ -717,7 +735,7 @@ function GraphBody(props: GraphBodyProps) {
               <TooltipContent side="bottom">Only the studies with variables on two or more of the concepts asked about</TooltipContent>
             </Tooltip>
           )}
-          <ViewPicker layout={layout} mode={mode} onLayout={onLayout} onMode={onMode} />
+          <ViewPicker choice={choice} available={available} onChoice={onChoice} />
         </div>
       </div>
       {/* beside: the views in a column, the details next to it; below: no wrappers */}
@@ -735,20 +753,11 @@ function GraphBody(props: GraphBodyProps) {
               className="h-full w-full"
               aria-label="Knowledge graph as flows from concepts to studies. The List view shows the same as text."
             />
-            {(relationCount > 0 || withoutStudy > 0) && (
-              <div className="text-muted-foreground absolute bottom-1.5 left-1.5 flex flex-col items-start gap-0.5">
-                {relationCount > 0 && (
-                  <p className="bg-background/80 rounded px-1.5 py-0.5">
-                    {relationCount} {relationCount === 1 ? 'relationship' : 'relationships'} between concepts not shown in
-                    this view
-                  </p>
-                )}
-                {withoutStudy > 0 && (
-                  <p className="bg-background/80 rounded px-1.5 py-0.5">
-                    {withoutStudy} {withoutStudy === 1 ? 'variable' : 'variables'} with no study provided: this view needs studies
-                  </p>
-                )}
-              </div>
+            {relationCount > 0 && (
+              <p className="text-muted-foreground bg-background/80 absolute bottom-1.5 left-1.5 rounded px-1.5 py-0.5">
+                {relationCount} {relationCount === 1 ? 'relationship' : 'relationships'} between concepts not shown in this
+                view
+              </p>
             )}
           </div>
           {/* kept mounted while another view shows, so the graph keeps its layout and zoom */}
@@ -795,8 +804,7 @@ function GraphBody(props: GraphBodyProps) {
 export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart[] }) {
   const [maximized, setMaximized] = useState(false)
   // shared by the panel and the dialog
-  const [layout, setLayout] = useState<KgLayout>('radial')
-  const [mode, setMode] = useState<ViewMode>('graph')
+  const [picked, setPicked] = useState<KgViewName>('force') // the user's pick, kept across Show
   const [sharedOnlyWanted, setSharedOnly] = useState(false)
   const [grouped, setGrouped] = useState(true) // versions and synonyms merged, as the views do by default
   const [variables, setVariables] = useState(false) // each variable, not bundles, as mountGraph does by default
@@ -816,6 +824,10 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
   const forcePositions = positions.map
   const all = useMemo(() => groupSynonyms(collapseVersions(raw)), [raw])
   const merged = grouped ? all : raw
+  // what this graph can show, worked out before Shared only so the filter never changes
+  // it; the pick where it's available (so it comes back on switching Show back), else Force
+  const views = useMemo(() => graphShape(merged), [merged])
+  const choice = views.available[picked] === true ? picked : views.default
   // offered only when it changes something
   const canGroup = all.nodes.length !== raw.nodes.length
   const sharedStudies = useMemo(() => {
@@ -872,10 +884,9 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
           json={json}
           shown={shown}
           canvasClass="h-72"
-          layout={layout}
-          onLayout={setLayout}
-          mode={mode}
-          onMode={setMode}
+          choice={choice}
+          onChoice={setPicked}
+          available={views.available}
           {...filter}
           forcePositions={forcePositions}
           covered={maximized}
@@ -893,10 +904,9 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
               json={json}
               shown={shown}
               canvasClass="min-h-0 flex-1"
-              layout={layout}
-              onLayout={setLayout}
-              mode={mode}
-              onMode={setMode}
+              choice={choice}
+              onChoice={setPicked}
+              available={views.available}
               {...filter}
               forcePositions={forcePositions}
               zoomGestures
