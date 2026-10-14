@@ -45,10 +45,8 @@ const LEGEND: { type: KgNode['type']; shape: string }[] = [
   { type: 'study', shape: 'size-2.5 rounded-[2px]' },
 ]
 
-// the halo colour at its opacity, for the shared swatch; a seed's highlighted label is
-// at least 85% (as mountGraph draws it), with dark text
+// the halo colour at its opacity, as mountGraph draws seed and shared halos and seed labels
 const HALO = 'color-mix(in srgb, var(--kg-halo) calc(var(--kg-halo-opacity) * 100%), transparent)'
-const HALO_LABEL = 'color-mix(in srgb, var(--kg-halo) calc(max(var(--kg-halo-opacity), 0.85) * 100%), transparent)'
 
 function Legend({ related, terms, seeds, shared }: { related: boolean; terms: boolean; seeds: boolean; shared: boolean }) {
   return (
@@ -71,7 +69,7 @@ function Legend({ related, terms, seeds, shared }: { related: boolean; terms: bo
       {seeds && (
         // highlighted, like a seed's label in the graph
         <li>
-          <span className="rounded-sm px-1 text-neutral-950" style={{ background: HALO_LABEL }}>
+          <span className="text-foreground rounded-sm px-1 font-bold" style={{ background: HALO }}>
             Asked about
           </span>
         </li>

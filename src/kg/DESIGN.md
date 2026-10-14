@@ -214,13 +214,13 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
 
 **Values**
 
-- **Halo:** highlighter yellow, `#fde047` at 0.85 on light and `#facc15` at 0.45 on dark.
+- **Halo:** highlighter yellow, `#fde047` at 0.45 on light and `#facc15` at 0.25 on dark.
   Not a type hue, so it says nothing about type. Easy to change: `--kg-halo` and
   `--kg-halo-opacity`.
   Node-link padding is 14 for a seed and 5 for shared; a seed that's also shared gets the
   wide one.
-- **Highlighted label:** the halo colour at 0.85 or more behind the text, with black or
-  white text, whichever reads on it.
+- **Highlighted label:** the halo colour at the halo's opacity behind the text, with black
+  or white text, whichever reads on it over the background. Bold in the legend.
 - **Selection ring:** Cytoscape's `outline-*` (2px, offset 3), so the border stays free
   for the category layer.
 - **Term fill:** 30% amber, 70% background; the border is full amber.

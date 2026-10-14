@@ -156,7 +156,7 @@ Set these on the container or any ancestor; any CSS colour works (including
 | `--kg-label` | `#475569` | labels |
 | `--kg-selected` | `#0f172a` | the outline of the focused node |
 | `--kg-halo` | `#fde047` | the halo of seeds (wide) and shared nodes (narrow), and seeds' highlighted labels (graph view) |
-| `--kg-halo-opacity` | `0.85` | a number, not a colour: the halo's opacity (labels use at least 0.85). Lower it on dark backgrounds |
+| `--kg-halo-opacity` | `0.45` | a number, not a colour: the opacity of the halos and the seeds' label highlight, whose text turns black or white to read on it. Lower it on dark backgrounds |
 
 ## Helpers for your own UI
 

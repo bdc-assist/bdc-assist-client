@@ -65,7 +65,7 @@ const COLORS = {
 
 // the halo's opacity: a number in --kg-halo-opacity (pale colours need more on light
 // backgrounds, less on dark ones)
-const HALO_OPACITY = 0.85
+const HALO_OPACITY = 0.45
 
 // halo padding: wide for a seed, narrow for a shared node
 const SEED_HALO = 14
@@ -362,10 +362,11 @@ function styleFor(el: HTMLElement): StylesheetJson {
         'underlay-opacity': halo.opacity,
         'underlay-shape': 'ellipse',
         'text-background-color': halo.color,
-        'text-background-opacity': Math.max(halo.opacity, HALO_OPACITY),
+        'text-background-opacity': halo.opacity,
         'text-background-padding': '2px',
         'text-background-shape': 'roundrectangle', // the types only know the old spelling
-        color: textOn(halo.color),
+        // black or white, for the highlight as it looks over the background
+        color: textOn(mix(backgroundOf(el), halo.color, halo.opacity)),
         'text-margin-y': 5,
       },
     },
@@ -382,6 +383,17 @@ function mix(a: string, b: string, t: number): string {
   const [x, y] = [a, b].map(channels)
   const c = x.map((v, i) => Math.round(v + (y[i] - v) * Math.min(1, Math.max(0, t))))
   return `rgb(${c.join(', ')})`
+}
+
+/** The first opaque background colour from `el` up ("rgb(r, g, b)"); white if none. */
+function backgroundOf(el: HTMLElement): string {
+  for (let e: HTMLElement | null = el; e; e = e.parentElement) {
+    const bg = getComputedStyle(e).backgroundColor
+    if (bg === 'transparent' || /^rgba\(.*,\s*0\)$/.test(bg)) continue
+    const rgb = toRgb(bg)
+    if (rgb) return rgb
+  }
+  return 'rgb(255, 255, 255)'
 }
 
 /** Black or white text, whichever reads on `background` (toRgb's or a "#rrggbb" colour). */

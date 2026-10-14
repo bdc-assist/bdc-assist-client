@@ -174,12 +174,12 @@
   --kg-label: var(--color-muted-foreground);
   --kg-edge: var(--color-ring);
   --kg-selected: var(--color-foreground);
-  /* seeds and shared nodes: a highlighter yellow, nearly opaque on light backgrounds */
+  /* seeds and shared nodes: a highlighter yellow, stronger on light backgrounds than dark */
   --kg-halo: #fde047;
-  --kg-halo-opacity: 0.85;
+  --kg-halo-opacity: 0.45;
 }
 
 .dark [data-slot="bdc-graph"] {
   --kg-halo: #facc15;
-  --kg-halo-opacity: 0.45;
+  --kg-halo-opacity: 0.25;
 }
