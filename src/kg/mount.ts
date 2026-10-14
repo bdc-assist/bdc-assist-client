@@ -291,6 +291,9 @@ function styleFor(el: HTMLElement): StylesheetJson {
   }
   const haloOpacity = Number.parseFloat(css.getPropertyValue('--kg-halo-opacity'))
   const halo = { color: color('halo'), opacity: Number.isFinite(haloOpacity) ? haloOpacity : HALO_OPACITY }
+  const background = backgroundOf(el)
+  // the concept colour mixed into the background: terms' fill, inter-concept links
+  const tint = (amount: number) => mix(background, color('concept'), amount)
   return [
     {
       selector: 'node',
@@ -319,9 +322,9 @@ function styleFor(el: HTMLElement): StylesheetJson {
       },
     },
     {
-      // a search word standing in for a concept: hollow, in the concept colour
+      // a search word standing in for a concept: tinted, with a border in the concept colour
       selector: 'node[type = "term"]',
-      style: { 'background-opacity': 0, 'border-width': 2, 'border-color': color('concept') },
+      style: { 'background-color': tint(0.3), 'border-width': 2, 'border-color': color('concept') },
     },
     {
       selector: 'node[type = "variable"]',
@@ -338,9 +341,9 @@ function styleFor(el: HTMLElement): StylesheetJson {
     { selector: 'node.columns[type = "concept"], node.columns[type = "term"]', style: { 'text-halign': 'left', 'text-margin-x': -5 } },
     { selector: 'edge', style: { width: 1, 'line-color': color('edge'), 'curve-style': 'straight' } },
     {
-      // concept → concept: dashed, in the concept colour
+      // concept → concept: a light tint of the concept colour (not opacity: that means faded)
       selector: 'edge.relation',
-      style: { 'line-style': 'dashed', 'line-color': color('concept'), 'line-opacity': 0.6 },
+      style: { 'line-color': tint(0.55), width: 1.5 },
     },
     {
       // connects two or more seeds (shared): a narrow halo
@@ -366,14 +369,18 @@ function styleFor(el: HTMLElement): StylesheetJson {
         'text-background-padding': '2px',
         'text-background-shape': 'roundrectangle', // the types only know the old spelling
         // black or white, for the highlight as it looks over the background
-        color: textOn(mix(backgroundOf(el), halo.color, halo.opacity)),
+        color: textOn(mix(background, halo.color, halo.opacity)),
         'text-margin-y': 5,
       },
     },
     { selector: 'node.columns[?seed]', style: { 'text-margin-y': 0 } },
     { selector: 'node.bridge[type = "study"], node[?seed][type = "study"]', style: { 'underlay-shape': 'round-rectangle' } },
     { selector: '.faded', style: { opacity: 0.15 } },
-    { selector: 'node:selected', style: { 'border-width': 3, 'border-color': color('selected') } },
+    {
+      // the focus: a ring outside the node, leaving the border to the node's type (terms)
+      selector: 'node:selected',
+      style: { 'outline-width': 2, 'outline-color': color('selected'), 'outline-offset': 3, 'outline-opacity': 1 },
+    },
   ]
 }
 

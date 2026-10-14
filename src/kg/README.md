@@ -117,7 +117,9 @@ on the others.
 ### `mountGraph(container, graph, options)` (`mount.ts`)
 
 A node-link graph (Cytoscape). Concepts, variables and studies are drawn as distinct
-shapes and colours; variables run light to dark blue with `related_concepts_count`.
+shapes and colours; variables run from `--kg-variable-low` to `--kg-variable-high` with
+`related_concepts_count`; search terms are tinted with an outline; concept → concept
+links are a light tint of the concept colour; the focused node gets an outline ring.
 Seeds (what was asked about), of any type, get a wide `--kg-halo` halo and a label
 highlighted in the same colour; studies (or variables) connecting two or more seeds
 (shared) get a narrow one.
@@ -148,13 +150,13 @@ Set these on the container or any ancestor; any CSS colour works (including
 
 | Property | Default | Used for |
 |---|---|---|
-| `--kg-concept` | `#d97706` | concepts |
+| `--kg-concept` | `#d97706` | concepts; mixed into the background for search terms' fill and concept → concept links |
 | `--kg-variable-low` | `#93c5fd` | variables with the fewest related concepts |
-| `--kg-variable-high` | `#1e40af` | variables with the most; flow bands are a mix of the two |
+| `--kg-variable-high` | `#1e40af` | variables with the most; flow bands are a mix of the two. Swap the two on dark backgrounds, so more always means more contrast |
 | `--kg-study` | `#059669` | studies |
 | `--kg-edge` | `#cbd5e1` | graph edges |
 | `--kg-label` | `#475569` | labels |
-| `--kg-selected` | `#0f172a` | the outline of the focused node |
+| `--kg-selected` | `#0f172a` | the outline ring around the focused node |
 | `--kg-halo` | `#fde047` | the halo of seeds (wide) and shared nodes (narrow), and seeds' highlighted labels (graph view) |
 | `--kg-halo-opacity` | `0.45` | a number, not a colour: the opacity of the halos and the seeds' label highlight, whose text turns black or white to read on it. Lower it on dark backgrounds |
 
@@ -173,7 +175,7 @@ used) first, so ids match what the views draw.
 | `focusConnections(graph, focus)`, `pairVariables(graph, concept, study)` | `focus.ts` | what a focus lights up; a pair's variables |
 | `flowData(graph)` | `flow.ts` | the flow's concept → study links with their variables, for your own chart; `withoutStudy`: the variables it can't place (their study isn't given), so you can say so |
 | `fromKgList(kg)` | `wire.ts` | the API's per-call graphs merged into one |
-| `relations(graph)` | `elements.ts` | the concept → concept edges (drawn dashed in the graph view; the flow view can't show them) |
+| `relations(graph)` | `elements.ts` | the concept → concept edges (drawn as light amber lines in the graph view; the flow view can't show them) |
 | `variableWeights(graph)` | `elements.ts` | `related_concepts_count` scaled to 0..1 within the graph |
 | `isConceptOrTerm(type)` | `types.ts` | concepts and search terms play the same part (what variables are about); most views treat them alike, but a term has no link or category |
 

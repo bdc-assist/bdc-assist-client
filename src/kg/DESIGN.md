@@ -248,13 +248,10 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
 
 **Deviations to fix**
 
-- Node-link marks the focus with the border, not an outline ring.
-- Node-link draws terms outlined (`background-opacity: 0`), not tinted.
-- Node-link draws inter-concept links dashed, at 0.6 opacity.
-- The blue ramp isn't reversed in dark mode (index.css sets one pair for both themes).
 - Flow draws seeds as diamonds and term bars outlined with `fill: none`, so only their
   border takes clicks. Both go: tinted term bars, and the seed marks above.
-- Flow and List don't mark seeds or shared studies.
+- List draws seeds as diamonds and terms outlined; both go, as in Flow.
+- Flow and List don't mark shared studies.
 - List fades to 0.35, not 0.15.
 - List marks the focus with row shading instead of the `--kg-selected` outline.
   **(open)** Should an HTML list follow the canvas, or is shading the list's equivalent?

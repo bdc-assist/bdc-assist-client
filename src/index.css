@@ -180,6 +180,9 @@
 }
 
 .dark [data-slot="bdc-graph"] {
+  /* the variable ramp runs from low to high contrast with the background: reversed */
+  --kg-variable-low: #1e40af;
+  --kg-variable-high: #93c5fd;
   --kg-halo: #facc15;
   --kg-halo-opacity: 0.25;
 }

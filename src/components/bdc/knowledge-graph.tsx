@@ -39,31 +39,36 @@ function summary(g: KgGraph) {
 }
 
 // Swatches drawn like the nodes: same --kg-* colours (index.css), same shapes
-const LEGEND: { type: KgNode['type']; shape: string }[] = [
-  { type: 'concept', shape: 'size-3 rounded-full' },
-  { type: 'variable', shape: 'h-2.5 w-5 rounded-full' }, // the colour ramp
-  { type: 'study', shape: 'size-2.5 rounded-[2px]' },
+const LEGEND: { type: KgNode['type']; shape: string; background: string; border?: string }[] = [
+  { type: 'concept', shape: 'size-3 rounded-full', background: 'var(--kg-concept)' },
+  {
+    type: 'term', // tinted, with a border
+    shape: 'size-3 rounded-full border-2',
+    background: 'color-mix(in srgb, var(--kg-concept) 30%, transparent)',
+    border: 'var(--kg-concept)',
+  },
+  {
+    type: 'variable', // the colour ramp
+    shape: 'h-2.5 w-5 rounded-full',
+    background: 'linear-gradient(to right, var(--kg-variable-low), var(--kg-variable-high))',
+  },
+  { type: 'study', shape: 'size-2.5 rounded-[2px]', background: 'var(--kg-study)' },
 ]
 
 // the halo colour at its opacity, as mountGraph draws seed and shared halos and seed labels
 const HALO = 'color-mix(in srgb, var(--kg-halo) calc(var(--kg-halo-opacity) * 100%), transparent)'
 
-function Legend({ related, terms, seeds, shared }: { related: boolean; terms: boolean; seeds: boolean; shared: boolean }) {
+// only what the graph has: its node types, seeds, shared nodes, inter-concept links
+type LegendProps = { types: ReadonlySet<KgNode['type']>; related: boolean; seeds: boolean; shared: boolean }
+
+function Legend({ types, related, seeds, shared }: LegendProps) {
   return (
     <ul aria-label="Legend" className="flex flex-wrap items-center gap-x-3 gap-y-1">
-      {LEGEND.map(({ type, shape }) => (
+      {LEGEND.filter((l) => types.has(l.type)).map(({ type, shape, background, border }) => (
         <li key={type} className="flex items-center gap-1.5">
-          <span
-            className={shape}
-            style={{
-              background:
-                type === 'variable'
-                  ? 'linear-gradient(to right, var(--kg-variable-low), var(--kg-variable-high))'
-                  : `var(--kg-${type})`,
-            }}
-          />
+          <span className={shape} style={{ background, borderColor: border }} />
           {TYPE_LABELS[type]}
-          {type === 'variable' && <span className="opacity-70">(darker: links more concepts)</span>}
+          {type === 'variable' && <span className="opacity-70">(stronger: links more concepts)</span>}
         </li>
       ))}
       {seeds && (
@@ -80,15 +85,9 @@ function Legend({ related, terms, seeds, shared }: { related: boolean; terms: bo
           Shared: links two or more of them
         </li>
       )}
-      {terms && (
-        <li className="flex items-center gap-1.5">
-          <span className="size-3 rounded-full border-2" style={{ borderColor: 'var(--kg-concept)' }} />
-          Search term
-        </li>
-      )}
       {related && (
         <li className="flex items-center gap-1.5">
-          <span className="w-4 border-t-2 border-dashed" style={{ borderColor: 'var(--kg-concept)' }} />
+          <span className="w-4 border-t-2" style={{ borderColor: 'color-mix(in srgb, var(--kg-concept) 55%, transparent)' }} />
           Related concepts
         </li>
       )}
@@ -488,7 +487,7 @@ function GraphBody(props: GraphBodyProps) {
   const { sources, source, onSource, grouped, onGrouped, canGroup, detailsBeside } = props
   const relationCount = useMemo(() => relations(shown).length, [shown])
   const withoutStudy = useMemo(() => flowData(shown).withoutStudy.length, [shown])
-  const hasTerms = useMemo(() => shown.nodes.some((n) => n.type === 'term'), [shown])
+  const types = useMemo(() => new Set(shown.nodes.map((n) => n.type)), [shown])
   const hasSeeds = useMemo(() => shown.nodes.some((n) => n.seed), [shown])
   const container = useRef<HTMLDivElement>(null)
   const view = useRef<GraphView | null>(null)
@@ -582,7 +581,7 @@ function GraphBody(props: GraphBodyProps) {
   return (
     <div data-slot="bdc-graph" className="flex min-h-0 flex-1 flex-col text-xs">
       <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 border-t px-3 py-1.5">
-        <Legend related={relationCount > 0} terms={hasTerms} seeds={hasSeeds} shared={canShare} />
+        <Legend types={types} related={relationCount > 0} seeds={hasSeeds} shared={canShare} />
         <div className="ml-auto flex min-w-0 items-center gap-3">
           {sources.length > 1 && <SourcePicker sources={sources} source={source} onSource={onSource} />}
           {canGroup && (
