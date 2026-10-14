@@ -159,7 +159,10 @@ the variables between them.
   placeholder. Variables are shown and the checkbox is greyed out, with the reason as
   its tooltip.
 - **Not drawn by default:** the blue ramp (variable weight) and halos on shared
-  *variables*. Shared studies keep their halo. The legend follows the toggle.
+  *variables*. Shared studies keep their halo. The legend follows the toggle, and the
+  view: it lists only what the view draws, as the view draws it. Today it follows the
+  graph's contents, except in Flow: variables are a band swatch ("width: how many"),
+  and inter-concept links are left out.
 - **Highlighting** is computed on the full graph and mapped to bundles: a concept
   lights up its bundles and their studies, and a study lights up its bundles and their
   concepts. It matches the other views.
@@ -207,8 +210,8 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
 | Amount | Blue ramp `--kg-variable-low → -high` | one variable; more contrast = links more concepts (`related_concepts_count`) | node-link with Variables on |
 | Amount | Size / width | variable count (bundles only) | Flow band width, Matrix circle area, node-link bundle width (`1 + 2.2·√count`) |
 | Query | Wide halo `--kg-halo` | seed: what a call asked about, of any type | all |
-| Query | Highlighted label: `--kg-halo` behind the label text | seed | node-link; Flow, List, Matrix **(planned)** |
-| Query | Narrow halo `--kg-halo` | shared: connects two or more seeds | node-link; Flow, List, Matrix **(planned)** |
+| Query | Highlighted label: `--kg-halo` behind the label text | seed | node-link, Flow; List, Matrix **(planned)** |
+| Query | Narrow halo `--kg-halo` | shared: connects two or more seeds | node-link, Flow; List, Matrix **(planned)** |
 | Interaction | `--kg-selected` outline ring, outside the border | the focus itself | node-link, Flow; List and Matrix **(planned)** |
 | Interaction | Opacity 0.15 | faded: not connected to the focus | all |
 
@@ -218,11 +221,11 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
   Not a type hue, so it says nothing about type. Easy to change: `--kg-halo` and
   `--kg-halo-opacity`.
   Node-link padding is 14 for a seed and 5 for shared; a seed that's also shared gets the
-  wide one.
+  wide one. Flow's bars are thin, so its halos are 6 and 3.
 - **Highlighted label:** the halo colour at the halo's opacity behind the text, with black
   or white text, whichever reads on it over the background. Bold in the legend.
-- **Selection ring:** Cytoscape's `outline-*` (2px, offset 3), so the border stays free
-  for the category layer.
+- **Selection ring:** 2px, 3px outside the shape, so the border stays free for the
+  category layer: Cytoscape's `outline-*` in node-link, a separate rect in Flow.
 - **Term fill:** 30% amber, 70% background; the border is full amber.
 - **Inter-concept link:** 55% amber, 45% background, 1.5px.
 - **Dark theme:** the blue ramp runs from low to high contrast against the background,
@@ -248,10 +251,7 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
 
 **Deviations to fix**
 
-- Flow draws seeds as diamonds and term bars outlined with `fill: none`, so only their
-  border takes clicks. Both go: tinted term bars, and the seed marks above.
-- List draws seeds as diamonds and terms outlined; both go, as in Flow.
-- Flow and List don't mark shared studies.
+- List draws seeds as diamonds and terms outlined, and doesn't mark shared studies.
 - List fades to 0.35, not 0.15.
 - List marks the focus with row shading instead of the `--kg-selected` outline.
   **(open)** Should an HTML list follow the canvas, or is shading the list's equivalent?

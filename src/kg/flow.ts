@@ -1,7 +1,8 @@
 import { sankey, sankeyLinkHorizontal, type SankeyLink, type SankeyNode } from 'd3-sankey'
 
-import { sharedOnly } from './bridges'
+import { bridges, sharedOnly } from './bridges'
 import { collapseVersions } from './collapse'
+import { haloOf } from './colour'
 import { groupSynonyms } from './group'
 import { focusConnections, isPair, type KgFocus } from './focus'
 import { isConceptOrTerm, type KgGraph, type KgNode } from './types'
@@ -57,14 +58,19 @@ type SLink = SankeyLink<FlowNode, FlowLink & { value: number }>
 const SVG = 'http://www.w3.org/2000/svg'
 const NODE_WIDTH = 10
 const FADED = '0.15'
-const SEED_MARK = 12 // room for a seed's diamond, left of its bar
+// halo around a bar, as in mountGraph but scaled to the bars: wide for a seed, narrow for shared
+const SEED_HALO = 6
+const SHARED_HALO = 3
+const RING = 3 // the focus's ring: this far outside its bar
 
 // colours: the same --kg-* custom properties as mountGraph; SVG takes them as-is.
 // Bands are bundles of variables, so they're blue: the middle of the variable ramp.
 const fill = {
   concept: 'var(--kg-concept, #d97706)',
+  term: 'color-mix(in srgb, var(--kg-concept, #d97706) 30%, transparent)', // tinted, with a border
   study: 'var(--kg-study, #059669)',
   band: 'color-mix(in srgb, var(--kg-variable-low, #93c5fd), var(--kg-variable-high, #1e40af))',
+  selected: 'var(--kg-selected, #0f172a)',
 } as const
 
 /**
@@ -144,35 +150,54 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
       title(el, `${s.node.label} → ${t.node.label}: ${l.value} variable${l.value === 1 ? '' : 's'}`)
     }
     const boxes = g('kg-flow-nodes')
+    const halo = haloOf(container)
+    const shared = bridges(drawn)
     for (const n of nodes as SNode[]) {
       const [x0, y0, x1, y1] = [n.x0 ?? 0, n.y0 ?? 0, n.x1 ?? 0, n.y1 ?? 0]
+      const [w, h] = [x1 - x0, Math.max(1, y1 - y0)]
       const isConcept = isConceptOrTerm(n.node.type)
       const item = boxes.appendChild(document.createElementNS(SVG, 'g'))
       item.setAttribute('data-id', n.id)
       item.style.cursor = 'pointer'
-      const rect = item.appendChild(document.createElementNS(SVG, 'rect'))
-      for (const [k, v] of Object.entries({ x: x0, y: y0, width: x1 - x0, height: Math.max(1, y1 - y0), rx: 2 })) rect.setAttribute(k, String(v))
-      if (n.node.type === 'term') {
-        // a search word standing in for a concept: hollow, in the concept colour
-        rect.dataset.term = ''
-        Object.assign(rect.style, { fill: 'none', stroke: fill.concept, strokeWidth: '1.5' })
-      } else rect.style.fill = isConcept ? fill.concept : fill.study
-      // what a call asked about: a diamond between the bar and the label, like the
-      // graph's seeds (a bar can't be one); hollow for a search term, like its bar
-      const mark = isConcept && n.node.seed ? SEED_MARK : 0
-      if (mark) {
-        const [cx, cy, r] = [x0 - 9, (y0 + y1) / 2, 4.5]
-        const diamond = item.appendChild(document.createElementNS(SVG, 'path'))
-        diamond.setAttribute('d', `M${cx} ${cy - r}L${cx + r} ${cy}L${cx} ${cy + r}L${cx - r} ${cy}Z`)
-        Object.assign(diamond.style, n.node.type === 'term' ? { fill: 'none', stroke: fill.concept, strokeWidth: '1.5' } : { fill: fill.concept })
+      // what a call asked about (any type): a wide halo; connects two or more seeds: a narrow one
+      const pad = n.node.seed ? SEED_HALO : shared.has(n.id) ? SHARED_HALO : 0
+      if (pad) {
+        rect(item, { x: x0 - pad, y: y0 - pad, width: w + 2 * pad, height: h + 2 * pad, rx: pad }, {
+          fill: halo.color,
+          fillOpacity: String(halo.opacity),
+        })
       }
+      const bar = rect(item, { x: x0, y: y0, width: w, height: h, rx: 2 }, { fill: isConcept ? fill.concept : fill.study })
+      // a search word standing in for a concept: tinted, with a border in the concept colour
+      if (n.node.type === 'term') Object.assign(bar.style, { fill: fill.term, stroke: fill.concept, strokeWidth: '1.5' })
+      // the focus's ring, shown by highlight(); clicks go to the bar
+      const ring = rect(item, { x: x0 - RING, y: y0 - RING, width: w + 2 * RING, height: h + 2 * RING, rx: 4 }, {
+        fill: 'none',
+        stroke: fill.selected,
+        strokeWidth: '2',
+        pointerEvents: 'none',
+        display: 'none',
+      })
+      ring.dataset.ring = ''
+      const gap = 6 + pad
       const text = item.appendChild(document.createElementNS(SVG, 'text'))
-      text.setAttribute('x', String(isConcept ? x0 - 6 - mark : x1 + 6))
+      text.setAttribute('x', String(isConcept ? x0 - gap : x1 + gap))
       text.setAttribute('y', String((y0 + y1) / 2))
       text.setAttribute('dominant-baseline', 'middle')
       text.setAttribute('text-anchor', isConcept ? 'end' : 'start')
       Object.assign(text.style, { fill: 'var(--kg-label, #475569)', fontSize: isConcept ? '12px' : '10px', fontWeight: isConcept ? '600' : '400' })
-      text.textContent = clip(n.node.label, ((isConcept ? left - mark : right) - 10) / (isConcept ? 6.5 : 5.5))
+      const chars = ((isConcept ? left : right) - gap - 4) / (isConcept ? 6.5 : 5.5)
+      text.textContent = clip(n.node.label, chars)
+      // a seed's label is highlighted in the halo colour, as in mountGraph
+      if (n.node.seed) {
+        text.style.fill = halo.text
+        const box = textBox(text, chars * (isConcept ? 6.5 : 5.5))
+        const marker = rect(item, { x: box.x - 2, y: box.y - 1, width: box.width + 4, height: box.height + 2, rx: 3 }, {
+          fill: halo.color,
+          fillOpacity: String(halo.opacity),
+        })
+        item.insertBefore(marker, text)
+      }
       title(item, `${n.node.label} (${n.value} variable${n.value === 1 ? '' : 's'})`)
     }
     highlight()
@@ -185,12 +210,8 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
     const outlined = focused && !isPair(focused) ? focused.node : null
     svg.querySelectorAll<SVGElement>('.kg-flow-nodes [data-id]').forEach((el) => {
       el.style.opacity = linked && !linked.has(el.dataset.id ?? '') ? FADED : ''
-      const rect = el.querySelector('rect')
-      if (!rect) return
-      const term = rect.dataset.term !== undefined
-      const on = el.dataset.id === outlined
-      rect.style.stroke = on ? 'var(--kg-selected, #0f172a)' : term ? fill.concept : ''
-      rect.style.strokeWidth = on ? '2' : term ? '1.5' : ''
+      const ring = el.querySelector<SVGElement>('[data-ring]')
+      if (ring) ring.style.display = el.dataset.id === outlined ? '' : 'none'
     })
     svg.querySelectorAll<SVGElement>('[data-link]').forEach((el) => {
       const [s, t] = (el.dataset.link ?? '').split('->')
@@ -225,11 +246,34 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
     },
     focus,
     resize: render, // laid out for the container's size: text stays sharp
-    refreshStyle() {}, // colours are CSS variables, so they follow on their own
+    // colours are CSS variables, so they follow on their own; but a seed label's text
+    // (black or white) is worked out from the background
+    refreshStyle: render,
     destroy() {
       svg.remove()
     },
   }
+}
+
+function rect(parent: Element, attrs: Record<string, number>, style: Partial<CSSStyleDeclaration>): SVGRectElement {
+  const el = parent.appendChild(document.createElementNS(SVG, 'rect'))
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v))
+  Object.assign(el.style, style)
+  return el
+}
+
+/** A text's box; estimated (from `width`, its room) while it can't be measured, e.g. hidden. */
+function textBox(text: SVGTextElement, width: number): { x: number; y: number; width: number; height: number } {
+  try {
+    const box = text.getBBox()
+    if (box.width) return box
+  } catch {
+    // Firefox throws for an element that isn't rendered
+  }
+  const [x, y] = [Number(text.getAttribute('x')), Number(text.getAttribute('y'))]
+  const size = Number.parseFloat(text.style.fontSize) || 10
+  const w = Math.min(width, (text.textContent?.length ?? 0) * size * 0.55)
+  return { x: text.getAttribute('text-anchor') === 'end' ? x - w : x, y: y - size * 0.6, width: w, height: size * 1.2 }
 }
 
 function title(el: Element, text: string) {

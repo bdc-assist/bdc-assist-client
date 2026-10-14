@@ -3,6 +3,7 @@ import fcose from 'cytoscape-fcose'
 
 import { bridges, sharedOnly } from './bridges'
 import { collapseVersions } from './collapse'
+import { backgroundOf, haloOf, mix, toRgb } from './colour'
 import { groupSynonyms } from './group'
 import { columnPositions } from './columns'
 import { toElements } from './elements'
@@ -47,8 +48,7 @@ export type GraphView = KgView<GraphOptions> & {
 }
 
 // Colours come from CSS custom properties on the container (or any ancestor), so
-// a host restyles the graph from its own CSS. Any CSS colour works: Cytoscape
-// can't parse e.g. oklch() itself, so toRgb converts through a canvas.
+// a host restyles the graph from its own CSS. Any CSS colour works (see colour.ts).
 const COLORS = {
   concept: ['--kg-concept', '#d97706'],
   // variables run from low to high along their weight (related_concepts_count)
@@ -58,14 +58,7 @@ const COLORS = {
   edge: ['--kg-edge', '#cbd5e1'],
   label: ['--kg-label', '#475569'],
   selected: ['--kg-selected', '#0f172a'],
-  // seeds and shared nodes: a halo (and the seeds' label) in a highlighter colour that
-  // isn't a type's, since a seed can be of any type
-  halo: ['--kg-halo', '#fde047'],
 } as const
-
-// the halo's opacity: a number in --kg-halo-opacity (pale colours need more on light
-// backgrounds, less on dark ones)
-const HALO_OPACITY = 0.45
 
 // halo padding: wide for a seed, narrow for a shared node
 const SEED_HALO = 14
@@ -289,8 +282,7 @@ function styleFor(el: HTMLElement): StylesheetJson {
     const value = css.getPropertyValue(name).trim()
     return (value && toRgb(value)) || fallback
   }
-  const haloOpacity = Number.parseFloat(css.getPropertyValue('--kg-halo-opacity'))
-  const halo = { color: color('halo'), opacity: Number.isFinite(haloOpacity) ? haloOpacity : HALO_OPACITY }
+  const halo = haloOf(el)
   const background = backgroundOf(el)
   // the concept colour mixed into the background: terms' fill, inter-concept links
   const tint = (amount: number) => mix(background, color('concept'), amount)
@@ -368,8 +360,7 @@ function styleFor(el: HTMLElement): StylesheetJson {
         'text-background-opacity': halo.opacity,
         'text-background-padding': '2px',
         'text-background-shape': 'roundrectangle', // the types only know the old spelling
-        // black or white, for the highlight as it looks over the background
-        color: textOn(mix(background, halo.color, halo.opacity)),
+        color: halo.text, // black or white, for the highlight as it looks over the background
         'text-margin-y': 5,
       },
     },
@@ -382,52 +373,4 @@ function styleFor(el: HTMLElement): StylesheetJson {
       style: { 'outline-width': 2, 'outline-color': color('selected'), 'outline-offset': 3, 'outline-opacity': 1 },
     },
   ]
-}
-
-/** A colour t (0..1) of the way from a to b, mixed in RGB (fine within one hue).
- * Takes toRgb's "rgb(r, g, b)" or a "#rrggbb" fallback. */
-function mix(a: string, b: string, t: number): string {
-  const [x, y] = [a, b].map(channels)
-  const c = x.map((v, i) => Math.round(v + (y[i] - v) * Math.min(1, Math.max(0, t))))
-  return `rgb(${c.join(', ')})`
-}
-
-/** The first opaque background colour from `el` up ("rgb(r, g, b)"); white if none. */
-function backgroundOf(el: HTMLElement): string {
-  for (let e: HTMLElement | null = el; e; e = e.parentElement) {
-    const bg = getComputedStyle(e).backgroundColor
-    if (bg === 'transparent' || /^rgba\(.*,\s*0\)$/.test(bg)) continue
-    const rgb = toRgb(bg)
-    if (rgb) return rgb
-  }
-  return 'rgb(255, 255, 255)'
-}
-
-/** Black or white text, whichever reads on `background` (toRgb's or a "#rrggbb" colour). */
-function textOn(background: string): string {
-  const [r, g, b] = channels(background)
-  return 0.299 * r + 0.587 * g + 0.114 * b > 150 ? '#0a0a0a' : '#fafafa'
-}
-
-function channels(color: string): number[] {
-  const rgb = /rgb\((\d+), (\d+), (\d+)\)/.exec(color)
-  if (rgb) return rgb.slice(1).map(Number)
-  const hex = /^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(color)
-  return hex ? hex.slice(1).map((h) => parseInt(h, 16)) : [0, 0, 0]
-}
-
-let ctx: CanvasRenderingContext2D | null | undefined
-
-/** Any CSS colour → "rgb(r, g, b)", or null if the browser doesn't understand it. */
-function toRgb(value: string): string | null {
-  ctx ??= document.createElement('canvas').getContext('2d', { willReadFrequently: true })
-  if (!ctx) return null
-  const sentinel = '#010203'
-  ctx.fillStyle = sentinel
-  ctx.fillStyle = value // ignored if invalid
-  if (ctx.fillStyle === sentinel && value.toLowerCase() !== sentinel) return null
-  ctx.clearRect(0, 0, 1, 1)
-  ctx.fillRect(0, 0, 1, 1)
-  const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
-  return `rgb(${r}, ${g}, ${b})`
 }

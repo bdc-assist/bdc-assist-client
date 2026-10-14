@@ -139,7 +139,8 @@ node shows its full label as the browser's tooltip.
 
 A Sankey diagram (d3-sankey layout, plain SVG): concepts on the left, studies on the
 right, each concept → study band as wide as the study's variables on that concept.
-Seeds have a small diamond beside their bar. Clicking a band focuses its concept × study pair. Variables aren't drawn, but a
+As in the graph view, seeds get a wide halo round their bar and a highlighted label,
+shared studies a narrow halo, search terms a tinted bar, and the focus a ring. Clicking a band focuses its concept × study pair. Variables aren't drawn, but a
 variable focus highlights its band. It lays out for the container's size, so call
 `resize()` (or use a `ResizeObserver`) when that changes.
 

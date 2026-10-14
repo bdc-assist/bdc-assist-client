@@ -55,22 +55,35 @@ const LEGEND: { type: KgNode['type']; shape: string; background: string; border?
   { type: 'study', shape: 'size-2.5 rounded-[2px]', background: 'var(--kg-study)' },
 ]
 
+// Flow draws variables as bands, not nodes: flat mid-blue, as translucent as the bands
+const BAND: { shape: string; background: string; border?: string } = {
+  shape: 'h-1.5 w-5 rounded-sm',
+  background: 'color-mix(in srgb, color-mix(in srgb, var(--kg-variable-low), var(--kg-variable-high)) 45%, transparent)',
+}
+
 // the halo colour at its opacity, as mountGraph draws seed and shared halos and seed labels
 const HALO = 'color-mix(in srgb, var(--kg-halo) calc(var(--kg-halo-opacity) * 100%), transparent)'
 
-// only what the graph has: its node types, seeds, shared nodes, inter-concept links
-type LegendProps = { types: ReadonlySet<KgNode['type']>; related: boolean; seeds: boolean; shared: boolean }
+// only what the graph has (its node types, seeds, shared nodes, inter-concept links),
+// drawn as the view draws it
+type LegendProps = { types: ReadonlySet<KgNode['type']>; related: boolean; seeds: boolean; shared: boolean; mode: ViewMode }
 
-function Legend({ types, related, seeds, shared }: LegendProps) {
+function Legend({ types, related, seeds, shared, mode }: LegendProps) {
   return (
     <ul aria-label="Legend" className="flex flex-wrap items-center gap-x-3 gap-y-1">
-      {LEGEND.filter((l) => types.has(l.type)).map(({ type, shape, background, border }) => (
-        <li key={type} className="flex items-center gap-1.5">
-          <span className={shape} style={{ background, borderColor: border }} />
-          {TYPE_LABELS[type]}
-          {type === 'variable' && <span className="opacity-70">(stronger: links more concepts)</span>}
-        </li>
-      ))}
+      {LEGEND.filter((l) => types.has(l.type)).map((l) => {
+        const bands = l.type === 'variable' && mode === 'flow'
+        const { shape, background, border } = bands ? BAND : l
+        return (
+          <li key={l.type} className="flex items-center gap-1.5">
+            <span className={shape} style={{ background, borderColor: border }} />
+            {bands ? 'Variables' : TYPE_LABELS[l.type]}
+            {l.type === 'variable' && (
+              <span className="opacity-70">{bands ? '(width: how many)' : '(stronger: links more concepts)'}</span>
+            )}
+          </li>
+        )
+      })}
       {seeds && (
         // highlighted, like a seed's label in the graph
         <li>
@@ -85,7 +98,8 @@ function Legend({ types, related, seeds, shared }: LegendProps) {
           Shared: links two or more of them
         </li>
       )}
-      {related && (
+      {related && mode !== 'flow' && (
+        // Flow can't draw them (it says so in a note)
         <li className="flex items-center gap-1.5">
           <span className="w-4 border-t-2" style={{ borderColor: 'color-mix(in srgb, var(--kg-concept) 55%, transparent)' }} />
           Related concepts
@@ -553,9 +567,12 @@ function GraphBody(props: GraphBodyProps) {
   }, [json]) // eslint-disable-line react-hooks/exhaustive-deps -- grouped, sharedOnly: see below
 
   useEffect(() => view.current?.setOptions({ layout }), [layout])
-  // the graph reads its --kg-* colours once: again when the theme (the dark class) changes
+  // the views read their --kg-* colours once: again when the theme (the dark class) changes
   useEffect(() => {
-    const observer = new MutationObserver(() => view.current?.refreshStyle())
+    const observer = new MutationObserver(() => {
+      view.current?.refreshStyle()
+      flowView.current?.refreshStyle()
+    })
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
     return () => observer.disconnect()
   }, [])
@@ -581,7 +598,7 @@ function GraphBody(props: GraphBodyProps) {
   return (
     <div data-slot="bdc-graph" className="flex min-h-0 flex-1 flex-col text-xs">
       <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 border-t px-3 py-1.5">
-        <Legend types={types} related={relationCount > 0} seeds={hasSeeds} shared={canShare} />
+        <Legend types={types} related={relationCount > 0} seeds={hasSeeds} shared={canShare} mode={mode} />
         <div className="ml-auto flex min-w-0 items-center gap-3">
           {sources.length > 1 && <SourcePicker sources={sources} source={source} onSource={onSource} />}
           {canGroup && (
