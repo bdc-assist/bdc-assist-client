@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Knowledge graph marks</title>
+<!-- Design scratch page, not part of the app build. Open via the dev server:
+     npm run dev, then /design/seed-shared-marks.html. Rendered with the app's own Cytoscape. -->
+<style>
+  :root {
+    --bg: #ffffff; --fg: #0a0a0a; --muted: #737373; --line: #e5e5e5; --panel: #fafafa;
+  }
+  :root[data-theme="dark"] {
+    --bg: #0a0a0a; --fg: #fafafa; --muted: #a1a1a1; --line: #262626; --panel: #141414;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px 24px 48px; background: var(--bg); color: var(--fg);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 8px; }
+  h2 { font-size: 16px; margin: 28px 0 4px; }
+  h3 { font-size: 14px; margin: 16px 0 2px; }
+  p { margin: 0; }
+  .muted { color: var(--muted); font-size: 13px; }
+  table { border-collapse: collapse; margin: 8px 0 4px; font-size: 13px; }
+  th, td { text-align: left; padding: 5px 14px 5px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; }
+  .controls {
+    position: sticky; top: 0; z-index: 2; display: flex; gap: 22px; align-items: center;
+    flex-wrap: wrap; padding: 10px 0; margin-top: 16px; background: var(--bg);
+    border-bottom: 1px solid var(--line);
+  }
+  .controls label { display: flex; gap: 6px; align-items: center; }
+  .controls .group { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .scroll { overflow-x: auto; margin-top: 6px; background: var(--panel); border-radius: 6px; }
+  .strip { height: 104px; }
+  .examples { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 8px; }
+  .example { flex: 1 1 420px; min-width: 0; }
+  .example .cy { height: 380px; background: var(--panel); border-radius: 6px; }
+</style>
+</head>
+<body>
+<h1>Knowledge graph marks</h1>
+<table>
+  <tr><th>Layer</th><th>Facts</th><th>Channels</th></tr>
+  <tr><td>Intrinsic: category</td><td>type; real, stand-in or summarised</td><td>hue, shape, fill (solid, tinted, outlined); bundles are flat mid-blue</td></tr>
+  <tr><td>Intrinsic: amount</td><td>variable weight, variable count</td><td>lightness within a type's hue, size or width</td></tr>
+  <tr><td>Context: query</td><td>seed, shared</td><td>halo: wide for a seed, narrow for shared; label always shown</td></tr>
+  <tr><td>Context: interaction</td><td>selected, faded</td><td>outline ring, opacity</td></tr>
+</table>
+<p class="muted">Each channel carries one layer only. Hue never carries context, and opacity only ever means faded.</p>
+
+<div class="controls">
+  <label><input type="checkbox" id="dark" /> Dark theme</label>
+  <label>Halo
+    <select id="halo">
+      <option value="neutral25">neutral, 0.25</option>
+      <option value="neutral40">neutral, 0.4</option>
+      <option value="grey">grey (label colour), 0.45</option>
+      <option value="magenta">magenta #c026d3, 0.35</option>
+      <option value="fuchsia">fuchsia, 0.35</option>
+      <option value="fuchsia50">fuchsia, 0.5</option>
+      <option value="pink">pink, 0.35</option>
+      <option value="pink50">pink, 0.5</option>
+      <option value="rose">rose, 0.35</option>
+      <option value="purple">purple, 0.35</option>
+      <option value="violet">violet, 0.35</option>
+      <option value="highlighter" selected>highlighter yellow (#fde047 / #facc15)</option>
+      <option value="highlighterSoft">soft highlighter (#fef08a / #fde047)</option>
+      <option value="neon">neon yellow (#ffff00)</option>
+      <option value="red">red, 0.35 (reference: reads as error?)</option>
+    </select>
+  </label>
+  <label>Concept shape
+    <select id="shape">
+      <option value="ellipse" selected>circle (current)</option>
+      <option value="round-hexagon">rounded hexagon</option>
+      <option value="hexagon">hexagon</option>
+      <option value="round-pentagon">rounded pentagon</option>
+      <option value="round-octagon">rounded octagon</option>
+      <option value="round-diamond">rounded diamond</option>
+      <option value="round-triangle">rounded triangle</option>
+      <option value="round-tag">rounded tag</option>
+    </select>
+  </label>
+  <span class="group">Seeds:
+    <label><input type="checkbox" id="labelHighlight" checked /> highlighted label</label>
+    <label><input type="checkbox" id="labelStrong" /> strong label</label>
+    <label>halo width
+      <select id="seedPad">
+        <option value="11">11</option>
+        <option value="14" selected>14</option>
+        <option value="17">17</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="sharedPale" /> paler shared halo</label>
+    <label><input type="checkbox" id="onTop" /> on top</label>
+    <label><input type="checkbox" id="larger" /> larger</label>
+  </span>
+  <label>Zoom <input type="range" id="zoom" min="0.3" max="2" step="0.05" value="1" /> <span id="zoomval">1.00</span></label>
+</div>
+
+<h2>Marks, one layer at a time</h2>
+<div id="strips"></div>
+
+<h2>Example</h2>
+<p class="muted">
+  Two seeds: the concept asthma and the search term "wheeze". COPD is linked to asthma.
+  phs000001 is shared (it has variables for both seeds), and so is one of its variables.
+  Click a node or bundle to focus it; click the background to clear. Bundle edges group
+  by concept × study, so the shared variable counts in two bundles; bundle nodes group by
+  the set of concepts × study, so it gets its own node, linked to both seeds.
+</p>
+<div class="examples">
+  <div class="example"><h3>Bundled as edges</h3><div class="cy" id="ex-bundled"></div></div>
+  <div class="example"><h3>Bundled as nodes</h3><div class="cy" id="ex-bundle-nodes"></div></div>
+  <div class="example"><h3>Variables on</h3><div class="cy" id="ex-variables"></div></div>
+</div>
+
+<script type="module">
+import cytoscape from 'cytoscape'
+
+const THEMES = {
+  // the variable ramp runs from low to high contrast against the background: dark mode reverses it
+  light: { bg: '#ffffff', fg: '#0a0a0a', label: '#737373', edge: '#a1a1a1', varLow: '#93c5fd', varHigh: '#1e40af' },
+  dark: { bg: '#0a0a0a', fg: '#fafafa', label: '#a1a1a1', edge: '#737373', varLow: '#1e40af', varHigh: '#93c5fd' },
+}
+const KG = { concept: '#d97706', varLow: '#93c5fd', varHigh: '#1e40af', study: '#059669' }
+// hued halos: [light theme (Tailwind 600), dark theme (400)]
+// opacity is a number, or [light, dark]
+const hued = ([light, dark], opacity = 0.35) => ({
+  color: (t) => (t === THEMES.dark ? dark : light),
+  opacity: Array.isArray(opacity) ? (t) => (t === THEMES.dark ? opacity[1] : opacity[0]) : opacity,
+})
+const HALOS = {
+  neutral25: { color: (t) => t.fg, opacity: 0.25 },
+  neutral40: { color: (t) => t.fg, opacity: 0.4 },
+  grey: { color: (t) => t.label, opacity: 0.45 },
+  magenta: { color: () => '#c026d3', opacity: 0.35 },
+  fuchsia: hued(['#c026d3', '#e879f9']),
+  pink: hued(['#db2777', '#f472b6']),
+  rose: hued(['#e11d48', '#fb7185']),
+  purple: hued(['#9333ea', '#c084fc']),
+  violet: hued(['#7c3aed', '#a78bfa']),
+  red: hued(['#dc2626', '#f87171']),
+  fuchsia50: hued(['#c026d3', '#e879f9'], 0.5),
+  pink50: hued(['#db2777', '#f472b6'], 0.5),
+  // highlighter: pale yellow needs to be nearly opaque on white, much less on black
+  highlighter: hued(['#fde047', '#facc15'], [0.85, 0.45]),
+  highlighterSoft: hued(['#fef08a', '#fde047'], [0.9, 0.3]),
+  neon: hued(['#ffff00', '#ffff00'], [0.7, 0.35]),
+}
+
+function mix(a, b, t) {
+  const ch = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16))
+  const [x, y] = [ch(a), ch(b)]
+  return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('')
+}
+const midBlue = mix(KG.varLow, KG.varHigh, 0.5)
+const bundleWidth = (n) => 1 + 2.2 * Math.sqrt(n)
+// area proportional to the count; one variable is a variable's size
+const bundleSize = (n) => 12 * Math.sqrt(n)
+
+const settings = {
+  halo: 'highlighter', larger: false, conceptShape: 'ellipse',
+  labelHighlight: true, labelStrong: false, seedPad: 14, sharedPale: false, onTop: false,
+}
+// black or white text, whichever reads on the given background
+const textOn = (hex) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+  return 0.299 * r + 0.587 * g + 0.114 * b > 150 ? '#0a0a0a' : '#fafafa'
+}
+const theme = () => THEMES[document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light']
+
+function style(t) {
+  const halo = HALOS[settings.halo]
+  const haloOpacity = typeof halo.opacity === 'function' ? halo.opacity(t) : halo.opacity
+  const haloRule = (cls, pad, opacity = haloOpacity) => [
+    { selector: `node.${cls}`, style: { 'underlay-color': halo.color(t), 'underlay-opacity': opacity, 'underlay-padding': pad, 'underlay-shape': 'ellipse' } },
+    { selector: `node.${cls}[type = "study"], node.${cls}[type = "nostudy"]`, style: { 'underlay-shape': 'round-rectangle' } },
+  ]
+  return [
+    // intrinsic: category
+    {
+      selector: 'node',
+      style: {
+        label: (n) => n.data('label') ?? '', 'font-family': getComputedStyle(document.body).fontFamily,
+        'font-size': 10, color: t.label, 'text-valign': 'bottom', 'text-margin-y': 3,
+        'text-wrap': 'ellipsis', 'text-max-width': '92px', width: 12, height: 12, 'overlay-opacity': 0,
+      },
+    },
+    { selector: 'node[type = "concept"], node[type = "term"]', style: { 'background-color': KG.concept, shape: settings.conceptShape, width: 24, height: 24, 'font-weight': 'bold', 'font-size': 11 } },
+    { selector: 'node[type = "term"]', style: { 'background-color': mix(KG.concept, t.bg, 0.7), 'border-width': 2, 'border-color': KG.concept } },
+    { selector: 'node[type = "study"]', style: { 'background-color': KG.study, shape: 'round-rectangle', width: 16, height: 16 } },
+    {
+      selector: 'node[type = "nostudy"]',
+      style: { shape: 'round-rectangle', width: 16, height: 16, 'background-opacity': 0, 'border-width': 2, 'border-color': t.label },
+    },
+    { selector: 'node[type = "anchor"]', style: { width: 1, height: 1, 'background-opacity': 0 } },
+    {
+      // a bundle as a node: flat mid-blue, area = variable count
+      selector: 'node[type = "bundle"]',
+      style: {
+        'background-color': midBlue,
+        width: (n) => bundleSize(n.data('count')), height: (n) => bundleSize(n.data('count')),
+      },
+    },
+    {
+      selector: 'node[type = "bundle"][!label]',
+      style: { label: (n) => n.data('count'), 'text-valign': 'center', 'text-margin-y': 0, color: '#ffffff', 'font-size': 9 },
+    },
+    {
+      selector: 'edge',
+      style: {
+        width: 1, 'line-color': t.edge, 'curve-style': 'straight', 'overlay-opacity': 0,
+        label: (e) => e.data('label') ?? '', 'font-size': 10, color: t.label, 'text-margin-y': 14,
+      },
+    },
+    { selector: 'edge.link', style: { 'line-color': mix(KG.concept, t.bg, 0.45), width: 1.5 } },
+    {
+      selector: 'edge.bundle',
+      style: { 'line-color': midBlue, width: (e) => bundleWidth(e.data('count')) },
+    },
+    // intrinsic: amount
+    { selector: 'node[type = "variable"]', style: { 'background-color': (n) => mix(t.varLow, t.varHigh, n.data('weight') ?? 0.5) } },
+    // context: query (seed after shared, so a seed that's also shared gets the wide halo)
+    ...haloRule('shared', 5, settings.sharedPale ? haloOpacity * 0.6 : haloOpacity),
+    ...haloRule('seed', settings.seedPad),
+    ...(settings.labelStrong ? [{ selector: 'node.seed', style: { color: t.fg, 'font-weight': 'bold', 'font-size': 12 } }] : []),
+    ...(settings.labelHighlight
+      ? [
+          {
+            // a highlighter stroke behind the label, in the halo colour
+            selector: 'node.seed',
+            style: {
+              'text-background-color': halo.color(t), 'text-background-opacity': Math.max(haloOpacity, 0.85),
+              'text-background-padding': 2, 'text-background-shape': 'round-rectangle',
+              color: textOn(halo.color(t)), 'text-margin-y': 5,
+            },
+          },
+        ]
+      : []),
+    ...(settings.onTop ? [{ selector: 'node.seed', style: { 'z-index': 10 } }] : []),
+    ...(settings.larger
+      ? [
+          { selector: 'node.seed[type = "concept"], node.seed[type = "term"]', style: { width: 30, height: 30 } },
+          { selector: 'node.seed[type = "study"]', style: { width: 20, height: 20 } },
+          { selector: 'node.seed[type = "variable"]', style: { width: 15, height: 15 } },
+        ]
+      : []),
+    // context: interaction
+    { selector: 'node.sel', style: { 'outline-style': 'solid', 'outline-width': 2, 'outline-color': t.fg, 'outline-offset': 3, 'outline-opacity': 1 } },
+    { selector: 'edge.sel', style: { 'line-outline-width': 2, 'line-outline-color': t.fg } },
+    { selector: '.faded', style: { opacity: 0.15 } },
+  ]
+}
+
+// ---- strips: one row of marks per layer ----
+
+const COL = 104
+const node = (label, type, classes = '', data = {}) => ({ kind: 'node', label, type, classes, data })
+const edge = (label, classes = '', data = {}) => ({ kind: 'edge', label, classes, data })
+
+const STRIPS = [
+  {
+    title: 'Intrinsic: category', note: 'Hue and shape give the type; fill says real or stand-in; bundles (summaries) are flat mid-blue.',
+    items: [
+      node('concept', 'concept'), node('term (stand-in)', 'term'), node('study', 'study'), node('variable', 'variable'),
+      node('No study given', 'nostudy'), edge('variable edge'), edge('inter-concept link', 'link'),
+      edge('bundle edge (summary)', 'bundle', { count: 4 }), node('bundle node (summary)', 'bundle', '', { count: 4 }),
+    ],
+  },
+  {
+    title: 'Intrinsic: amount', note: 'Variable weight is contrast on the blue ramp (darker on light, lighter on dark); bundle edge width, or bundle node area, is the variable count.',
+    items: [
+      ...[0, 0.25, 0.5, 0.75, 1].map((w) => node(`weight ${w}`, 'variable', '', { weight: w })),
+      ...[1, 3, 8, 20].map((n) => edge(`${n} variable${n > 1 ? 's' : ''}`, 'bundle', { count: n })),
+      ...[1, 3, 8, 20].map((n) => node(`${n} variable${n > 1 ? 's' : ''}`, 'bundle', '', { count: n })),
+    ],
+  },
+  {
+    title: 'Context: query', note: 'Wide halo: a seed. Narrow halo: shared (connects two or more seeds).',
+    items: [
+      node('seed concept', 'concept', 'seed'), node('seed term', 'term', 'seed'), node('seed study', 'study', 'seed'),
+      node('seed variable', 'variable', 'seed'), node('shared concept', 'concept', 'shared'),
+      node('shared study', 'study', 'shared'), node('shared variable', 'variable', 'shared'),
+      node('shared bundle node', 'bundle', 'shared', { count: 3 }), node('seed + shared', 'concept', 'seed shared'),
+    ],
+  },
+  {
+    title: 'Context: interaction', note: 'Selected: an outline ring (a line outline on edges). Faded: 0.15 opacity.',
+    items: [
+      node('selected concept', 'concept', 'sel'), node('selected seed', 'concept', 'seed sel'),
+      node('selected shared', 'study', 'shared sel'), edge('selected bundle edge', 'bundle sel', { count: 4 }),
+      node('selected bundle node', 'bundle', 'sel', { count: 4 }),
+      node('faded concept', 'concept', 'faded'), node('faded seed', 'concept', 'seed faded'),
+      node('faded shared', 'study', 'shared faded'), edge('faded bundle edge', 'bundle faded', { count: 4 }),
+      node('faded bundle node', 'bundle', 'faded', { count: 4 }),
+    ],
+  },
+]
+
+function stripElements(items) {
+  return items.flatMap((it, i) => {
+    const x = COL * (i + 0.5)
+    if (it.kind === 'node') {
+      return [{ data: { id: 'n' + i, label: it.label, type: it.type, ...it.data }, position: { x, y: 40 }, classes: it.classes }]
+    }
+    return [
+      { data: { id: `a${i}`, type: 'anchor' }, position: { x: x - 36, y: 40 } },
+      { data: { id: `b${i}`, type: 'anchor' }, position: { x: x + 36, y: 40 } },
+      { data: { id: 'e' + i, source: `a${i}`, target: `b${i}`, label: it.label, ...it.data }, classes: it.classes },
+    ]
+  })
+}
+
+const views = []
+const graph = (container, elements) =>
+  cytoscape({
+    container, elements: structuredClone(elements), layout: { name: 'preset' }, style: style(theme()),
+    userZoomingEnabled: false, userPanningEnabled: false, boxSelectionEnabled: false,
+    autoungrabify: true, autounselectify: true,
+  })
+const stripsRoot = document.getElementById('strips')
+for (const s of STRIPS) {
+  const sec = document.createElement('section')
+  const width = COL * s.items.length
+  sec.innerHTML = `<h3>${s.title}</h3><p class="muted">${s.note}</p>
+    <div class="scroll"><div class="strip" style="width:${width}px"></div></div>`
+  stripsRoot.append(sec)
+  const container = sec.querySelector('.strip')
+  views.push({ make: () => graph(container, stripElements(s.items)), center: { x: width / 2, y: 40 } })
+}
+
+// ---- example graph ----
+
+const CONCEPTS = [
+  { id: 'asthma', label: 'asthma', type: 'concept', seed: true, pos: [70, 120] },
+  { id: 'wheeze', label: 'wheeze', type: 'term', seed: true, pos: [70, 250] },
+  { id: 'copd', label: 'COPD', type: 'concept', pos: [70, 360] },
+]
+const STUDIES = [
+  { id: 'A', label: 'phs000001', type: 'study', pos: [560, 90] },
+  { id: 'B', label: 'phs000002', type: 'study', pos: [560, 210] },
+  { id: 'C', label: 'phs000003', type: 'study', pos: [560, 300] },
+  { id: 'NS', label: 'No study given', type: 'nostudy', pos: [560, 390] },
+]
+const LINKS = [['asthma', 'copd']]
+// [id, concepts, study, weight]
+const VARIABLES = [
+  ['v1', ['asthma'], 'A', 0.3], ['v2', ['asthma'], 'A', 0.8], ['v3', ['asthma', 'wheeze'], 'A', 0.6],
+  ['v4', ['wheeze'], 'A', 0.2], ['v5', ['asthma'], 'B', 0.1], ['v6', ['asthma'], 'B', 0.5],
+  ['v7', ['asthma'], 'B', 0.9], ['v8', ['asthma'], 'B', 0.4], ['v9', ['copd'], 'B', 0.7],
+  ['v10', ['copd'], 'B', 0.3], ['v11', ['wheeze'], 'C', 0.5], ['v12', ['asthma'], 'NS', 0.2],
+  ['v13', ['asthma'], 'NS', 0.6],
+].map(([id, concepts, study, weight]) => ({ id, concepts, study, weight }))
+
+const seeds = new Set(CONCEPTS.filter((c) => c.seed).map((c) => c.id))
+const seedCount = (ids) => new Set(ids.filter((id) => seeds.has(id))).size
+const studySeeds = (s) => seedCount(VARIABLES.filter((v) => v.study === s).flatMap((v) => v.concepts))
+const conceptSeeds = (c) => seedCount(LINKS.filter((l) => l.includes(c)).flat().filter((id) => id !== c))
+
+function topNode(n, shared) {
+  const classes = [n.seed && 'seed', shared && 'shared'].filter(Boolean).join(' ')
+  return { data: { id: n.id, label: n.label, type: n.type }, position: { x: n.pos[0], y: n.pos[1] }, classes }
+}
+function topNodes() {
+  return [
+    ...CONCEPTS.map((c) => topNode(c, conceptSeeds(c.id) >= 2)),
+    ...STUDIES.map((s) => topNode(s, s.type === 'study' && studySeeds(s.id) >= 2)),
+    ...LINKS.map(([a, b]) => ({ data: { id: `${a}-${b}`, source: a, target: b }, classes: 'link' })),
+  ]
+}
+const posOf = (id) => [...CONCEPTS, ...STUDIES].find((n) => n.id === id).pos
+
+// variables grouped by their set of concepts × study: an exact partition
+function variableGroups() {
+  const groups = new Map()
+  for (const v of VARIABLES) {
+    const key = v.concepts.join('+') + '|' + v.study
+    groups.set(key, [...(groups.get(key) ?? []), v])
+  }
+  return [...groups.values()].map((vars) => {
+    const { concepts, study } = vars[0]
+    const conceptY = concepts.map(posOf).reduce((s, p) => s + p[1], 0) / concepts.length
+    const [sx, sy] = posOf(study)
+    return { vars, concepts, study, mid: [(70 + sx) / 2, (conceptY + sy) / 2] }
+  })
+}
+
+function variableElements() {
+  const els = topNodes()
+  for (const { vars, mid } of variableGroups()) {
+    vars.forEach((v, i) => {
+      const x = mid[0] + (i - (vars.length - 1) / 2) * 22
+      const y = mid[1] + (i % 2 ? 8 : -8)
+      els.push({
+        data: { id: v.id, type: 'variable', weight: v.weight },
+        position: { x, y }, classes: seedCount(v.concepts) >= 2 ? 'shared' : '',
+      })
+      for (const c of v.concepts) els.push({ data: { id: `${c}-${v.id}`, source: c, target: v.id } })
+      els.push({ data: { id: `${v.id}-${v.study}`, source: v.id, target: v.study } })
+    })
+  }
+  return els
+}
+
+function bundledElements() {
+  const counts = new Map()
+  for (const v of VARIABLES) for (const c of v.concepts) counts.set(`${c}|${v.study}`, (counts.get(`${c}|${v.study}`) ?? 0) + 1)
+  return [
+    ...topNodes(),
+    ...[...counts].map(([key, count]) => {
+      const [c, s] = key.split('|')
+      return { data: { id: `${c}=${s}`, source: c, target: s, count }, classes: 'bundle' }
+    }),
+  ]
+}
+
+function bundleNodeElements() {
+  const els = topNodes()
+  variableGroups().forEach(({ vars, concepts, study, mid }, i) => {
+    const id = 'g' + i
+    els.push({
+      data: { id, type: 'bundle', count: vars.length },
+      position: { x: mid[0], y: mid[1] }, classes: seedCount(concepts) >= 2 ? 'shared' : '',
+    })
+    for (const c of concepts) els.push({ data: { id: `${c}-${id}`, source: c, target: id } })
+    els.push({ data: { id: `${id}-${study}`, source: id, target: study } })
+  })
+  return els
+}
+
+// focus: the element, its neighbours, and through variables (or bundle nodes) one step further
+function focus(cy, ele) {
+  const current = cy.$('.sel')
+  cy.elements().removeClass('sel faded')
+  if (!ele || current.same(ele)) return
+  let keep = ele.isEdge() ? ele.union(ele.connectedNodes()) : ele.closedNeighborhood()
+  if (ele.isNode()) keep.nodes('[type = "variable"], [type = "bundle"]').forEach((v) => { keep = keep.union(v.closedNeighborhood()) })
+  ele.addClass('sel')
+  cy.elements().not(keep).addClass('faded')
+}
+
+for (const [id, elements] of [
+  ['ex-bundled', bundledElements()], ['ex-bundle-nodes', bundleNodeElements()], ['ex-variables', variableElements()],
+]) {
+  const make = () => {
+    const cy = graph(document.getElementById(id), elements)
+    cy.on('tap', (e) => focus(cy, e.target === cy ? null : e.target))
+    return cy
+  }
+  views.push({ make, fit: true })
+}
+
+// ---- controls ----
+
+// Rebuilt from scratch on every change: swapping the stylesheet in place left
+// Cytoscape's render cache drawing the old concept shape.
+function restyle() {
+  for (const v of views) {
+    v.cy?.destroy()
+    v.cy = v.make()
+  }
+  rezoom()
+}
+function rezoom() {
+  const z = Number(document.getElementById('zoom').value)
+  document.getElementById('zoomval').textContent = z.toFixed(2)
+  for (const v of views) {
+    if (v.fit) {
+      v.cy.fit(undefined, 40)
+      const base = v.cy.zoom()
+      v.cy.zoom({ level: base * z, renderedPosition: { x: v.cy.width() / 2, y: v.cy.height() / 2 } })
+    } else {
+      v.cy.viewport({ zoom: 1, pan: { x: 0, y: 0 } })
+      v.cy.zoom({ level: z, renderedPosition: v.center })
+    }
+  }
+}
+
+const dark = document.getElementById('dark')
+dark.checked = matchMedia('(prefers-color-scheme: dark)').matches
+dark.addEventListener('change', () => {
+  document.documentElement.dataset.theme = dark.checked ? 'dark' : 'light'
+  restyle()
+})
+document.getElementById('halo').addEventListener('change', (e) => { settings.halo = e.target.value; restyle() })
+document.getElementById('shape').addEventListener('change', (e) => { settings.conceptShape = e.target.value; restyle() })
+for (const id of ['larger', 'labelHighlight', 'labelStrong', 'sharedPale', 'onTop']) {
+  document.getElementById(id).addEventListener('change', (e) => { settings[id] = e.target.checked; restyle() })
+}
+document.getElementById('seedPad').addEventListener('change', (e) => { settings.seedPad = Number(e.target.value); restyle() })
+document.getElementById('zoom').addEventListener('input', rezoom)
+addEventListener('resize', rezoom)
+document.documentElement.dataset.theme = dark.checked ? 'dark' : 'light'
+restyle()
+</script>
+</body>
+</html>

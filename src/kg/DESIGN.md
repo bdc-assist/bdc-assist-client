@@ -62,7 +62,7 @@ Computed on the graph being shown (the source picked, grouped or not), **before*
 
 | View | Needs | Shows | Leaves out (with a note) |
 |---|---|---|---|
-| Radial | a seed | seeds in the middle, studies around them joined by bundles (with Variables on: variables in between); inter-concept links dashed | — |
+| Radial | a seed | seeds in the middle, studies around them joined by bundles (with Variables on: variables in between) | — |
 | Force | — | everything: concepts and studies joined by bundles, or individual variables with Variables on | — |
 | Flow | studies | concept → study bands, width = variable count; variables without a study go to the placeholder | inter-concept links |
 | Matrix **(planned)** | variables | studies × concepts (or variables × concepts when there are no studies) | concepts without variables |
@@ -108,15 +108,16 @@ now. Force and List are the only views that show everything.
 
 **Terms:** a term is a search word from find_cohort_variables. Dug links variables to a
 term just as it links them to a concept, so a term goes wherever a view places
-concepts (`isConceptOrTerm`) and is drawn outlined (§4). As a seed it's an outlined diamond.
+concepts (`isConceptOrTerm`) and is drawn tinted: a pale amber fill with an amber
+border (§4). Terms are always seeds, so they also get the seed marks.
 
 | View | A term is shown as |
 |---|---|
-| Radial | a seed in the centre (terms are always seeds) |
-| Force | an outlined node |
-| Flow | an outlined bar on the left |
-| List | an outlined swatch, with "(search term)" |
-| Matrix | a column with an outlined header mark; its cells look like any other |
+| Radial | a seed in the centre |
+| Force | a tinted node |
+| Flow | a tinted bar on the left |
+| List | a tinted swatch, with "(search term)" |
+| Matrix | a column with a tinted header mark; its cells look like any other |
 
 A term differs from a concept only where the concept's identity is used:
 
@@ -131,7 +132,7 @@ A term differs from a concept only where the concept's identity is used:
   terms, seeds first. With no studies at all, rows
   are variables and each cell is just filled or empty: grouped concepts show up as
   matching columns.
-- A term's column has an outlined header mark (an outlined diamond, since terms are seeds).
+- A term's column has a tinted header mark, and seed columns get the seed marks (§4).
 - Each cell is a circle whose **area** shows the variable count, with the largest
   filling the cell. It's solid flat mid-blue (the bundle colour). The count appears only
   in the native tooltip: "asthma × phs000001: 7 variables".
@@ -165,10 +166,10 @@ the variables between them.
 - **Stability:** when switching, concepts and studies keep their positions, and
   variables start between their two ends (this builds on stable Force).
 - **Code:** a pure transform in `src/kg` that turns variable paths into bundle edges
-  listing their variables. A bundle edge is marked so it's never confused with an edge
-  from Dug.
+  listing their variables. A bundle edge is drawn in the bundle style (flat mid-blue,
+  width = count, §4), so it's never confused with an edge from Dug.
 
-### Other candidates (not agreed)
+### Parked (revisit later)
 
 - **Seed-combination chart (UpSet-style), for 2+ seeds:** one bar per combination of
   seeds, giving how many studies cover exactly that combination ("asthma and COPD: 5").
@@ -178,48 +179,89 @@ the variables between them.
 
 ## 4. Visual grammar
 
+Mock-ups of everything here, drawn with the app's Cytoscape:
+`design/seed-shared-marks.html` (run the dev server and open `/design/seed-shared-marks.html`).
+
+Encodings come in four layers, and each channel belongs to exactly one layer, so the
+marks on one node never compete:
+
+| Layer | Facts | Channels |
+|---|---|---|
+| Intrinsic: category | type; real, stand-in or summary | hue, shape, fill (solid, tinted, outlined), line colour |
+| Intrinsic: amount | variable weight, variable count | contrast within the blue ramp, size or width |
+| Context: query | seed, shared | halo (wide or narrow), highlighted label |
+| Context: interaction | focus, faded | outline ring, opacity |
+
 Each meaning gets one encoding, and each encoding means one thing in every view.
 
-| Encoding | Means | Where |
-|---|---|---|
-| Hue: amber `--kg-concept` | concept | all |
-| Amber outline | search term | all |
-| Hue: green `--kg-study` | study | all |
-| Blue ramp `--kg-variable-low → -high` | one variable; darker = links more concepts (`related_concepts_count`) | node-link with Variables on |
-| Flat mid-blue (mix of the two) | a bundle of variables | Flow bands, Matrix circles, node-link bundles |
-| Size / width | variable count (bundles only) | Flow, Matrix, node-link bundles |
-| Diamond | seed: what a call asked about | node-link, Flow, List |
-| Grey outline, last: "No study given" | the variables without a study | List, Flow, Matrix, node-link bundles |
-| Amber halo | shared: connects two or more seeds | node-link; Flow, List, Matrix **(planned)** |
-| Solid grey line | a stated variable edge | node-link |
-| Dashed amber line | an inter-concept link: concept → concept, with Dug's predicates | node-link |
-| `--kg-selected` outline | the focus itself | node-link, Flow; List and Matrix **(planned)** |
-| Opacity 0.15 | faded: not connected to the focus | all |
+| Layer | Encoding | Means | Where |
+|---|---|---|---|
+| Category | Amber `--kg-concept`, circle | concept | all |
+| Category | Tinted amber fill, amber border | search term: a stand-in for a concept | all |
+| Category | Green `--kg-study`, rounded square | study | all |
+| Category | Blue, small circle | variable | node-link with Variables on |
+| Category | Grey outline, placed last: "No study given" | the variables without a study: a stand-in | List, Flow, Matrix, node-link bundles |
+| Category | Flat mid-blue (middle of the ramp) | a bundle: a summary of variables | Flow bands, Matrix circles, node-link bundles |
+| Category | Solid grey line | a stated variable edge | node-link |
+| Category | Solid light-amber line (amber mixed towards the background) | an inter-concept link: concept → concept, with Dug's predicates | node-link |
+| Amount | Blue ramp `--kg-variable-low → -high` | one variable; more contrast = links more concepts (`related_concepts_count`) | node-link with Variables on |
+| Amount | Size / width | variable count (bundles only) | Flow band width, Matrix circle area, node-link bundle width (`1 + 2.2·√count`) |
+| Query | Wide halo `--kg-halo` | seed: what a call asked about, of any type | all |
+| Query | Highlighted label: `--kg-halo` behind the label text | seed | node-link; Flow, List, Matrix **(planned)** |
+| Query | Narrow halo `--kg-halo` | shared: connects two or more seeds | node-link; Flow, List, Matrix **(planned)** |
+| Interaction | `--kg-selected` outline ring, outside the border | the focus itself | node-link, Flow; List and Matrix **(planned)** |
+| Interaction | Opacity 0.15 | faded: not connected to the focus | all |
+
+**Values**
+
+- **Halo:** highlighter yellow, `#fde047` at 0.85 on light and `#facc15` at 0.45 on dark.
+  Not a type hue, so it says nothing about type. Easy to change: it's one custom property.
+  Node-link padding is 14 for a seed and 5 for shared; a seed that's also shared gets the
+  wide one.
+- **Highlighted label:** the halo colour at 0.85 or more behind the text, with black or
+  white text, whichever reads on it.
+- **Selection ring:** Cytoscape's `outline-*` (2px, offset 3), so the border stays free
+  for the category layer.
+- **Term fill:** 30% amber, 70% background; the border is full amber.
+- **Inter-concept link:** 55% amber, 45% background, 1.5px.
+- **Dark theme:** the blue ramp runs from low to high contrast against the background,
+  so dark mode swaps its ends (`#1e40af` → `#93c5fd`). Flat mid-blue is the same in both.
 
 **Rules**
 
+- **One layer per channel.** Hue, shape and fill say what something is; size and ramp
+  contrast say how much; halo and the highlighted label relate it to the query; the ring
+  and opacity respond to the user. So size never marks a seed, and hue never marks context.
 - **Opacity only ever means faded.** The exception is Flow's band translucency, which
   keeps overlapping bands readable. Matrix circles are solid.
 - **Outlined shapes are clickable all over:** an outlined shape has a coloured border
   and a transparent fill, but its whole area takes clicks, not just the border. In
   SVG that means `pointer-events: all` (or `fill: transparent`, never `fill: none`).
-- **Seeds:** drawn larger, and their label is always shown (truncated).
-- **Labels:** the full label is in the native `title` inside a canvas. Shadcn tooltips
-  only label controls; popovers hold links and lists.
+- **Seeds:** the wide halo and the highlighted label, whatever their type. Seeds keep their
+  type's shape and size.
+- **Labels:** every node's label is shown, truncated; the full label is in the native
+  `title` inside a canvas. Shadcn tooltips only label controls; popovers hold links and
+  lists.
 - **Words:** use only Dug's vocabulary. Say "type", not "kind". Show predicates and
   categories verbatim.
 
 **Deviations to fix**
 
+- Node-link draws seeds as larger diamonds, with no seed halo or highlighted label.
+- Node-link's shared halo is amber (`--kg-concept`, padding 6); it moves to `--kg-halo`
+  (planned, with light and dark values).
+- Node-link marks the focus with the border, not an outline ring.
+- Node-link draws terms outlined (`background-opacity: 0`), not tinted.
+- Node-link draws inter-concept links dashed, at 0.6 opacity.
+- The blue ramp isn't reversed in dark mode (index.css sets one pair for both themes).
+- Flow draws seeds as diamonds and term bars outlined with `fill: none`, so only their
+  border takes clicks. Both go: tinted term bars, and the seed marks above.
+- Flow and List don't mark seeds or shared studies.
 - List fades to 0.35, not 0.15.
 - List marks the focus with row shading instead of the `--kg-selected` outline.
   **(open)** Should an HTML list follow the canvas, or is shading the list's equivalent?
-- Flow and List don't mark shared studies.
-- Flow's term bars and diamonds use `fill: none`, so only their border takes clicks.
-  Node-link uses `background-opacity: 0`: check that the inside of the shape takes
-  clicks (Cytoscape probably tests the whole shape).
-- Node-link draws inter-concept links at 0.6 opacity. **(open)** Use a lighter colour
-  instead, or treat this like Flow's exception?
+- Node-link's "No study given" uses `background-opacity: 0`: check that the inside of the
+  shape takes clicks (Cytoscape probably tests the whole shape).
 
 ## 5. Selection model
 
@@ -248,7 +290,7 @@ type KgFocus = { node: string } | { concept: string; study: string }
   it as a special case, and the other views highlight the concept and those variables.
   **(open)** For concept–concept bundles,
   generalise the pair to `{ a, b }`, meaning two nodes and the variables on both.
-- **(open)** A seed-combination chart would need a third kind of focus: a set of
+- **(parked)** A seed-combination chart would need a third kind of focus: a set of
   studies.
 
 ## 6. Several calls in one graph
@@ -293,7 +335,9 @@ type KgFocus = { node: string } | { concept: string; study: string }
 ## 8. Build order
 
 1. This spec.
-2. Grammar fixes: List fades to 0.15, shared marks in Flow and List, and outlined
+2. Grammar fixes: the §4 marks in node-link (seed halo and highlighted label, `--kg-halo`,
+   the selection ring, tinted terms, solid inter-concept links, the dark-mode ramp); then
+   Flow and List (seed and shared marks, tinted terms, List fades to 0.15), and outlined
    shapes clickable all over.
    The "No study given" placeholder in Flow (and List's label); remove Flow's
    "without a study" note.
@@ -304,4 +348,4 @@ type KgFocus = { node: string } | { concept: string; study: string }
    Variables toggle), the pick carried over.
 6. Star list grouped by predicate, and removing the Columns layout.
 7. Matrix.
-8. Candidates from §3, one at a time, once agreed.
+8. Parked views from §3 (seed-combination chart, predicate sectors), if they're picked up again.
