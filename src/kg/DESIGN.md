@@ -60,12 +60,12 @@ Computed on the graph being shown (the source picked, grouped or not), **before*
 
 ## 3. Views
 
-| View | Needs | Shows | Leaves out (with a note) |
+| View | Needs | Shows | Leaves out |
 |---|---|---|---|
 | Radial | a seed | seeds in the middle, studies around them joined by bundles (with Variables on: variables in between) | — |
 | Force | — | everything: concepts and studies joined by bundles, or individual variables with Variables on | — |
 | Flow | studies | concept → study bands, width = variable count; variables without a study go to the placeholder | inter-concept links |
-| List | — | studies → concepts → variables; no studies: grouped by concept; no variables (star): the concepts, seeds first (grouped by predicate: parked) | — |
+| List | — | studies → concepts → variables; no studies: grouped by concept; no variables (star): the concepts, seeds first (grouped by predicate: parked) | inter-concept links |
 
 Matrix (studies × concepts) was built and then parked: with the data we have it added
 little over Flow and List (see Parked below).
@@ -112,9 +112,9 @@ in mount.ts):
 - timing is fine on large graphs (concept_graph_2, 104 nodes), each graph in the chat
   running its own layout
 
-**Mixed graphs:** every view that's available shows the part it can and notes what it
-leaves out ("N relationships between concepts not shown in this view"), as Flow does
-now. Force and List are the only views that show everything.
+**Mixed graphs:** every view that's available shows the part it can, without a note
+on what it leaves out (the notes were dropped 2026-10-15). Only Radial and
+Force show inter-concept links.
 
 **Terms:** a term is a search word from find_cohort_variables. Dug links variables to a
 term just as it links them to a concept, so a term goes wherever a view places

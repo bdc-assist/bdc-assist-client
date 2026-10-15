@@ -7,7 +7,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { bridges, sharedOnly as onlyShared } from '@/kg/bridges'
 import { collapseVersions } from '@/kg/collapse'
 import { groupSynonyms } from '@/kg/group'
-import { relations } from '@/kg/elements'
 import { nodeLinks, type KgLink } from '@/kg/links'
 import { studyList, type ListVariable } from '@/kg/list'
 import { mountFlow, type FlowView } from '@/kg/flow'
@@ -582,7 +581,6 @@ function GraphBody(props: GraphBodyProps) {
   const { json, shown, canvasClass, choice, onChoice, available, sharedOnly, onSharedOnly, canShare, zoomGestures } = props
   const { sources, source, onSource, grouped, onGrouped, canGroup, forcePositions, covered, detailsBeside } = props
   const { variables, onVariables } = props
-  const relationCount = useMemo(() => relations(shown).length, [shown])
   const mode: ViewMode = choice === 'flow' || choice === 'list' ? choice : 'graph'
   const layout: KgLayout | undefined = mode === 'graph' ? (choice as KgLayout) : undefined
   const types = useMemo(() => new Set(shown.nodes.map((n) => n.type)), [shown])
@@ -751,19 +749,13 @@ function GraphBody(props: GraphBodyProps) {
               <StudyList graph={shown} focus={focus} onPick={pickFromList} />
             </div>
           )}
-          {/* the flow's own box (mountFlow fills it), plus a note on what it can't show */}
+          {/* the flow's own box (mountFlow fills it) */}
           <div className={`relative border-t ${canvasClass} ${mode === 'flow' ? '' : 'hidden'}`}>
             <div
               ref={flowContainer}
               className="h-full w-full"
               aria-label="Knowledge graph as flows from concepts to studies. The List view shows the same as text."
             />
-            {relationCount > 0 && (
-              <p className="text-muted-foreground bg-background/80 absolute bottom-1.5 left-1.5 rounded px-1.5 py-0.5">
-                {relationCount} {relationCount === 1 ? 'relationship' : 'relationships'} between concepts not shown in this
-                view
-              </p>
-            )}
           </div>
           {/* kept mounted while another view shows, so the graph keeps its layout and zoom */}
           <div className={`relative border-t ${canvasClass} ${mode === 'graph' ? '' : 'hidden'}`}>
