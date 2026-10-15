@@ -1,6 +1,7 @@
 import type { ElementDefinition } from 'cytoscape'
 
-import type { KgGraph } from './types'
+import { bundles } from './bundle'
+import { NO_STUDY, NO_STUDY_LABEL, type KgGraph } from './types'
 
 /** The concept → concept edges: relationships between concepts (e.g. from
  * get_concept_connections), as opposed to variables' links. */
@@ -30,10 +31,16 @@ export function variableWeights(graph: KgGraph): Map<string, number> {
  * Cytoscape elements for a graph. Each node's data carries `order`, the key the
  * radial layout sorts by within a ring: studies by id, variables by their study's
  * id, so a study's variables sit together, next to it. Variables also carry
- * `weight` (variableWeights), drawn as a light-to-dark colour. Concept → concept
+ * `weight` (variableWeights), drawn as a light-to-dark colour; seeds carry `seed`. Concept → concept
  * edges get the class `relation`, and every edge its predicates joined as `predicate`.
+ *
+ * `bundled`: no variables; instead one edge per concept and study (class `bundle`,
+ * id "bundle:concept->study", data `concept`, `study`, its `variables` and their `count`), and the "No study
+ * provided" placeholder (id NO_STUDY, class `placeholder`, last in its ring) for
+ * variables without a study.
  */
-export function toElements(graph: KgGraph): ElementDefinition[] {
+export function toElements(graph: KgGraph, bundled = false): ElementDefinition[] {
+  if (bundled) return bundledElements(graph)
   const studyOf = new Map<string, string>() // variable id → study id
   const types = new Map(graph.nodes.map((n) => [n.id, n.type]))
   for (const e of graph.edges) if (types.get(e.target) === 'study') studyOf.set(e.source, e.target)
@@ -47,8 +54,8 @@ export function toElements(graph: KgGraph): ElementDefinition[] {
         label: n.label,
         type: n.type,
         order: order(n.id, n.type),
-        ...(n.term && { term: true }),
         ...(n.type === 'variable' && { weight: weights.get(n.id) }),
+        ...(n.seed && { seed: true }),
       },
     })),
     ...graph.edges.map((e) => {
@@ -60,5 +67,40 @@ export function toElements(graph: KgGraph): ElementDefinition[] {
         ...(relation && { classes: 'relation' }),
       }
     }),
+  ]
+}
+
+function bundledElements(graph: KgGraph): ElementDefinition[] {
+  const all = bundles(graph)
+  const variables = new Set(graph.nodes.filter((n) => n.type === 'variable').map((n) => n.id))
+  const rest: KgGraph = {
+    nodes: graph.nodes.filter((n) => !variables.has(n.id)),
+    edges: graph.edges.filter((e) => !variables.has(e.source) && !variables.has(e.target)),
+  }
+  const placeholder = all.some((b) => b.study === NO_STUDY)
+  return [
+    ...toElements(rest),
+    ...(placeholder
+      ? [
+          {
+            group: 'nodes' as const,
+            data: { id: NO_STUDY, label: NO_STUDY_LABEL, type: 'study', order: '\uffff' }, // last
+            classes: 'placeholder',
+          },
+        ]
+      : []),
+    ...all.map((b) => ({
+      group: 'edges' as const,
+      data: {
+        id: `bundle:${b.concept}->${b.study}`,
+        source: b.concept,
+        target: b.study,
+        concept: b.concept,
+        study: b.study,
+        variables: b.variables,
+        count: b.variables.length,
+      },
+      classes: 'bundle',
+    })),
   ]
 }

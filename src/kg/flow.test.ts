@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import { collapseVersions } from './collapse'
-import asthmaCopd from './fixtures/asthma-copd-graph.json'
-import chd from './fixtures/chd-graph.json'
+import asthmaCopd from './fixtures/graph/concept_graph_2.json'
+import search from './fixtures/graph/search_concepts.json'
+import chd from './fixtures/graph/concept_graph.json'
 import { flowData } from './flow'
-import type { KgGraph } from './types'
+import { NO_STUDY, type KgGraph } from './types'
 
 const CHD = collapseVersions(chd as KgGraph)
 const TWO = collapseVersions(asthmaCopd as KgGraph)
@@ -44,5 +45,34 @@ describe('flowData', () => {
       ],
     })
     expect(nodes.map((n) => n.id)).toEqual(['C', 'S'])
+  })
+
+  it('without any real study, draws nothing and lists the variables (real BMI search)', () => {
+    const g = collapseVersions(search as KgGraph)
+    const { nodes, links, withoutStudy } = flowData(g)
+    expect(links).toEqual([])
+    expect(nodes).toEqual([])
+    expect(withoutStudy).toHaveLength(g.nodes.filter((n) => n.type === 'variable').length)
+    expect(flowData(CHD).withoutStudy).toEqual([])
+  })
+
+  it('alongside real studies, variables without one flow to the placeholder, last', () => {
+    const { nodes, links, withoutStudy } = flowData({
+      nodes: [
+        { id: 'C', label: 'c', type: 'concept' },
+        { id: 'v', label: 'v', type: 'variable' },
+        { id: 'loose', label: 'l', type: 'variable' },
+        { id: 'S', label: 's', type: 'study' },
+      ],
+      edges: [
+        { source: 'v', target: 'C' },
+        { source: 'v', target: 'S' },
+        { source: 'loose', target: 'C' },
+      ],
+    })
+    expect(withoutStudy).toEqual(['loose'])
+    expect(nodes.map((n) => n.id)).toEqual(['C', 'S', NO_STUDY])
+    expect(nodes.at(-1)).toMatchObject({ placeholder: true, node: { label: 'No study provided' } })
+    expect(links.find((l) => l.target === NO_STUDY)).toEqual({ source: 'C', target: NO_STUDY, variables: ['loose'] })
   })
 })

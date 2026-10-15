@@ -1,4 +1,4 @@
-import type { Position } from './columns'
+export type Position = { x: number; y: number }
 
 /**
  * Rotate points about their centre so their long axis (principal axis) runs

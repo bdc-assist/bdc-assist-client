@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { collapseVersions } from './collapse'
-import chd from './fixtures/chd-graph.json'
+import chd from './fixtures/graph/concept_graph.json'
 // every CURIE prefix Dug can return, per biolink category (from the Dug team)
 import dugPrefixes from './fixtures/dug_curie_prefixes.json'
 import { conceptLink, nodeLinks } from './links'
@@ -60,6 +60,11 @@ describe('nodeLinks', () => {
     expect(nodeLinks(node(RAW, 'MONDO:0005453'), RAW)).toEqual([
       { label: 'MONDO:0005453', url: 'https://purl.obolibrary.org/obo/MONDO_0005453' },
     ])
+  })
+
+  it('gives a search term no link', () => {
+    const term = { id: 'asthma', label: 'asthma', type: 'term' as const }
+    expect(nodeLinks(term, { nodes: [term], edges: [] })).toEqual([])
   })
 })
 

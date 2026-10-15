@@ -75,45 +75,75 @@ const StatusUI = makeAssistantDataUI<StatusPartData>({
   },
 })
 
-// doc_type values come from bdc-doc-mcp's ingest (SOURCE_DOC_TYPES)
-const SOURCE_TYPES: Record<string, { label: string; Icon: LucideIcon }> = {
-  page: { label: 'BDC website', Icon: GlobeIcon },
-  docs: { label: 'Documentation', Icon: BookOpenIcon },
-  faq: { label: 'FAQ', Icon: CircleHelpIcon },
-  video: { label: 'Video', Icon: CirclePlayIcon },
-  event: { label: 'Event', Icon: CalendarDaysIcon },
-  update: { label: 'Update', Icon: NewspaperIcon },
-  fellow: { label: 'Fellow', Icon: UserRoundIcon },
+// doc_type values come from bdc-doc-mcp's ingest (SOURCE_DOC_TYPES); dbgap-study from
+// Dug (the studies behind a graph). `many`: the popover title for several.
+type SourceType = { label: string; many: string; Icon: LucideIcon }
+const SOURCE_TYPES: Record<string, SourceType> = {
+  page: { label: 'BDC website', many: 'BDC website pages', Icon: GlobeIcon },
+  docs: { label: 'Documentation', many: 'Documentation', Icon: BookOpenIcon },
+  faq: { label: 'FAQ', many: 'FAQs', Icon: CircleHelpIcon },
+  video: { label: 'Video', many: 'Videos', Icon: CirclePlayIcon },
+  event: { label: 'Event', many: 'Events', Icon: CalendarDaysIcon },
+  update: { label: 'Update', many: 'Updates', Icon: NewspaperIcon },
+  fellow: { label: 'Fellow', many: 'Fellows', Icon: UserRoundIcon },
+  'dbgap-study': { label: 'dbGaP study', many: 'dbGaP studies', Icon: DatabaseIcon },
 }
-const OTHER_SOURCE = { label: 'Source', Icon: FileTextIcon }
+const OTHER_SOURCE: SourceType = { label: 'Source', many: 'Sources', Icon: FileTextIcon }
 
-// Dug cites every study behind a graph (often 10–20): one icon for them all,
-// opening a list of the studies on click (a popover: the list holds links, which a
-// tooltip shouldn't), instead of a row of identical icons. The chevron says it opens.
-const STUDY_TYPE = 'dbgap-study'
+const iconClass =
+  'text-muted-foreground hover:text-foreground hover:bg-muted flex items-center rounded-md transition-colors'
 
-type StudiesSourceProps = { studies: Source[]; open: boolean; onOpenChange: (open: boolean) => void }
+/** One source: its type's icon, linking to it, with its title as the tooltip. */
+function SourceLink({ source, type }: { source: Source; type: SourceType }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <a
+          href={source.link}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`${source.title} (${type.label})`}
+          className={`${iconClass} size-6 justify-center p-1`}
+        >
+          <type.Icon className="size-4" />
+        </a>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="flex-col items-start gap-0">
+        <span className="font-medium">{source.title}</span>
+        <span className="opacity-70">{type.label}</span>
+      </TooltipContent>
+    </Tooltip>
+  )
+}
 
-function StudiesSource({ studies, open, onOpenChange }: StudiesSourceProps) {
+type SourceGroupProps = { sources: Source[]; type: SourceType; open: boolean; onOpenChange: (open: boolean) => void }
+
+/** Several sources of one type (e.g. the 10–20 studies Dug cites behind a graph): one
+ * icon with the count, opening a list of them on click (a popover: the list holds
+ * links, which a tooltip shouldn't), instead of a row of identical icons. The chevron
+ * says it opens. */
+function SourceGroup({ sources, type, open, onOpenChange }: SourceGroupProps) {
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={`dbGaP studies (${studies.length})`}
-          className="text-muted-foreground hover:text-foreground hover:bg-muted data-[state=open]:bg-muted data-[state=open]:text-foreground flex h-6 items-center gap-0.5 rounded-md px-1 text-xs transition-colors"
+          aria-label={`${type.many} (${sources.length})`}
+          className={`${iconClass} data-[state=open]:bg-muted data-[state=open]:text-foreground h-6 gap-0.5 px-1 text-xs`}
         >
-          <DatabaseIcon className="size-4" />
-          {studies.length}
+          <type.Icon className="size-4" />
+          {sources.length}
           <ChevronDownIcon className="size-3" />
         </button>
       </PopoverTrigger>
       <PopoverContent side="bottom" align="end" className="w-80 gap-0 p-0">
         <PopoverHeader className="border-b px-3 py-2">
-          <PopoverTitle className="text-sm">dbGaP studies ({studies.length})</PopoverTitle>
+          <PopoverTitle className="text-sm">
+            {type.many} ({sources.length})
+          </PopoverTitle>
         </PopoverHeader>
         <ul className="max-h-72 overflow-y-auto p-1 text-sm">
-          {studies.map((s) => (
+          {sources.map((s) => (
             <li key={s.link}>
               <a
                 href={s.link}
@@ -143,52 +173,41 @@ function StudiesSource({ studies, open, onOpenChange }: StudiesSourceProps) {
 const useToolbarVisible = () =>
   useAuiState((s) => !s.thread.isRunning && (s.message.isLast || s.message.isHovering))
 
+// Sources by type, each type where its first source is: one of a type is its own
+// icon, two or more share one (SourceGroup).
 const SourcesUI = makeAssistantDataUI<Sources>({
   name: SOURCES_PART,
   render: function SourcesRow({ data }) {
     const visible = useToolbarVisible()
-    // the studies popover renders outside the message, so moving the pointer into
-    // it ends the message's hover: keep the row (and the popover) while it's open
-    const [studiesOpen, setStudiesOpen] = useState(false)
-    if (!visible && !studiesOpen) return null
-    const all: Source[] = Object.values(data as Sources).flat()
-    const sources = all.filter((s) => s.type !== STUDY_TYPE)
-    const studies = all.filter((s) => s.type === STUDY_TYPE)
+    // a group's popover renders outside the message, so moving the pointer into it
+    // ends the message's hover: keep the row (and the popover) while one is open
+    const [openType, setOpenType] = useState<string | null>(null)
+    if (!visible && openType === null) return null
+    const byType = new Map<string, Source[]>()
+    for (const s of Object.values(data as Sources).flat()) byType.set(s.type, [...(byType.get(s.type) ?? []), s])
     return (
       <ul
         data-slot="bdc-sources"
         aria-label="Sources"
         className="absolute right-2 bottom-7.5 flex min-h-7.5 items-center gap-1 pt-1.5"
       >
-        {sources.map((s) => {
-          const { label, Icon } = SOURCE_TYPES[s.type] ?? OTHER_SOURCE
-          return (
-            <li key={s.link}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <a
-                    href={s.link}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={`${s.title} (${label})`}
-                    className="text-muted-foreground hover:text-foreground hover:bg-muted flex size-6 items-center justify-center rounded-md p-1 transition-colors"
-                  >
-                    <Icon className="size-4" />
-                  </a>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="flex-col items-start gap-0">
-                  <span className="font-medium">{s.title}</span>
-                  <span className="opacity-70">{label}</span>
-                </TooltipContent>
-              </Tooltip>
+        {[...byType].map(([key, sources]) => {
+          const type = SOURCE_TYPES[key] ?? OTHER_SOURCE
+          return sources.length === 1 ? (
+            <li key={key}>
+              <SourceLink source={sources[0]} type={type} />
+            </li>
+          ) : (
+            <li key={key}>
+              <SourceGroup
+                sources={sources}
+                type={type}
+                open={openType === key}
+                onOpenChange={(open) => setOpenType(open ? key : null)}
+              />
             </li>
           )
         })}
-        {studies.length > 0 && (
-          <li>
-            <StudiesSource studies={studies} open={studiesOpen} onOpenChange={setStudiesOpen} />
-          </li>
-        )}
       </ul>
     )
   },

@@ -1,44 +1,38 @@
 import { sankey, sankeyLinkHorizontal, type SankeyLink, type SankeyNode } from 'd3-sankey'
 
-import { sharedOnly } from './bridges'
+import { bridges, sharedOnly } from './bridges'
+import { bundles } from './bundle'
 import { collapseVersions } from './collapse'
-import { focusConnections, isPair, type KgFocus } from './focus'
-import type { KgGraph, KgNode } from './types'
+import { haloOf } from './colour'
+import { groupSynonyms } from './group'
+import { carryFocus, focusConnections, isPair, sameFocus, studylessVariables, type KgFocus } from './focus'
+import { isConceptOrTerm, NO_STUDY, NO_STUDY_LABEL, type KgGraph, type KgNode } from './types'
 import type { KgView, KgViewOptions } from './view'
 
-export type FlowNode = { id: string; node: KgNode } // a concept or a study
+// a concept or a study, or the "No study provided" placeholder (id NO_STUDY, placeholder: true)
+export type FlowNode = { id: string; node: KgNode; placeholder?: true }
 export type FlowLink = { source: string; target: string; variables: string[] } // concept → study
-export type FlowData = { nodes: FlowNode[]; links: FlowLink[] }
+export type FlowData = { nodes: FlowNode[]; links: FlowLink[]; withoutStudy: string[] } // withoutStudy: variables whose study isn't provided
 
 /**
  * The graph as flows from concepts to studies: one link per concept and study,
  * carrying the study's variables on that concept (its width). A variable on two
  * concepts counts in both. Only studies with variables appear; concepts and links
- * keep graph order.
+ * keep graph order. Variables whose study isn't provided (`withoutStudy`) flow to the
+ * "No study provided" placeholder, last, but only alongside real studies: with none
+ * (e.g. search_concepts) there's nothing to draw.
  */
 export function flowData(graph: KgGraph): FlowData {
-  const byId = new Map(graph.nodes.map((n) => [n.id, n]))
-  const studyOf = new Map<string, string>()
-  const conceptsOf = new Map<string, string[]>()
-  for (const e of graph.edges) {
-    const t = byId.get(e.target)?.type
-    if (t === 'study') studyOf.set(e.source, e.target)
-    if (t === 'concept') conceptsOf.set(e.source, [...(conceptsOf.get(e.source) ?? []), e.target])
+  const all = bundles(graph)
+  const withoutStudy = [...studylessVariables(graph)]
+  if (all.every((b) => b.study === NO_STUDY)) return { nodes: [], links: [], withoutStudy }
+  const links = all.map((b) => ({ source: b.concept, target: b.study, variables: b.variables }))
+  const used = new Set(links.flatMap((l) => [l.source, l.target]))
+  const nodes: FlowNode[] = graph.nodes.filter((n) => used.has(n.id)).map((n) => ({ id: n.id, node: n }))
+  if (used.has(NO_STUDY)) {
+    nodes.push({ id: NO_STUDY, node: { id: NO_STUDY, label: NO_STUDY_LABEL, type: 'study' }, placeholder: true })
   }
-  const links = new Map<string, FlowLink>()
-  for (const n of graph.nodes) {
-    const study = n.type === 'variable' ? studyOf.get(n.id) : undefined
-    if (!study) continue
-    for (const concept of conceptsOf.get(n.id) ?? []) {
-      const key = JSON.stringify([concept, study])
-      const link = links.get(key) ?? { source: concept, target: study, variables: [] }
-      link.variables.push(n.id)
-      links.set(key, link)
-    }
-  }
-  const used = new Set([...links.values()].flatMap((l) => [l.source, l.target]))
-  const nodes = graph.nodes.filter((n) => used.has(n.id)).map((n) => ({ id: n.id, node: n }))
-  return { nodes, links: [...links.values()] }
+  return { nodes, links, withoutStudy }
 }
 
 export type FlowOptions = KgViewOptions
@@ -50,13 +44,20 @@ type SLink = SankeyLink<FlowNode, FlowLink & { value: number }>
 const SVG = 'http://www.w3.org/2000/svg'
 const NODE_WIDTH = 10
 const FADED = '0.15'
+// halo around a bar, as in mountGraph but scaled to the bars: wide for a seed, narrow for shared
+const SEED_HALO = 6
+const SHARED_HALO = 3
+const RING = 3 // the focus's ring: this far outside its bar
 
 // colours: the same --kg-* custom properties as mountGraph; SVG takes them as-is.
 // Bands are bundles of variables, so they're blue: the middle of the variable ramp.
 const fill = {
   concept: 'var(--kg-concept, #d97706)',
+  term: 'color-mix(in srgb, var(--kg-concept, #d97706) 30%, transparent)', // tinted, with a border
   study: 'var(--kg-study, #059669)',
   band: 'color-mix(in srgb, var(--kg-variable-low, #93c5fd), var(--kg-variable-high, #1e40af))',
+  selected: 'var(--kg-selected, #0f172a)',
+  placeholder: 'var(--kg-label, #475569)',
 } as const
 
 /**
@@ -69,10 +70,10 @@ const fill = {
  * them. No framework required.
  */
 export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowOptions = {}): FlowView {
-  let opts: FlowOptions = { collapseVersions: true, ...options }
+  let opts: FlowOptions = { collapseVersions: true, groupSynonyms: true, ...options }
   let current = graph
   let drawn: KgGraph = graph
-  let data: FlowData = { nodes: [], links: [] }
+  let data: FlowData = { nodes: [], links: [], withoutStudy: [] }
   let focused: KgFocus | null = null
 
   const svg = document.createElementNS(SVG, 'svg')
@@ -92,9 +93,10 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
 
   function prepare() {
     drawn = opts.collapseVersions ? collapseVersions(current) : current
+    if (opts.groupSynonyms) drawn = groupSynonyms(drawn)
     if (opts.sharedOnly) drawn = sharedOnly(drawn)
     data = flowData(drawn)
-    focused = null
+    focused = carryFocus(focused, drawn) // kept, moved to what it's merged into, or gone
   }
 
   function render() {
@@ -107,18 +109,21 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
     // room for labels: concepts' on the left, studies' (longer) on the right
     const left = Math.min(150, width * 0.22)
     const right = Math.min(260, width * 0.38)
+    const padding = Math.max(2, Math.min(10, height / (data.nodes.length * 3)))
     const layout = sankey<FlowNode, FlowLink & { value: number }>()
       .nodeId((n) => n.id)
       .nodeWidth(NODE_WIDTH)
-      .nodePadding(Math.max(2, Math.min(10, height / (data.nodes.length * 3))))
+      .nodePadding(padding)
       .extent([
         [left, 8],
         [width - right, height - 8],
       ])
-    const { nodes, links } = layout({
+    const laid = layout({
       nodes: data.nodes.map((n) => ({ ...n })),
       links: data.links.map((l) => ({ ...l, value: l.variables.length })),
     })
+    if (placeLast(laid.nodes, NO_STUDY, padding)) layout.update(laid) // its bands follow it
+    const { nodes, links } = laid
     const path = sankeyLinkHorizontal()
     const g = (cls: string) => {
       const el = svg.appendChild(document.createElementNS(SVG, 'g'))
@@ -135,26 +140,57 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
       title(el, `${s.node.label} → ${t.node.label}: ${l.value} variable${l.value === 1 ? '' : 's'}`)
     }
     const boxes = g('kg-flow-nodes')
+    const halo = haloOf(container)
+    const shared = bridges(drawn)
     for (const n of nodes as SNode[]) {
       const [x0, y0, x1, y1] = [n.x0 ?? 0, n.y0 ?? 0, n.x1 ?? 0, n.y1 ?? 0]
-      const isConcept = n.node.type === 'concept'
+      const [w, h] = [x1 - x0, Math.max(1, y1 - y0)]
+      const isConcept = isConceptOrTerm(n.node.type)
       const item = boxes.appendChild(document.createElementNS(SVG, 'g'))
       item.setAttribute('data-id', n.id)
       item.style.cursor = 'pointer'
-      const rect = item.appendChild(document.createElementNS(SVG, 'rect'))
-      for (const [k, v] of Object.entries({ x: x0, y: y0, width: x1 - x0, height: Math.max(1, y1 - y0), rx: 2 })) rect.setAttribute(k, String(v))
-      if (n.node.term) {
-        // a search word standing in for a concept: hollow, in the concept colour
-        rect.dataset.term = ''
-        Object.assign(rect.style, { fill: 'none', stroke: fill.concept, strokeWidth: '1.5' })
-      } else rect.style.fill = isConcept ? fill.concept : fill.study
+      // what a call asked about (any type): a wide halo; connects two or more seeds: a narrow one
+      const pad = n.node.seed ? SEED_HALO : shared.has(n.id) ? SHARED_HALO : 0
+      if (pad) {
+        rect(item, { x: x0 - pad, y: y0 - pad, width: w + 2 * pad, height: h + 2 * pad, rx: pad }, {
+          fill: halo.color,
+          fillOpacity: String(halo.opacity),
+        })
+      }
+      const bar = rect(item, { x: x0, y: y0, width: w, height: h, rx: 2 }, { fill: isConcept ? fill.concept : fill.study })
+      // a search word standing in for a concept: tinted, with a border in the concept colour
+      if (n.node.type === 'term') Object.assign(bar.style, { fill: fill.term, stroke: fill.concept, strokeWidth: '1.5' })
+      // "No study provided": outlined in grey, never study green; transparent, not none, so
+      // all of it takes clicks
+      if (n.placeholder) Object.assign(bar.style, { fill: 'transparent', stroke: fill.placeholder, strokeWidth: '1.5' })
+      // the focus's ring, shown by highlight(); clicks go to the bar
+      const ring = rect(item, { x: x0 - RING, y: y0 - RING, width: w + 2 * RING, height: h + 2 * RING, rx: 4 }, {
+        fill: 'none',
+        stroke: fill.selected,
+        strokeWidth: '2',
+        pointerEvents: 'none',
+        display: 'none',
+      })
+      ring.dataset.ring = ''
+      const gap = 6 + pad
       const text = item.appendChild(document.createElementNS(SVG, 'text'))
-      text.setAttribute('x', String(isConcept ? x0 - 6 : x1 + 6))
+      text.setAttribute('x', String(isConcept ? x0 - gap : x1 + gap))
       text.setAttribute('y', String((y0 + y1) / 2))
       text.setAttribute('dominant-baseline', 'middle')
       text.setAttribute('text-anchor', isConcept ? 'end' : 'start')
       Object.assign(text.style, { fill: 'var(--kg-label, #475569)', fontSize: isConcept ? '12px' : '10px', fontWeight: isConcept ? '600' : '400' })
-      text.textContent = clip(n.node.label, ((isConcept ? left : right) - 10) / (isConcept ? 6.5 : 5.5))
+      const chars = ((isConcept ? left : right) - gap - 4) / (isConcept ? 6.5 : 5.5)
+      text.textContent = clip(n.node.label, chars)
+      // a seed's label is highlighted in the halo colour, as in mountGraph
+      if (n.node.seed) {
+        text.style.fill = halo.text
+        const box = textBox(text, chars * (isConcept ? 6.5 : 5.5))
+        const marker = rect(item, { x: box.x - 2, y: box.y - 1, width: box.width + 4, height: box.height + 2, rx: 3 }, {
+          fill: halo.color,
+          fillOpacity: String(halo.opacity),
+        })
+        item.insertBefore(marker, text)
+      }
       title(item, `${n.node.label} (${n.value} variable${n.value === 1 ? '' : 's'})`)
     }
     highlight()
@@ -167,12 +203,8 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
     const outlined = focused && !isPair(focused) ? focused.node : null
     svg.querySelectorAll<SVGElement>('.kg-flow-nodes [data-id]').forEach((el) => {
       el.style.opacity = linked && !linked.has(el.dataset.id ?? '') ? FADED : ''
-      const rect = el.querySelector('rect')
-      if (!rect) return
-      const term = rect.dataset.term !== undefined
-      const on = el.dataset.id === outlined
-      rect.style.stroke = on ? 'var(--kg-selected, #0f172a)' : term ? fill.concept : ''
-      rect.style.strokeWidth = on ? '2' : term ? '1.5' : ''
+      const ring = el.querySelector<SVGElement>('[data-ring]')
+      if (ring) ring.style.display = el.dataset.id === outlined ? '' : 'none'
     })
     svg.querySelectorAll<SVGElement>('[data-link]').forEach((el) => {
       const [s, t] = (el.dataset.link ?? '').split('->')
@@ -192,26 +224,71 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
     update(g, o) {
       if (o) opts = { ...opts, ...o }
       current = g
+      focused = null // another graph: the focused node may be gone or renamed
       opts.onFocus?.(null)
       prepare()
       render()
     },
     setOptions(o) {
-      const changed = (k: 'collapseVersions' | 'sharedOnly') => o[k] !== undefined && o[k] !== opts[k]
-      const redraw = changed('collapseVersions') || changed('sharedOnly')
+      const changed = (k: 'collapseVersions' | 'groupSynonyms' | 'sharedOnly') => o[k] !== undefined && o[k] !== opts[k]
+      const redraw = changed('collapseVersions') || changed('groupSynonyms') || changed('sharedOnly')
       opts = { ...opts, ...o }
       if (!redraw) return
-      opts.onFocus?.(null)
+      const before = focused
       prepare()
       render()
+      if (!sameFocus(before, focused)) opts.onFocus?.(focused)
     },
     focus,
     resize: render, // laid out for the container's size: text stays sharp
-    refreshStyle() {}, // colours are CSS variables, so they follow on their own
+    // colours are CSS variables, so they follow on their own; but a seed label's text
+    // (black or white) is worked out from the background
+    refreshStyle: render,
     destroy() {
       svg.remove()
     },
   }
+}
+
+/** Move node `id` to the bottom of its column, which d3-sankey orders to reduce
+ * crossings: the nodes below it move up to close the gap. True if it moved. */
+function placeLast(nodes: SNode[], id: string, padding: number): boolean {
+  const node = nodes.find((n) => n.id === id)
+  if (!node) return false
+  const column = nodes.filter((n) => n.x0 === node.x0) // a column shares its x (its layer isn't in the types)
+  const bottom = Math.max(...column.map((n) => n.y1 ?? 0))
+  const [y0, y1] = [node.y0 ?? 0, node.y1 ?? 0]
+  if (y1 >= bottom) return false
+  const shift = y1 - y0 + padding
+  for (const n of column) {
+    if (n === node || (n.y0 ?? 0) < y0) continue
+    n.y0 = (n.y0 ?? 0) - shift
+    n.y1 = (n.y1 ?? 0) - shift
+  }
+  node.y0 = bottom - (y1 - y0)
+  node.y1 = bottom
+  return true
+}
+
+function rect(parent: Element, attrs: Record<string, number>, style: Partial<CSSStyleDeclaration>): SVGRectElement {
+  const el = parent.appendChild(document.createElementNS(SVG, 'rect'))
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v))
+  Object.assign(el.style, style)
+  return el
+}
+
+/** A text's box; estimated (from `width`, its room) while it can't be measured, e.g. hidden. */
+function textBox(text: SVGTextElement, width: number): { x: number; y: number; width: number; height: number } {
+  try {
+    const box = text.getBBox()
+    if (box.width) return box
+  } catch {
+    // Firefox throws for an element that isn't rendered
+  }
+  const [x, y] = [Number(text.getAttribute('x')), Number(text.getAttribute('y'))]
+  const size = Number.parseFloat(text.style.fontSize) || 10
+  const w = Math.min(width, (text.textContent?.length ?? 0) * size * 0.55)
+  return { x: text.getAttribute('text-anchor') === 'end' ? x - w : x, y: y - size * 0.6, width: w, height: size * 1.2 }
 }
 
 function title(el: Element, text: string) {

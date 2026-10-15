@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { collapseVersions } from './collapse'
 import { connections } from './connections'
-import asthmaCopd from './fixtures/asthma-copd-graph.json'
+import asthmaCopd from './fixtures/graph/concept_graph_2.json'
 import type { KgGraph } from './types'
 
 const TWO = collapseVersions(asthmaCopd as KgGraph)

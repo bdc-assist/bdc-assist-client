@@ -1,26 +1,36 @@
-import cytoscape, { type LayoutOptions, type StylesheetJson } from 'cytoscape'
+import cytoscape, { type EdgeSingular, type StylesheetJson } from 'cytoscape'
 
 import { bridges, sharedOnly } from './bridges'
 import { collapseVersions } from './collapse'
-import { columnPositions } from './columns'
+import { backgroundOf, haloOf, mix, toRgb } from './colour'
+import { groupSynonyms } from './group'
 import { toElements } from './elements'
-import { focusConnections, isPair, type KgFocus } from './focus'
-import { orient } from './orient'
+import { carryFocus, focusConnections, isPair, sameFocus, type KgFocus } from './focus'
+import { arrangeForce as settleForce } from './force'
+import { arrangeRadial, type Box } from './radial'
 import type { KgGraph } from './types'
 import type { KgView, KgViewOptions } from './view'
 
 /**
- * - radial: concepts in the middle, their variables around them, studies outside
- * - force: a force-directed layout (Cytoscape's cose); clusters form on their own
- * - columns: a left-to-right flow, concepts | variables | studies
+ * - radial: the seeds (what was asked about) in the middle, or without seeds the concepts;
+ *   their variables around them, studies outside. Separate pieces (e.g. from unrelated
+ *   calls) each get their own centre, side by side (see arrangeRadial)
+ * - force: a force-directed layout (d3-force); clusters form on their own. Separate
+ *   pieces are packed side by side (see arrangeForce in force.ts)
  */
-export const KG_LAYOUTS = ['radial', 'force', 'columns'] as const
+export const KG_LAYOUTS = ['radial', 'force'] as const
 export type KgLayout = (typeof KG_LAYOUTS)[number]
 
 /** mountGraph's options: the common view options (KgViewOptions), plus: */
 export type GraphOptions = KgViewOptions & {
   /** How to arrange the nodes (default 'radial'). */
   layout?: KgLayout
+  /** Draw each variable (true), or one bundle per concept and study (false, the
+   * default): a link as wide as its variables, with variables whose study isn't
+   * provided bundled to a "No study provided" placeholder. Clicking a bundle focuses
+   * its concept × study pair (without any studies, every bundle goes to the
+   * placeholder). */
+  variables?: boolean
   /** Zoom with the mouse wheel and pinch. false (default): no, the wheel scrolls
    * the page. 'modifier': only with Ctrl/⌘ held (trackpad pinch counts: browsers
    * send it as Ctrl + wheel), so a plain wheel still scrolls the page around the
@@ -29,20 +39,28 @@ export type GraphOptions = KgViewOptions & {
   /** 'modifier' mode: the wheel turned over the graph without Ctrl/⌘ held, so the
    * host can say how to zoom. */
   onZoomHint?: () => void
+  /** Where Force has put the nodes, by id. Pass the same (empty) Map to two views of
+   * the same graph, e.g. inline and maximized, and the second shows the first's
+   * layout, drags included, instead of laying out on its own. It's for one graph: read
+   * at mount and by update(), so give update() a new Map along with a new graph. */
+  forcePositions?: Map<string, { x: number; y: number }>
 }
 
 /** The common view interface (KgView; setOptions: a new layout only rearranges the
- * nodes, collapseVersions and sharedOnly redraw and clear the selection), plus: */
+ * nodes, collapseVersions, groupSynonyms and sharedOnly redraw, keeping the focus where
+ * it can (carryFocus) and calling onFocus when it moves or goes), plus: */
 export type GraphView = KgView<GraphOptions> & {
   /** Zoom in (factor > 1) or out (< 1) around the middle of the view. */
   zoomBy(factor: number): void
   /** Show the whole graph. */
   fit(): void
+  /** Force: put the nodes back where forcePositions says, after another view sharing
+   * it has moved them (e.g. dragged in the maximized one). */
+  restorePositions(): void
 }
 
 // Colours come from CSS custom properties on the container (or any ancestor), so
-// a host restyles the graph from its own CSS. Any CSS colour works: Cytoscape
-// can't parse e.g. oklch() itself, so toRgb converts through a canvas.
+// a host restyles the graph from its own CSS. Any CSS colour works (see colour.ts).
 const COLORS = {
   concept: ['--kg-concept', '#d97706'],
   // variables run from low to high along their weight (related_concepts_count)
@@ -54,19 +72,29 @@ const COLORS = {
   selected: ['--kg-selected', '#0f172a'],
 } as const
 
+// halo padding: wide for a seed, narrow for a shared node
+const SEED_HALO = 14
+const SHARED_HALO = 5
+
 const PADDING = 16
+
+// Force is stable: the same graph always gets the same layout. It starts from Radial
+// in this fixed box (not the container's, so inline and maximized start alike), and
+// d3-force is deterministic
+const FORCE_START: Box = { x1: 0, y1: 0, w: 800, h: 500 }
 
 /**
  * Draw `graph` into `container` (which needs a height). Variables are coloured from
  * --kg-variable-low to --kg-variable-high the more other concepts they link to
- * (related_concepts_count); nodes connecting two or more concepts get an amber halo.
+ * (related_concepts_count). Seeds get a wide --kg-halo halo and a highlighted label;
+ * nodes connecting two or more seeds (shared) get a narrow one.
  * Clicking a node (or focus() from elsewhere, also for a concept × study pair)
  * highlights what it's connected to (see focusConnections) and fades the rest;
  * clicking the background clears it.
  * No framework required; React, Vue or plain HTML hosts all call this the same way.
  */
 export function mountGraph(container: HTMLElement, graph: KgGraph, options: GraphOptions = {}): GraphView {
-  let opts: GraphOptions = { collapseVersions: true, layout: 'radial', ...options }
+  let opts: GraphOptions = { collapseVersions: true, groupSynonyms: true, layout: 'radial', ...options }
   let current = graph
 
   const cy = cytoscape({
@@ -77,13 +105,15 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
     maxZoom: 4,
     boxSelectionEnabled: false,
   })
+  let focused: KgFocus | null = null
   cy.on('tap', 'node', (e) => {
-    const f = { node: e.target.id() as string }
-    highlight(f)
-    opts.onFocus?.(f)
+    focused = { node: e.target.id() as string }
+    highlight(focused)
+    opts.onFocus?.(focused)
   })
   cy.on('tap', (e) => {
     if (e.target !== cy) return
+    focused = null
     highlight(null)
     opts.onFocus?.(null)
   })
@@ -105,6 +135,26 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
     container.title = `${s} — ${predicate} — ${t}`
   })
   cy.on('mouseout', 'edge.relation', () => container.removeAttribute('title'))
+  // a bundle: its concept × study pair, like a band in Flow
+  cy.on('tap', 'edge.bundle', (e) => {
+    focused = { concept: e.target.data('concept') as string, study: e.target.data('study') as string }
+    highlight(focused)
+    opts.onFocus?.(focused)
+  })
+  cy.on('mouseover', 'edge.bundle', (e) => {
+    const [s, t] = [e.target.source().data('label'), e.target.target().data('label')]
+    const n = e.target.data('count') as number
+    container.title = `${s} — ${n} ${n === 1 ? 'variable' : 'variables'} — ${t}`
+    container.style.cursor = 'pointer'
+  })
+  cy.on('mouseout', 'edge.bundle', () => {
+    container.removeAttribute('title')
+    container.style.cursor = ''
+  })
+  // a node dragged in Force stays where it was put, also across redraws
+  cy.on('dragfree', 'node', (e) => {
+    if (opts.layout === 'force') placed.set(e.target.id(), { ...e.target.position() })
+  })
 
   // 'modifier' zoom: Cytoscape's own wheel zoom is off, so handle Ctrl/⌘ + wheel here
   // (non-passive, to keep the browser from zooming the page instead)
@@ -122,109 +172,123 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
   container.addEventListener('wheel', onWheel, { passive: false })
 
   let drawn: KgGraph = graph
+  let bundled = false // drawn with bundles instead of variables
+  // Force's positions by node id, kept across redraws (Group, Shared only) and drags,
+  // and shared with other views given the same forcePositions; a new one for another graph
+  let placed = opts.forcePositions ?? new Map<string, { x: number; y: number }>()
   function draw() {
     drawn = opts.collapseVersions ? collapseVersions(current) : current
+    if (opts.groupSynonyms) drawn = groupSynonyms(drawn)
     if (opts.sharedOnly) drawn = sharedOnly(drawn) // after merging: it can create bridges
     const shared = bridges(drawn)
+    bundled = wantBundles()
     cy.batch(() => {
       cy.elements().remove()
-      cy.add(toElements(drawn))
-      // nodes that connect two or more concepts get a halo (`bridge`)
+      cy.add(toElements(drawn, bundled))
+      // nodes that connect two or more seeds get a halo (`bridge`)
       cy.nodes().forEach((n) => void n.toggleClass('bridge', shared.has(n.id())))
     })
     arrange()
   }
 
-  // everything not connected to the focus gets `faded`; null clears it
+  // bundles unless variables are wanted (or there are none)
+  function wantBundles() {
+    return !opts.variables && drawn.nodes.some((n) => n.type === 'variable')
+  }
+
+  // everything not connected to the focus gets `faded`; null clears it. Worked out on
+  // the whole graph (variables included); a bundle stays when its two ends and some
+  // of its variables do
   function highlight(focus: KgFocus | null) {
     const c = focus ? focusConnections(drawn, focus) : null
     cy.batch(() => {
       cy.elements().removeClass('faded')
       if (!c?.nodes.size) return
-      cy.elements().forEach((el) => {
-        const elId = el.id()
-        const on = el.isNode() ? c.nodes.has(elId) : c.edges.has(elId)
-        if (!on) el.addClass('faded')
+      cy.nodes().forEach((n) => {
+        if (!c.nodes.has(n.id())) n.addClass('faded')
+      })
+      cy.edges().forEach((e) => {
+        const on = e.hasClass('bundle')
+          ? c.nodes.has(e.data('concept')) &&
+            c.nodes.has(e.data('study')) &&
+            (e.data('variables') as string[]).some((v) => c.nodes.has(v))
+          : c.edges.has(e.id())
+        if (!on) e.addClass('faded')
       })
     })
   }
 
-  function arrange() {
-    // labels sit beside the nodes in columns (concepts' on the left), below otherwise
-    cy.nodes().toggleClass('columns', opts.layout === 'columns')
-    const layout = cy.layout(layoutOptions(opts.layout ?? 'radial'))
-    // force layouts settle at any angle: turn them to match the container's shape
-    if (opts.layout === 'force') layout.one('layoutstop', orientToContainer)
-    layout.run()
+  // a focus from elsewhere (focus(), a redraw): what a tap does, plus the ring
+  function show(f: KgFocus | null) {
+    focused = f
+    cy.batch(() => {
+      cy.$(':selected').unselect()
+      if (f && !isPair(f)) cy.getElementById(f.node).select() // a pair has no single node to outline
+    })
+    highlight(f)
   }
 
-  function orientToContainer() {
-    const nodes = cy.nodes()
-    const turned = orient(
-      nodes.map((n) => ({ ...n.position() })),
-      container.clientWidth >= container.clientHeight,
-    )
-    cy.batch(() => nodes.forEach((n, i) => void n.position(turned[i])))
+  function arrange() {
+    if (opts.layout === 'force') return arrangeForce()
+    // without a box, breadthfirst spreads over cy.extent(): the visible area at the
+    // current zoom. Zoomed out to fit, that's bigger than the container, so every
+    // redraw (e.g. toggling sharedOnly) would spread wider and fit smaller. Use the
+    // container's own size (a fallback while it's hidden, e.g. in the list view).
+    arrangeRadial(cy, { x1: 0, y1: 0, w: container.clientWidth || 600, h: container.clientHeight || 300 })
     cy.fit(undefined, PADDING)
   }
 
-  function radialRoots(): string[] {
-    const concepts = cy.nodes('[type = "concept"]')
-    const withVariables = concepts.filter((c) => c.neighborhood('node[type = "variable"]').length > 0)
-    return (withVariables.length ? withVariables : concepts).map((n) => n.id())
+  // Stable Force: if every node has a known place (maximized, dragged, Shared only just
+  // hid some), they go there and nothing moves. Otherwise it lays out afresh: from
+  // Radial (seeds in the middle) in a fixed box, d3-force per piece, turned wide, the
+  // pieces packed side by side (force.ts). So the same graph always looks the same,
+  // whatever was shown before.
+  function arrangeForce() {
+    if (restorePlaced()) return
+    arrangeRadial(cy, FORCE_START)
+    settleForce(cy)
+    cy.fit(undefined, PADDING)
+    // only this layout's places: none left over from another, to mix with it later
+    placed.clear()
+    cy.nodes().forEach((n) => void placed.set(n.id(), { ...n.position() }))
   }
 
-  function layoutOptions(layout: KgLayout): LayoutOptions {
-    if (layout === 'columns') {
-      const pos = columnPositions(drawn)
-      return { name: 'preset', positions: Object.fromEntries(pos), padding: PADDING, animate: false }
-    }
-    if (layout === 'force') {
-      return { name: 'cose', padding: PADDING, animate: false, randomize: true, nodeDimensionsIncludeLabels: true }
-    }
-    return {
-      name: 'breadthfirst',
-      // without a box, breadthfirst spreads over cy.extent(): the visible area at the
-      // current zoom. Zoomed out to fit, that's bigger than the container, so every
-      // redraw (e.g. toggling sharedOnly) would spread wider and fit smaller. Use the
-      // container's own size (a fallback while it's hidden, e.g. in the list view).
-      boundingBox: { x1: 0, y1: 0, w: container.clientWidth || 600, h: container.clientHeight || 300 },
-      // the concepts with variables in the middle; concepts only related to them (no
-      // variables of their own) form a ring around them instead of joining the middle
-      roots: radialRoots(),
-      circle: true,
-      depthSort: (a, b) => String(a.data('order')).localeCompare(String(b.data('order'))),
-      padding: PADDING,
-      animate: false,
-    }
+  // every node has a known place: put them there (and fit) and say so
+  function restorePlaced(): boolean {
+    const nodes = cy.nodes()
+    if (nodes.empty() || nodes.filter((n) => !placed.has(n.id())).nonempty()) return false
+    cy.batch(() => nodes.forEach((n) => void n.position(placed.get(n.id())!)))
+    cy.fit(undefined, PADDING)
+    return true
   }
+
   draw()
 
   return {
     update(g, o) {
       if (o) opts = { ...opts, ...o }
       current = g
-      opts.onFocus?.(null) // the focused node may be gone or renamed
+      // another graph: its own stable layout. A shared Map is the host's to replace
+      placed = opts.forcePositions ?? new Map()
+      focused = null // another graph: the focused node may be gone or renamed
+      opts.onFocus?.(null)
       draw()
     },
     setOptions(o) {
-      const changed = (k: 'collapseVersions' | 'sharedOnly') => o[k] !== undefined && o[k] !== opts[k]
-      const redraw = changed('collapseVersions') || changed('sharedOnly')
+      const changed = (k: 'collapseVersions' | 'groupSynonyms' | 'sharedOnly') => o[k] !== undefined && o[k] !== opts[k]
+      const redraw = changed('collapseVersions') || changed('groupSynonyms') || changed('sharedOnly')
       const relayout = o.layout !== undefined && o.layout !== opts.layout
       opts = { ...opts, ...o }
       cy.userZoomingEnabled(opts.zoomGestures === true)
-      if (redraw) {
-        opts.onFocus?.(null)
+      if (redraw || wantBundles() !== bundled) {
         draw()
+        // the focus, on the new drawing: kept, moved to what it's merged into, or gone
+        const before = focused
+        show(carryFocus(focused, drawn))
+        if (!sameFocus(before, focused)) opts.onFocus?.(focused)
       } else if (relayout) arrange()
     },
-    focus(f) {
-      cy.batch(() => {
-        cy.$(':selected').unselect()
-        if (f && !isPair(f)) cy.getElementById(f.node).select() // a pair has no single node to outline
-      })
-      highlight(f)
-    },
+    focus: show,
     zoomBy(factor) {
       cy.zoom({
         level: cy.zoom() * factor,
@@ -233,6 +297,15 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
     },
     fit() {
       cy.fit(undefined, PADDING)
+    },
+    restorePositions() {
+      if (opts.layout !== 'force') return
+      // nothing moved: keep the user's zoom and pan
+      const moved = cy.nodes().filter((n) => {
+        const [p, q] = [placed.get(n.id()), n.position()]
+        return !p || p.x !== q.x || p.y !== q.y
+      })
+      if (moved.nonempty()) restorePlaced()
     },
     resize() {
       cy.resize()
@@ -248,13 +321,19 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
   }
 }
 
-function styleFor(el: HTMLElement): StylesheetJson {
+/** mountGraph's Cytoscape style, with the --kg-* colours read from `el`. Exported for
+ * pages that draw toElements' elements their own way (e.g. design/force-layouts.html). */
+export function styleFor(el: HTMLElement): StylesheetJson {
   const css = getComputedStyle(el)
   const color = (key: keyof typeof COLORS) => {
     const [name, fallback] = COLORS[key]
     const value = css.getPropertyValue(name).trim()
     return (value && toRgb(value)) || fallback
   }
+  const halo = haloOf(el)
+  const background = backgroundOf(el)
+  // the concept colour mixed into the background: terms' fill, inter-concept links
+  const tint = (amount: number) => mix(background, color('concept'), amount)
   return [
     {
       selector: 'node',
@@ -272,7 +351,7 @@ function styleFor(el: HTMLElement): StylesheetJson {
       },
     },
     {
-      selector: 'node[type = "concept"]',
+      selector: 'node[type = "concept"], node[type = "term"]',
       style: {
         'background-color': color('concept'),
         width: 24,
@@ -283,9 +362,9 @@ function styleFor(el: HTMLElement): StylesheetJson {
       },
     },
     {
-      // a search word standing in for a concept: hollow, in the concept colour
-      selector: 'node[?term]',
-      style: { 'background-opacity': 0, 'border-width': 2, 'border-color': color('concept') },
+      // a search word standing in for a concept: tinted, with a border in the concept colour
+      selector: 'node[type = "term"]',
+      style: { 'background-color': tint(0.3), 'border-width': 2, 'border-color': color('concept') },
     },
     {
       selector: 'node[type = "variable"]',
@@ -296,59 +375,62 @@ function styleFor(el: HTMLElement): StylesheetJson {
       style: { 'background-color': color('study'), shape: 'round-rectangle', width: 16, height: 16 },
     },
     {
-      selector: 'node.columns',
-      style: { 'text-valign': 'center', 'text-halign': 'right', 'text-margin-x': 5, 'text-margin-y': 0, 'text-max-width': '200px' },
+      // "No study provided": a stand-in, not a study: outlined in grey, never study green
+      selector: 'node.placeholder',
+      style: {
+        'background-opacity': 0,
+        'border-width': 1.5,
+        'border-color': color('label'),
+      },
     },
-    { selector: 'node.columns[type = "concept"]', style: { 'text-halign': 'left', 'text-margin-x': -5 } },
     { selector: 'edge', style: { width: 1, 'line-color': color('edge'), 'curve-style': 'straight' } },
     {
-      // concept → concept: dashed, in the concept colour
-      selector: 'edge.relation',
-      style: { 'line-style': 'dashed', 'line-color': color('concept'), 'line-opacity': 0.6 },
+      // a concept's variables in one study: flat mid-blue (a summary of variables, as
+      // Flow's bands), as wide as there are (area-like: 1 + 2.2·√count)
+      selector: 'edge.bundle',
+      style: {
+        'line-color': mix(color('variableLow'), color('variableHigh'), 0.5),
+        width: (e: EdgeSingular) => 1 + 2.2 * Math.sqrt(e.data('count') as number),
+      },
     },
     {
-      // connects two or more concepts: a soft halo in the concept colour
+      // concept → concept: a light tint of the concept colour (not opacity: that means faded)
+      selector: 'edge.relation',
+      style: { 'line-color': tint(0.55), width: 1.5 },
+    },
+    {
+      // connects two or more seeds (shared): a narrow halo
       selector: 'node.bridge',
       style: {
-        'underlay-color': color('concept'),
-        'underlay-padding': 6,
-        'underlay-opacity': 0.35,
+        'underlay-color': halo.color,
+        'underlay-padding': SHARED_HALO,
+        'underlay-opacity': halo.opacity,
         'underlay-shape': 'ellipse',
       },
     },
-    { selector: 'node.bridge[type = "study"]', style: { 'underlay-shape': 'round-rectangle' } },
+    {
+      // what a call asked about (the API's seeds), of any type: a wide halo, and the
+      // label highlighted in the same colour. After .bridge, so a shared seed gets the wide one
+      selector: 'node[?seed]',
+      style: {
+        'underlay-color': halo.color,
+        'underlay-padding': SEED_HALO,
+        'underlay-opacity': halo.opacity,
+        'underlay-shape': 'ellipse',
+        'text-background-color': halo.color,
+        'text-background-opacity': halo.opacity,
+        'text-background-padding': '2px',
+        'text-background-shape': 'roundrectangle', // the types only know the old spelling
+        color: halo.text, // black or white, for the highlight as it looks over the background
+        'text-margin-y': 5,
+      },
+    },
+    { selector: 'node.bridge[type = "study"], node[?seed][type = "study"]', style: { 'underlay-shape': 'round-rectangle' } },
     { selector: '.faded', style: { opacity: 0.15 } },
-    { selector: 'node:selected', style: { 'border-width': 3, 'border-color': color('selected') } },
+    {
+      // the focus: a ring outside the node, leaving the border to the node's type (terms)
+      selector: 'node:selected',
+      style: { 'outline-width': 2, 'outline-color': color('selected'), 'outline-offset': 3, 'outline-opacity': 1 },
+    },
   ]
-}
-
-/** A colour t (0..1) of the way from a to b, mixed in RGB (fine within one hue).
- * Takes toRgb's "rgb(r, g, b)" or a "#rrggbb" fallback. */
-function mix(a: string, b: string, t: number): string {
-  const [x, y] = [a, b].map(channels)
-  const c = x.map((v, i) => Math.round(v + (y[i] - v) * Math.min(1, Math.max(0, t))))
-  return `rgb(${c.join(', ')})`
-}
-
-function channels(color: string): number[] {
-  const rgb = /rgb\((\d+), (\d+), (\d+)\)/.exec(color)
-  if (rgb) return rgb.slice(1).map(Number)
-  const hex = /^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(color)
-  return hex ? hex.slice(1).map((h) => parseInt(h, 16)) : [0, 0, 0]
-}
-
-let ctx: CanvasRenderingContext2D | null | undefined
-
-/** Any CSS colour → "rgb(r, g, b)", or null if the browser doesn't understand it. */
-function toRgb(value: string): string | null {
-  ctx ??= document.createElement('canvas').getContext('2d', { willReadFrequently: true })
-  if (!ctx) return null
-  const sentinel = '#010203'
-  ctx.fillStyle = sentinel
-  ctx.fillStyle = value // ignored if invalid
-  if (ctx.fillStyle === sentinel && value.toLowerCase() !== sentinel) return null
-  ctx.clearRect(0, 0, 1, 1)
-  ctx.fillRect(0, 0, 1, 1)
-  const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
-  return `rgb(${r}, ${g}, ${b})`
 }

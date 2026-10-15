@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { collapseVersions } from './collapse'
-import asthmaCopd from './fixtures/asthma-copd-graph.json'
-import chd from './fixtures/chd-graph.json'
+import asthmaCopd from './fixtures/graph/concept_graph_2.json'
+import chd from './fixtures/graph/concept_graph.json'
 import { studyList } from './list'
 import type { KgGraph } from './types'
 
@@ -79,5 +79,30 @@ describe('studyList', () => {
       ],
     })
     expect(list.map((s) => s.study?.id ?? null)).toEqual(['S', null])
+  })
+
+  it('ranks studies by the seeds they cover, not synonyms', () => {
+    const list = studyList({
+      nodes: [
+        { id: 'A', label: 'a', type: 'concept', seed: true },
+        { id: 'B', label: 'b', type: 'concept', seed: true },
+        { id: 'A2', label: 'synonym of a', type: 'concept' },
+        { id: 'A3', label: 'another synonym', type: 'concept' },
+        { id: 'v1', label: 'v1', type: 'variable' },
+        { id: 'v2', label: 'v2', type: 'variable' },
+        { id: 'S1', label: 'a study', type: 'study' }, // a and both synonyms: 3 concepts, 1 seed
+        { id: 'S2', label: 'b study', type: 'study' }, // a and b: 2 concepts, 2 seeds
+      ],
+      edges: [
+        { source: 'v1', target: 'A' },
+        { source: 'v1', target: 'A2' },
+        { source: 'v1', target: 'A3' },
+        { source: 'v1', target: 'S1' },
+        { source: 'v2', target: 'A' },
+        { source: 'v2', target: 'B' },
+        { source: 'v2', target: 'S2' },
+      ],
+    })
+    expect(list.map((s) => s.study?.id)).toEqual(['S2', 'S1'])
   })
 })

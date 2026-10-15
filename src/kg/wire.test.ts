@@ -1,15 +1,21 @@
 import { describe, expect, it } from 'vitest'
 
-import asthmaCopdKg from './fixtures/asthma-copd-kg.json'
-import asthmaCopd from './fixtures/asthma-copd-graph.json'
-import chdKg from './fixtures/chd-kg.json'
-import chd from './fixtures/chd-graph.json'
+import asthmaCopdFixture from './fixtures/kg/concept_graph_2.json'
+import asthmaCopd from './fixtures/graph/concept_graph_2.json'
+import chdFixture from './fixtures/kg/concept_graph.json'
+import chd from './fixtures/graph/concept_graph.json'
+import relatedFixture from './fixtures/kg/concept_connections.json'
+import searchFixture from './fixtures/kg/search_concepts.json'
 import type { KgGraph } from './types'
 import { toElements } from './elements'
 import { fromKgList, kgLabel, kgParts } from './wire'
 
-// *-kg.json: what the API sends today, made by main's interceptor (to_kg in
-// examples/bdc/interceptors.py, in bdc-assist) from the same Dug results as the *-graph.json fixtures
+// fixtures/kg/: what the API sends (bdc-assist's Dug interceptor on real Dug results);
+// fixtures/graph/: fromKgList of each, made by npm run fixtures
+const chdKg = chdFixture.kg
+const asthmaCopdKg = asthmaCopdFixture.kg
+const relatedKg = relatedFixture.kg
+const searchKg = searchFixture.kg
 const count = (g: KgGraph, t: string) => g.nodes.filter((n) => n.type === t).length
 
 describe('fromKgList', () => {
@@ -35,7 +41,7 @@ describe('fromKgList', () => {
       label: 'Framingham Cohort',
       type: 'study',
     })
-    expect(g.nodes.find((n) => n.id === 'MONDO:0004979')).toMatchObject({ type: 'concept', concept_type: 'NamedThing' })
+    expect(g.nodes.find((n) => n.id === 'MONDO:0004979')).toMatchObject({ type: 'concept', concept_type: 'biolink:NamedThing' })
   })
 
   it('takes the proposed fields too: type, attributes.related_concepts_count, predicate', () => {
@@ -61,7 +67,7 @@ describe('fromKgList', () => {
     expect(g.edges).toContainEqual({ source: 'C', target: 'D', predicates: ['related_to'] })
   })
 
-  it('keeps a search term as a concept, marked as just a term (find_cohort_variables)', () => {
+  it('keeps a search term as a term, not a concept (find_cohort_variables)', () => {
     const g = fromKgList([
       {
         tool: 'find_cohort_variables',
@@ -72,8 +78,8 @@ describe('fromKgList', () => {
         edges: [{ subject: 'v1', object: 'COPD' }],
       },
     ])!
-    expect(g.nodes.find((n) => n.id === 'COPD')).toEqual({ id: 'COPD', label: 'COPD', type: 'concept', term: true })
-    expect(toElements(g).find((e) => e.data.id === 'COPD')?.data.term).toBe(true)
+    expect(g.nodes.find((n) => n.id === 'COPD')).toEqual({ id: 'COPD', label: 'COPD', type: 'term' })
+    expect(toElements(g).find((e) => e.data.id === 'COPD')?.data.type).toBe('term')
   })
 
   it('is null for no list, an empty list, or graphs without edges', () => {
@@ -98,6 +104,48 @@ describe('kgLabel', () => {
 
   it("prefers the server's label", () => {
     expect(kgLabel({ tool: 'get_concept_graph', label: 'Asthma studies', nodes: [], edges: [] })).toBe('Asthma studies')
+  })
+})
+
+describe('seeds', () => {
+  const seedIds = (g: KgGraph | null) => g!.nodes.filter((n) => n.seed).map((n) => n.id)
+
+  it('marks what each call asked about (real Dug results)', () => {
+    expect(seedIds(fromKgList(chdKg))).toEqual(['MONDO:0005453'])
+    expect(seedIds(fromKgList(asthmaCopdKg)).sort()).toEqual(['MONDO:0004979', 'MONDO:0005002'])
+    expect(seedIds(fromKgList(searchKg))).toEqual([]) // searches ask about no node
+  })
+
+  it('combines the seeds of every call, once each', () => {
+    // asthma is asked about in both: its concept graph and its related concepts
+    const g = fromKgList([...asthmaCopdKg, ...relatedKg])
+    expect(seedIds(g).sort()).toEqual(['MONDO:0004979', 'MONDO:0005002'])
+  })
+
+  it("gives one call's graph only its own seeds", () => {
+    expect(kgParts(asthmaCopdKg).map((p) => seedIds(p.graph))).toEqual([['MONDO:0004979'], ['MONDO:0005002']])
+  })
+
+  it('ignores a seed that is not a node', () => {
+    const entry = { tool: 't', seeds: ['a', 'nowhere'], nodes: [{ id: 'a' }, { id: 'b' }], edges: [{ subject: 'a', object: 'b' }] }
+    expect(seedIds(fromKgList([entry]))).toEqual(['a'])
+  })
+})
+
+describe('descriptions', () => {
+  it("keeps Dug's description (real search_concepts variables)", () => {
+    const v = fromKgList(searchKg)!.nodes.find((n) => n.id === 'phs002907_BMI.v1.p1')
+    expect(v?.description).toBe('body mass index (kg/m2)')
+  })
+
+  it('takes a missing description from a later call', () => {
+    const edges = [{ subject: 'v', object: 'c' }]
+    const g = fromKgList([
+      { tool: 'a', nodes: [{ id: 'v', type: 'variable' }, { id: 'c' }], edges },
+      { tool: 'b', nodes: [{ id: 'v', type: 'variable', description: 'later' }, { id: 'c' }], edges },
+      { tool: 'c', nodes: [{ id: 'v', type: 'variable', description: 'latest' }, { id: 'c' }], edges },
+    ])
+    expect(g!.nodes.find((n) => n.id === 'v')?.description).toBe('later')
   })
 })
 
