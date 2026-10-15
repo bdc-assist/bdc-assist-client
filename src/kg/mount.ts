@@ -8,6 +8,7 @@ import { groupSynonyms } from './group'
 import { toElements } from './elements'
 import { carryFocus, focusConnections, isPair, sameFocus, type KgFocus } from './focus'
 import { orient } from './orient'
+import { arrangeRadial, type Box } from './radial'
 import { withSeed } from './seeded'
 import type { KgGraph } from './types'
 import type { KgView, KgViewOptions } from './view'
@@ -17,7 +18,8 @@ cytoscape.use(fcose)
 
 /**
  * - radial: the seeds (what was asked about) in the middle, or without seeds the concepts;
- *   their variables around them, studies outside
+ *   their variables around them, studies outside. Separate pieces (e.g. from unrelated
+ *   calls) each get their own centre, side by side (see arrangeRadial)
  * - force: a force-directed layout (fCoSE, cytoscape-fcose); clusters form on their own
  */
 export const KG_LAYOUTS = ['radial', 'force'] as const
@@ -83,7 +85,7 @@ const PADDING = 16
 // Force is stable: the same graph always gets the same layout. It starts from Radial
 // in this fixed box (not the container's, so inline and maximized start alike), with
 // a fixed seed for whatever randomness fcose uses
-const FORCE_START = { x1: 0, y1: 0, w: 800, h: 500 }
+const FORCE_START: Box = { x1: 0, y1: 0, w: 800, h: 500 }
 const FORCE_SEED = 1
 
 /**
@@ -237,7 +239,8 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
     // current zoom. Zoomed out to fit, that's bigger than the container, so every
     // redraw (e.g. toggling sharedOnly) would spread wider and fit smaller. Use the
     // container's own size (a fallback while it's hidden, e.g. in the list view).
-    cy.layout(radialOptions({ x1: 0, y1: 0, w: container.clientWidth || 600, h: container.clientHeight || 300 })).run()
+    arrangeRadial(cy, { x1: 0, y1: 0, w: container.clientWidth || 600, h: container.clientHeight || 300 })
+    cy.fit(undefined, PADDING)
   }
 
   // Stable Force: if every node has a known place (maximized, dragged, Shared only just
@@ -247,7 +250,7 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
   function arrangeForce() {
     if (restorePlaced()) return
     const nodes = cy.nodes()
-    cy.layout(radialOptions(FORCE_START)).run()
+    arrangeRadial(cy, FORCE_START)
     const layout = cy.layout(forceOptions())
     layout.one('layoutstop', () => {
       orientWide()
@@ -278,15 +281,6 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
     cy.fit(undefined, PADDING)
   }
 
-  function radialRoots(): string[] {
-    const seeds = cy.nodes('[?seed]')
-    if (seeds.length) return seeds.map((n) => n.id())
-    const concepts = cy.nodes('[type = "concept"], [type = "term"]')
-    // (bundled, concepts link to studies directly)
-    const withVariables = concepts.filter((c) => c.neighborhood('node[type = "variable"], node[type = "study"]').length > 0)
-    return (withVariables.length ? withVariables : concepts).map((n) => n.id())
-  }
-
   // fcose from the nodes' current positions (randomize: false), so arrangeForce decides
   // where it starts. The one place that knows it's fcose: another layout could take over
   // as long as it starts from the current positions and runs synchronously
@@ -305,20 +299,6 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
     } as LayoutOptions // fcose's options aren't in Cytoscape's types
   }
 
-  function radialOptions(boundingBox: { x1: number; y1: number; w: number; h: number }): LayoutOptions {
-    return {
-      name: 'breadthfirst',
-      boundingBox,
-      // the seeds in the middle, so related concepts and the seeds' variables ring them.
-      // Without seeds (searches): the concepts with variables; concepts only related to
-      // them (no variables of their own) form a ring around them instead of joining the middle
-      roots: radialRoots(),
-      circle: true,
-      depthSort: (a, b) => String(a.data('order')).localeCompare(String(b.data('order'))),
-      padding: PADDING,
-      animate: false,
-    }
-  }
   draw()
 
   return {

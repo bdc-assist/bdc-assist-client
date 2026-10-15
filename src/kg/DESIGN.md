@@ -323,8 +323,11 @@ type KgFocus = { node: string } | { concept: string; study: string }
       goes against keeping terms separate.
 
     The lean is (a): it keeps both nodes and states only what Dug says.
-- **Disconnected parts:** separate calls can give separate pieces. Layouts should
-  arrange them side by side. **(open)** Should Radial give each piece its own centre?
+- **Disconnected parts:** separate calls can give separate pieces (e.g. concept_graph
+  with concept_connections). Radial gives each piece its own centre, its seeds (or,
+  without seeds, its concepts), and puts the pieces side by side: seeded pieces first,
+  then the bigger, each as wide as √(its nodes) (`arrangeRadial`, radial.ts). Force
+  starts from that and fcose keeps the pieces apart.
 - **Uneven coverage:** if Dug returns only the top N results per call, counts from
   different calls look comparable but aren't. Ask Dug.
 - **Provenance:** which call a node came from. This is parked; "Show" could become a
