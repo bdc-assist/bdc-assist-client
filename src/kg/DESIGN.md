@@ -65,18 +65,16 @@ Computed on the graph being shown (the source picked, grouped or not), **before*
 | Radial | a seed | seeds in the middle, studies around them joined by bundles (with Variables on: variables in between) | — |
 | Force | — | everything: concepts and studies joined by bundles, or individual variables with Variables on | — |
 | Flow | studies | concept → study bands, width = variable count; variables without a study go to the placeholder | inter-concept links |
-| Matrix **(planned)** | variables | studies × concepts (or variables × concepts when there are no studies) | concepts without variables |
 | List | — | studies → concepts → variables; no studies: grouped by concept; no variables (star): the concepts, seeds first (grouped by predicate: parked) | — |
 
-Flow and Matrix both show bundles, and both stay. Flow shows proportions: how each
-concept's and each study's total splits. Matrix is for finding a value, comparing
-studies, and seeing which studies cover which seeds, and it scales to many studies.
+Matrix (studies × concepts) was built and then parked: with the data we have it added
+little over Flow and List (see Parked below).
 
 Columns (concepts | variables | studies) has been dropped (step 6). Radial and Force can show
-individual variables, and the Matrix covers the no-studies case.
+individual variables.
 
 **Variables without a study** go under a **"No study provided"** placeholder, placed last,
-in List, Flow, Matrix (a row) and collapsed node-link. The placeholder belongs to the view, not the graph:
+in List, Flow and collapsed node-link. The placeholder belongs to the view, not the graph:
 it's never a node in `KgGraph`, so nothing is inferred. It's drawn outlined in grey,
 never study green. It's left out of study counts, the title summary and "shared", so it
 never gets a halo. When some variables have studies and some don't, it sits alongside
@@ -87,7 +85,7 @@ a study".
 
 Unavailable views stay in the picker, greyed out, with the reason as their native
 tooltip (`title`; some browsers don't show it on an `<option>`): "Needs a concept that
-was asked about", "Needs studies", "Needs variables".
+was asked about", "Needs studies".
 
 **Default view:** Force, for every shape. It's always available, and it's the only
 node-link view that shows everything in a mixed graph. The user's pick carries over
@@ -129,7 +127,6 @@ border (§4). Terms are always seeds, so they also get the seed marks.
 | Force | a tinted node |
 | Flow | a tinted bar on the left |
 | List | a tinted swatch, with "(search term)" |
-| Matrix | a column with a tinted header mark; its cells look like any other |
 
 A term differs from a concept only where the concept's identity is used:
 
@@ -137,23 +134,6 @@ A term differs from a concept only where the concept's identity is used:
 - **Grouping:** terms are never merged into a group.
 - **Inter-concept links:** a term never has one, since Dug doesn't relate search words.
   So a concept star never includes terms.
-
-### Matrix (planned)
-
-- Rows are studies, then the "No study provided" placeholder; columns are concepts and
-  terms, seeds first. With no studies at all, rows
-  are variables and each cell is just filled or empty: grouped concepts show up as
-  matching columns.
-- A term's column has a tinted header mark, and seed columns get the seed marks (§4).
-- Each cell is a circle whose **area** shows the variable count, with the largest
-  filling the cell. It's solid flat mid-blue (the bundle colour). The count appears only
-  in the native tooltip: "asthma × phs000001: 7 variables".
-- Rows are sorted by how many seeds they cover, then by total variables, so shared
-  studies come first. Shared rows get the halo on their header.
-- Clicking a cell focuses that concept × study pair; clicking a header focuses that
-  study or concept.
-- Concepts with no variables (e.g. from concept_connections) aren't drawn and get a
-  "not shown" note.
 
 ### Collapsed links in node-link
 
@@ -163,8 +143,7 @@ the variables between them.
 - **Toggle:** a "Variables" checkbox, off by default, next to Group. Turning it on draws
   individual variables as now. The setting is shared by Radial and Force, and between
   the inline panel and the dialog.
-- **Clicking a bundle** focuses the concept × study pair, the same as a Flow band or a
-  Matrix cell, and the details list its variables. A bundle doesn't expand in place:
+- **Clicking a bundle** focuses the concept × study pair, the same as a Flow band, and the details list its variables. A bundle doesn't expand in place:
   that would add nodes and move the layout. The toggle is how you see all variables.
 - **Variables without a study** bundle to the "No study provided" placeholder.
 - **Graphs without studies** (search_concepts) bundle too: every concept links to the
@@ -191,6 +170,22 @@ the variables between them.
   This is what "shared" approximates.
 - **Predicate sectors:** Radial for a concept star, with neighbours grouped around the
   seed by predicate. It's the node-link version of the List grouped by predicate.
+- **Matrix** (built, then parked 2026-10-15: little benefit over Flow and List with the
+  data we have; worth another look with many studies per answer). The design:
+  - Rows are studies, then the "No study provided" placeholder; columns are concepts and
+    terms, seeds first. With no studies at all, rows
+    are variables and each cell is just filled or empty: grouped concepts show up as
+    matching columns.
+  - A term's column has a tinted header mark, and seed columns get the seed marks (§4).
+  - Each cell is a circle whose **area** shows the variable count, with the largest
+    filling the cell. It's solid flat mid-blue (the bundle colour). The count appears only
+    in the native tooltip: "asthma × phs000001: 7 variables".
+  - Rows are sorted by how many seeds they cover, then by total variables, so shared
+    studies come first. Shared rows get the halo on their header.
+  - Clicking a cell focuses that concept × study pair; clicking a header focuses that
+    study or concept.
+  - Concepts with no variables (e.g. from concept_connections) aren't drawn and get a
+    "not shown" note.
 
 ## 4. Visual grammar
 
@@ -215,16 +210,16 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
 | Category | Tinted amber fill, amber border | search term: a stand-in for a concept | all |
 | Category | Green `--kg-study`, rounded square | study | all |
 | Category | Blue, small circle | variable | node-link with Variables on |
-| Category | Grey outline, placed last: "No study provided" | the variables without a study: a stand-in | List, Flow, Matrix, node-link bundles |
-| Category | Flat mid-blue (middle of the ramp) | a bundle: a summary of variables | Flow bands, Matrix circles, node-link bundles |
+| Category | Grey outline, placed last: "No study provided" | the variables without a study: a stand-in | List, Flow, node-link bundles |
+| Category | Flat mid-blue (middle of the ramp) | a bundle: a summary of variables | Flow bands, node-link bundles |
 | Category | Solid grey line | a stated variable edge | node-link |
 | Category | Solid light-amber line (amber mixed towards the background) | an inter-concept link: concept → concept, with Dug's predicates | node-link |
 | Amount | Blue ramp `--kg-variable-low → -high` | one variable; more contrast = links more concepts (`related_concepts_count`) | node-link with Variables on |
-| Amount | Size / width | variable count (bundles only) | Flow band width, Matrix circle area, node-link bundle width (`1 + 2.2·√count`) |
+| Amount | Size / width | variable count (bundles only) | Flow band width, node-link bundle width (`1 + 2.2·√count`) |
 | Query | Wide halo `--kg-halo` | seed: what a call asked about, of any type | all |
-| Query | Highlighted label: `--kg-halo` behind the label text | seed | node-link, Flow, List; Matrix **(planned)** |
-| Query | Narrow halo `--kg-halo` | shared: connects two or more seeds | node-link, Flow, List (on the swatch); Matrix **(planned)** |
-| Interaction | `--kg-selected` outline ring, outside the border | the focus itself | node-link, Flow; Matrix **(planned)**. List: a shaded row |
+| Query | Highlighted label: `--kg-halo` behind the label text | seed | node-link, Flow, List |
+| Query | Narrow halo `--kg-halo` | shared: connects two or more seeds | node-link, Flow, List (on the swatch) |
+| Interaction | `--kg-selected` outline ring, outside the border | the focus itself | node-link, Flow. List: a shaded row |
 | Interaction | Opacity 0.15 | faded: not connected to the focus | all but List, which fades to 0.35 |
 
 **Values**
@@ -249,7 +244,7 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
   contrast say how much; halo and the highlighted label relate it to the query; the ring
   and opacity respond to the user. So size never marks a seed, and hue never marks context.
 - **Opacity only ever means faded.** The exception is Flow's band translucency, which
-  keeps overlapping bands readable. Matrix circles are solid.
+  keeps overlapping bands readable.
 - **List is a different kind of view** and marks the interaction layer its own way: the
   focus is a shaded row (not a ring, which in HTML reads as keyboard focus), and rows
   fade to 0.35, since they're text to read rather than context. Its swatches still
@@ -293,8 +288,8 @@ type KgFocus = { node: string } | { concept: string; study: string }
   nothing in that view is highlighted.
 - **Redraws:** changing grouping, the source or "Shared only" redraws the graph and
   clears the focus. **(open)** Should the focus be kept when the node is still there?
-- **Pairs as bundles:** a pair is exactly a concept–study bundle, so Flow bands, Matrix
-  cells and node-link bundles all focus as pairs. A pair with the "No study provided"
+- **Pairs as bundles:** a pair is exactly a concept–study bundle, so Flow bands and
+  node-link bundles all focus as pairs. A pair with the "No study provided"
   placeholder means the concept's variables without a study: `pairVariables` handles
   it as a special case, and the other views highlight the concept and those variables.
   **(open)** For concept–concept bundles,
@@ -354,5 +349,5 @@ type KgFocus = { node: string } | { concept: string; study: string }
    pick carried over. List without variables (a star): the concepts, seeds first.
 6. ~~Removing the Columns layout~~ (done). The star's list became a plain list of its
    concepts in step 5; grouping it by predicate is parked.
-7. Matrix.
-8. Parked views from §3 (seed-combination chart, predicate sectors), if they're picked up again.
+7. ~~Matrix~~: built, then parked (§3).
+8. Parked views from §3 (seed-combination chart, predicate sectors, Matrix), if they're picked up again.
