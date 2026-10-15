@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { baseId, collapseVersions } from './collapse'
-import { asthmaCopd, chd as CHD, cohort as COHORT, count } from './test-fixtures'
+import { asthmaCopd, chd as CHD, cohort as COHORT, count } from '../test-fixtures'
 import type { KgGraph } from './types'
 
 describe('baseId', () => {

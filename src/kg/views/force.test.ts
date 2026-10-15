@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 
 import { arrangeForce, settle } from './force'
 import { arrangeRadial } from './radial'
-import { bundledCy, chdKg, relatedKg, searchKg, span } from './test-fixtures'
-import type { KgWireEntry } from './wire'
+import { bundledCy, chdKg, relatedKg, searchKg, span } from '../test-fixtures'
+import type { KgWireEntry } from '../model/wire'
 
 // as mountGraph's Force: from Radial in a fixed box
 function laidOut(...calls: KgWireEntry[][]) {

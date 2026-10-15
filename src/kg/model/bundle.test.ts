@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { bundles } from './bundle'
-import { TWO } from './test-fixtures'
+import { TWO } from '../test-fixtures'
 import { NO_STUDY } from './types'
 
 describe('bundles', () => {

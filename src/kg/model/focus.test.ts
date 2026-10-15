@@ -4,7 +4,7 @@ import { bridges, sharedOnly } from './bridges'
 import { collapseVersions } from './collapse'
 import { carryFocus, focusConnections, pairVariables, sameFocus, studylessVariables } from './focus'
 import { groupSynonyms } from './group'
-import { ASTHMA, COPD, FHS, TWO } from './test-fixtures'
+import { ASTHMA, COPD, FHS, TWO } from '../test-fixtures'
 import { NO_STUDY, type KgGraph } from './types'
 const on = (target: string) => new Set(TWO.edges.filter((e) => e.target === target).map((e) => e.source))
 

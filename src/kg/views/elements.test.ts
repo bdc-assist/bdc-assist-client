@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { toElements } from './elements'
-import { CHD } from './test-fixtures'
-import { NO_STUDY, type KgGraph } from './types'
+import { CHD } from '../test-fixtures'
+import { NO_STUDY, type KgGraph } from '../model/types'
 
 describe('toElements', () => {
   it('makes one element per node and edge', () => {

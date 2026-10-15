@@ -22,7 +22,7 @@ import {
 
 import { Popover, PopoverContent, PopoverHeader, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { KgGraph } from '@/kg/types'
+import type { KgGraph } from '@/kg'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 import {

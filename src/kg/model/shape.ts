@@ -1,6 +1,15 @@
-import { relations } from './elements'
-import type { KgLayout } from './mount'
+import { relations } from './relations'
 import type { KgGraph } from './types'
+
+/**
+ * - radial: the seeds (what was asked about) in the middle, or without seeds the concepts;
+ *   their variables around them, studies outside. Separate pieces (e.g. from unrelated
+ *   calls) each get their own centre, side by side (see arrangeRadial in views/radial.ts)
+ * - force: a force-directed layout (d3-force); clusters form on their own. Separate
+ *   pieces are packed side by side (see arrangeForce in views/force.ts)
+ */
+export const KG_LAYOUTS = ['radial', 'force'] as const
+export type KgLayout = (typeof KG_LAYOUTS)[number]
 
 /** Every view of a graph: mountGraph's layouts, the flow (mountFlow) and the list
  * (studyList), in the order a picker lists them: the default (Force) first. */

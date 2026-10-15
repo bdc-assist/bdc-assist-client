@@ -1,4 +1,4 @@
-import { variableWeights } from './elements'
+import { variableWeights } from './weights'
 import { isConceptOrTerm, type KgGraph, type KgNode } from './types'
 
 export type ListVariable = {

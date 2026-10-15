@@ -1,5 +1,5 @@
-import type { KgFocus } from './focus'
-import type { KgGraph } from './types'
+import type { KgFocus } from '../model/focus'
+import type { KgGraph } from '../model/types'
 
 /** Options every view of a graph takes (mountGraph, mountFlow). */
 export type KgViewOptions = {

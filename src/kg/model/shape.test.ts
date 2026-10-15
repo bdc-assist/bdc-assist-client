@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { graphShape, shapeOf } from './shape'
-import { chd, related as connections, search } from './test-fixtures'
+import { chd, related as connections, search } from '../test-fixtures'
 import type { KgGraph } from './types'
 
 describe('shapeOf', () => {

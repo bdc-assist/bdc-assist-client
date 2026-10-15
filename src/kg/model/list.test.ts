@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { studyList } from './list'
-import { CHD, TWO } from './test-fixtures'
+import { CHD, TWO } from '../test-fixtures'
 
 describe('studyList', () => {
   it('groups every variable under its study', () => {

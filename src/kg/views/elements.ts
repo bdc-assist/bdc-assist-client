@@ -1,31 +1,8 @@
 import type { ElementDefinition } from 'cytoscape'
 
-import { bundles } from './bundle'
-import { edgeId, NO_STUDY, NO_STUDY_LABEL, type KgGraph } from './types'
-
-/** The concept → concept edges: relationships between concepts (e.g. from
- * get_concept_connections), as opposed to variables' links. */
-export function relations(graph: KgGraph): KgGraph['edges'] {
-  const types = new Map(graph.nodes.map((n) => [n.id, n.type]))
-  return graph.edges.filter((e) => types.get(e.source) === 'concept' && types.get(e.target) === 'concept')
-}
-
-/** Each variable's related_concepts_count scaled to 0..1 within the graph: 1 for the
- * highest, 0 for the lowest; 1 when its count is missing or all counts are equal. */
-export function variableWeights(graph: KgGraph): Map<string, number> {
-  const counts = graph.nodes.flatMap((n) =>
-    n.type === 'variable' && n.related_concepts_count !== undefined ? [n.related_concepts_count] : [],
-  )
-  const [lo, hi] = [Math.min(...counts), Math.max(...counts)]
-  return new Map(
-    graph.nodes
-      .filter((n) => n.type === 'variable')
-      .map((n) => {
-        const c = n.related_concepts_count
-        return [n.id, c === undefined || !(hi > lo) ? 1 : (c - lo) / (hi - lo)]
-      }),
-  )
-}
+import { bundles } from '../model/bundle'
+import { edgeId, NO_STUDY, NO_STUDY_LABEL, type KgGraph } from '../model/types'
+import { variableWeights } from '../model/weights'
 
 /**
  * Cytoscape elements for a graph. Each node's data carries `order`, the key the

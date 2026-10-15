@@ -1,25 +1,16 @@
 import cytoscape, { type EdgeSingular, type StylesheetJson } from 'cytoscape'
 
-import { bridges, sharedOnly } from './bridges'
-import { collapseVersions } from './collapse'
+import { bridges, sharedOnly } from '../model/bridges'
+import { collapseVersions } from '../model/collapse'
 import { backgroundOf, haloOf, mix, toRgb } from './colour'
-import { groupSynonyms } from './group'
+import { groupSynonyms } from '../model/group'
 import { toElements } from './elements'
-import { carryFocus, focusConnections, isPair, sameFocus, type KgFocus } from './focus'
+import { carryFocus, focusConnections, isPair, sameFocus, type KgFocus } from '../model/focus'
 import { arrangeForce as settleForce } from './force'
 import { arrangeRadial, type Box } from './radial'
-import type { KgGraph } from './types'
+import type { KgLayout } from '../model/shape'
+import type { KgGraph } from '../model/types'
 import type { KgView, KgViewOptions } from './view'
-
-/**
- * - radial: the seeds (what was asked about) in the middle, or without seeds the concepts;
- *   their variables around them, studies outside. Separate pieces (e.g. from unrelated
- *   calls) each get their own centre, side by side (see arrangeRadial)
- * - force: a force-directed layout (d3-force); clusters form on their own. Separate
- *   pieces are packed side by side (see arrangeForce in force.ts)
- */
-export const KG_LAYOUTS = ['radial', 'force'] as const
-export type KgLayout = (typeof KG_LAYOUTS)[number]
 
 /** mountGraph's options: the common view options (KgViewOptions), plus: */
 export type GraphOptions = KgViewOptions & {

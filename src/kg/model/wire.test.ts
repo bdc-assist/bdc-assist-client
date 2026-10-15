@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { toElements } from './elements'
-import { asthmaCopd, asthmaCopdKg, chd, chdKg, count, relatedKg, searchKg } from './test-fixtures'
+import { toElements } from '../views/elements'
+import { asthmaCopd, asthmaCopdKg, chd, chdKg, count, relatedKg, searchKg } from '../test-fixtures'
 import type { KgGraph } from './types'
 import { fromKgList, kgLabel, kgParts } from './wire'
 

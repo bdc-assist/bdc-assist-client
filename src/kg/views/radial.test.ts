@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { arrangeRadial, radialRoots } from './radial'
-import { bundledCy, chdKg, relatedKg, searchKg, span } from './test-fixtures'
-import type { KgWireEntry } from './wire'
+import { bundledCy, chdKg, relatedKg, searchKg, span } from '../test-fixtures'
+import type { KgWireEntry } from '../model/wire'
 
 function laidOut(...calls: KgWireEntry[][]) {
   const cy = bundledCy(...calls)

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { flowData } from './flow'
-import { CHD, SEARCH, TWO } from './test-fixtures'
-import { NO_STUDY } from './types'
+import { CHD, SEARCH, TWO } from '../test-fixtures'
+import { NO_STUDY } from '../model/types'
 
 describe('flowData', () => {
   it('one concept: a link to each study, as wide as its variables', () => {

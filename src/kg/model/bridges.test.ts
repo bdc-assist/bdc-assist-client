@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { bridges, sharedOnly } from './bridges'
 import { collapseVersions } from './collapse'
-import { CHD, COHORT, SEARCH, TWO } from './test-fixtures'
+import { CHD, COHORT, SEARCH, TWO } from '../test-fixtures'
 import type { KgGraph } from './types'
 
 describe('bridges', () => {

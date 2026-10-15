@@ -4,17 +4,36 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { bridges, sharedOnly as onlyShared } from '@/kg/bridges'
-import { collapseVersions } from '@/kg/collapse'
-import { groupSynonyms } from '@/kg/group'
-import { nodeLinks, type KgLink } from '@/kg/links'
-import { studyList, type ListVariable } from '@/kg/list'
-import { mountFlow, type FlowView } from '@/kg/flow'
-import { focusConnections, isPair, pairVariables, sameFocus, type KgFocus } from '@/kg/focus'
-import { mountGraph, type GraphView, type KgLayout } from '@/kg/mount'
-import { graphShape, KG_VIEWS, type KgViewChoice, type KgViewName } from '@/kg/shape'
-import { isConceptOrTerm, NO_STUDY, NO_STUDY_LABEL, type KgGraph, type KgNode } from '@/kg/types'
-import type { KgPart } from '@/kg/wire'
+import {
+  bridges,
+  collapseVersions,
+  focusConnections,
+  graphShape,
+  groupSynonyms,
+  isConceptOrTerm,
+  isPair,
+  KG_VIEWS,
+  mountFlow,
+  mountGraph,
+  NO_STUDY,
+  NO_STUDY_LABEL,
+  nodeLinks,
+  pairVariables,
+  sameFocus,
+  sharedOnly as onlyShared,
+  studyList,
+  type FlowView,
+  type GraphView,
+  type KgFocus,
+  type KgGraph,
+  type KgLayout,
+  type KgLink,
+  type KgNode,
+  type KgPart,
+  type KgViewChoice,
+  type KgViewName,
+  type ListVariable,
+} from '@/kg'
 
 // The demo's wrapper around src/kg (loaded on demand: see GraphUI in message-parts.tsx):
 // a collapsible panel under the answer with the graph, or the same as a list, and

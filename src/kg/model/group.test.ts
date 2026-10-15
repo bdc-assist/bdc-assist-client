@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { collapseVersions } from './collapse'
 import { groupSynonyms } from './group'
-import { cohort, related, SEARCH } from './test-fixtures' // SEARCH: every variable linked to the same 9 concepts
+import { cohort, related, SEARCH } from '../test-fixtures' // SEARCH: every variable linked to the same 9 concepts
 import type { KgGraph } from './types'
 
 describe('groupSynonyms', () => {

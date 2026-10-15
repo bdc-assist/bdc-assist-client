@@ -1,12 +1,12 @@
 import { sankey, sankeyLinkHorizontal, type SankeyLink, type SankeyNode } from 'd3-sankey'
 
-import { bridges, sharedOnly } from './bridges'
-import { bundles } from './bundle'
-import { collapseVersions } from './collapse'
+import { bridges, sharedOnly } from '../model/bridges'
+import { bundles } from '../model/bundle'
+import { collapseVersions } from '../model/collapse'
 import { haloOf } from './colour'
-import { groupSynonyms } from './group'
-import { carryFocus, focusConnections, isPair, sameFocus, type KgFocus } from './focus'
-import { isConceptOrTerm, NO_STUDY, NO_STUDY_LABEL, type KgGraph, type KgNode } from './types'
+import { groupSynonyms } from '../model/group'
+import { carryFocus, focusConnections, isPair, sameFocus, type KgFocus } from '../model/focus'
+import { isConceptOrTerm, NO_STUDY, NO_STUDY_LABEL, type KgGraph, type KgNode } from '../model/types'
 import type { KgView, KgViewOptions } from './view'
 
 // a concept or a study, or the "No study provided" placeholder (id NO_STUDY, placeholder: true)

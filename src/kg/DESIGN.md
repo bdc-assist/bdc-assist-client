@@ -56,7 +56,7 @@ Computed on the graph being shown (the source picked, grouped or not), **before*
 | Mixed | several calls in "All results" | any | any | any | any |
 
 `graphShape(graph) → { available: Record<View, true | reason>, default: View }`
-(shape.ts) turns a shape into the views on offer.
+(model/shape.ts) turns a shape into the views on offer.
 
 ## 3. Views
 
@@ -93,10 +93,10 @@ when switching "Show", as long as it's available there.
 
 **Force must be stable** before it becomes the default. The same graph should always
 look the same: inline, in the maximized dialog, and after a reload. How (`arrangeForce`
-in mount.ts):
+in views/graph.ts):
 
 - it starts from Radial (seeds in the middle) in a fixed box, not the container's, and
-  runs d3-force from there (force.ts). d3-force is deterministic (its own fixed random
+  runs d3-force from there (views/force.ts). d3-force is deterministic (its own fixed random
   generator), so the same start gives the same result, and seeds tend to stay central
 - each piece is settled on its own and turned wide (not to the container's shape, so
   it doesn't matter which view lays it out), then the pieces are packed side by side,
@@ -164,7 +164,7 @@ the variables between them.
   concepts. It matches the other views.
 - **Stability:** switching adds or removes nodes, so Force lays out afresh (§2's simple
   rule); concepts and studies don't keep their places.
-- **Code:** `bundles` (bundle.ts), shared with Flow, turns variable paths into bundle
+- **Code:** `bundles` (model/bundle.ts), shared with Flow, turns variable paths into bundle
   edges listing their variables (`toElements(graph, true)`; `variables` option). A bundle edge is drawn in the bundle style (flat mid-blue,
   width = count, §4), so it's never confused with an edge from Dug.
 
@@ -280,7 +280,7 @@ There is one focus, kept by the host and shared by every view.
 type KgFocus = { node: string } | { concept: string; study: string }
 ```
 
-- **What lights up** comes from one place, `focusConnections` (focus.ts), and every
+- **What lights up** comes from one place, `focusConnections` (model/focus.ts), and every
   view uses it, List included. Nodes and edges in the set keep their normal style;
   everything else fades. The focus itself gets the selected outline. Connected edges
   aren't restyled, and full labels aren't shown on highlight.
@@ -331,7 +331,7 @@ type KgFocus = { node: string } | { concept: string; study: string }
 - **Disconnected parts:** separate calls can give separate pieces (e.g. concept_graph
   with concept_connections). Radial gives each piece its own centre, its seeds (or,
   without seeds, its concepts), and puts the pieces side by side: seeded pieces first,
-  then the bigger, each as wide as √(its nodes) (`arrangeRadial`, radial.ts). Force
+  then the bigger, each as wide as √(its nodes) (`arrangeRadial`, views/radial.ts). Force
   starts from that and packs its pieces side by side the same way.
 - **Uneven coverage:** if Dug returns only the top N results per call, counts from
   different calls look comparable but aren't. Ask Dug.

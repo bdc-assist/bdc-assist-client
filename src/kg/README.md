@@ -15,6 +15,11 @@ It is self-contained so it can be lifted into another system:
   [`d3-sankey`](https://github.com/d3/d3-sankey) (flow view)
 - styling through CSS custom properties, so the host restyles it from its own CSS
 
+Import from the folder (`index.ts`), never from its files: that's the public API.
+Inside, `model/` is the graph as data (plain TypeScript, no DOM: merging, grouping,
+what's shared, what a focus lights up, lists, links) and `views/` draws it (Cytoscape,
+SVG). `test-fixtures.ts` and `fixtures/` are for the tests.
+
 The demo client's wrapper, [`components/bdc/knowledge-graph.tsx`](../components/bdc/knowledge-graph.tsx),
 is a working example of everything below (React, but only as glue).
 
@@ -35,7 +40,7 @@ type KgWireEntry = {
 }
 ```
 
-`fromKgList(kg)` (`wire.ts`) merges them into the one graph the views draw, or `null`
+`fromKgList(kg)` (`model/wire.ts`) merges them into the one graph the views draw, or `null`
 when there's nothing to draw. A node's role comes from `type` if it names one, else
 from `category` (`"Study"`, `"StudyVariable"`; anything else is a concept). Edges keep
 all their predicates, also through `collapseVersions`:
@@ -64,8 +69,7 @@ type KgEdge = { source: string; target: string; predicates?: string[] }
 ## Quick start
 
 ```ts
-import { mountGraph } from './kg/mount'
-import { fromKgList } from './kg/wire'
+import { fromKgList, mountGraph } from './kg'
 
 const graph = fromKgList(doneEvent.kg)
 if (graph) {
@@ -82,7 +86,7 @@ to get the Sankey view; both have the same interface.
 
 ## Views
 
-Both views take the same options and return the same interface (`view.ts`), so a host
+Both views take the same options and return the same interface (`views/view.ts`), so a host
 can switch between them without caring which one is showing.
 
 ```ts
@@ -117,7 +121,7 @@ on the others. A redraw (`setOptions` with other grouping or `sharedOnly`) keeps
 focus where it can: on what it was merged into, or split into (`carryFocus`). When that
 moves or drops it, the view calls `onFocus`. `update()` with another graph clears it.
 
-### `mountGraph(container, graph, options)` (`mount.ts`)
+### `mountGraph(container, graph, options)` (`views/graph.ts`)
 
 A node-link graph (Cytoscape). Concepts, variables and studies are drawn as distinct
 shapes and colours; variables run from `--kg-variable-low` to `--kg-variable-high` with
@@ -141,7 +145,7 @@ Extra methods: `zoomBy(factor)` and `fit()`, for your own zoom buttons, and
 `restorePositions()`, to show what another view sharing `forcePositions` moved. Hovering a
 node shows its full label as the browser's tooltip.
 
-### `mountFlow(container, graph, options)` (`flow.ts`)
+### `mountFlow(container, graph, options)` (`views/flow.ts`)
 
 A Sankey diagram (d3-sankey layout, plain SVG): concepts on the left, studies on the
 right, each concept → study band as wide as the study's variables on that concept.
@@ -176,21 +180,21 @@ used) first, so ids match what the views draw.
 
 | Function | File | |
 |---|---|---|
-| `collapseVersions(graph)`, `baseId(id)` | `collapse.ts` | merge dbGaP releases (`phs000007.v34.p15` + `.v31.p12` → `phs000007`, with `versions`) |
-| `groupSynonyms(graph)` | `group.ts` | merge concepts with exactly the same neighbours (some variables), e.g. a search's synonyms, into "first + N more" (with `grouped`); never seeds or terms |
-| `bridges(graph)`, `sharedOnly(graph)` | `bridges.ts` | the nodes connecting two or more seeds (other concepts, e.g. synonyms, don't count); the graph reduced to them |
-| `studyList(graph)` | `list.ts` | studies → concepts → variables, shared studies first: for a list or table view, or a text alternative to the graph |
-| `nodeLinks(node, graph)`, `conceptLink(id)` | `links.ts` | pages for a node: dbGaP study and variable pages (one per release; a variable without an accession gets its study, with a `note`); concepts by CURIE prefix (MONDO, EFO, UMLS, GTOPDB, otherwise bioregistry.io), marked "(login)" where an account is needed |
-| `focusConnections(graph, focus)`, `pairVariables(graph, concept, study)`, `studylessVariables(graph)` | `focus.ts` | what a focus lights up; a pair's variables; the variables whose study isn't provided |
-| `edgeId(source, target)` | `types.ts` | an edge's id as the views and `focusConnections` give it (`"source->target"`) |
-| `NO_STUDY`, `NO_STUDY_LABEL` | `types.ts` | the "No study provided" placeholder for variables whose study isn't provided: never a node in the graph, but views draw it and it focuses like a study (`{ node: NO_STUDY }`, `{ concept, study: NO_STUDY }`) |
-| `graphShape(graph)` | `shape.ts` | which views suit the graph (`available`: `true` or why not, for each of `KG_VIEWS`) and the `default` (Force); work it out before `sharedOnly`. `shapeOf(graph)` gives the shape it's based on: seeds, variables, studies, inter-concept links |
-| `bundles(graph)` | `bundle.ts` | one `{ concept, study, variables }` per concept and study (the study can be `NO_STUDY`): what Flow's bands and node-link's links draw |
-| `flowData(graph)` | `flow.ts` | the flow's concept → study links with their variables, for your own chart; variables without a study go to the placeholder (`placeholder: true`, last), but only alongside real studies (`studylessVariables` lists them) |
-| `fromKgList(kg)` | `wire.ts` | the API's per-call graphs merged into one |
-| `relations(graph)` | `elements.ts` | the concept → concept edges (drawn as light amber lines in the graph view; the flow view can't show them) |
-| `variableWeights(graph)` | `elements.ts` | `related_concepts_count` scaled to 0..1 within the graph |
-| `isConceptOrTerm(type)` | `types.ts` | concepts and search terms play the same part (what variables are about); most views treat them alike, but a term has no link or category |
+| `collapseVersions(graph)`, `baseId(id)` | `model/collapse.ts` | merge dbGaP releases (`phs000007.v34.p15` + `.v31.p12` → `phs000007`, with `versions`) |
+| `groupSynonyms(graph)` | `model/group.ts` | merge concepts with exactly the same neighbours (some variables), e.g. a search's synonyms, into "first + N more" (with `grouped`); never seeds or terms |
+| `bridges(graph)`, `sharedOnly(graph)` | `model/bridges.ts` | the nodes connecting two or more seeds (other concepts, e.g. synonyms, don't count); the graph reduced to them |
+| `studyList(graph)` | `model/list.ts` | studies → concepts → variables, shared studies first: for a list or table view, or a text alternative to the graph |
+| `nodeLinks(node, graph)`, `conceptLink(id)` | `model/links.ts` | pages for a node: dbGaP study and variable pages (one per release; a variable without an accession gets its study, with a `note`); concepts by CURIE prefix (MONDO, EFO, UMLS, GTOPDB, otherwise bioregistry.io), marked "(login)" where an account is needed |
+| `focusConnections(graph, focus)`, `pairVariables(graph, concept, study)`, `studylessVariables(graph)` | `model/focus.ts` | what a focus lights up; a pair's variables; the variables whose study isn't provided |
+| `edgeId(source, target)` | `model/types.ts` | an edge's id as the views and `focusConnections` give it (`"source->target"`) |
+| `NO_STUDY`, `NO_STUDY_LABEL` | `model/types.ts` | the "No study provided" placeholder for variables whose study isn't provided: never a node in the graph, but views draw it and it focuses like a study (`{ node: NO_STUDY }`, `{ concept, study: NO_STUDY }`) |
+| `graphShape(graph)` | `model/shape.ts` | which views suit the graph (`available`: `true` or why not, for each of `KG_VIEWS`) and the `default` (Force); work it out before `sharedOnly`. `shapeOf(graph)` gives the shape it's based on: seeds, variables, studies, inter-concept links |
+| `bundles(graph)` | `model/bundle.ts` | one `{ concept, study, variables }` per concept and study (the study can be `NO_STUDY`): what Flow's bands and node-link's links draw |
+| `flowData(graph)` | `views/flow.ts` | the flow's concept → study links with their variables, for your own chart; variables without a study go to the placeholder (`placeholder: true`, last), but only alongside real studies (`studylessVariables` lists them) |
+| `fromKgList(kg)` | `model/wire.ts` | the API's per-call graphs merged into one |
+| `relations(graph)` | `model/relations.ts` | the concept → concept edges (drawn as light amber lines in the graph view; the flow view can't show them) |
+| `variableWeights(graph)` | `model/weights.ts` | `related_concepts_count` scaled to 0..1 within the graph |
+| `isConceptOrTerm(type)` | `model/types.ts` | concepts and search terms play the same part (what variables are about); most views treat them alike, but a term has no link or category |
 
 ## Things to know
 

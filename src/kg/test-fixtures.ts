@@ -3,8 +3,8 @@
 // made by npm run fixtures. Only tests import this.
 import cytoscape from 'cytoscape'
 
-import { collapseVersions } from './collapse'
-import { toElements } from './elements'
+import { collapseVersions } from './model/collapse'
+import { toElements } from './views/elements'
 import cohortFixture from './fixtures/kg/cohort_variables.json'
 import relatedFixture from './fixtures/kg/concept_connections.json'
 import chdFixture from './fixtures/kg/concept_graph.json'
@@ -15,8 +15,8 @@ import relatedGraph from './fixtures/graph/concept_connections.json'
 import chdGraph from './fixtures/graph/concept_graph.json'
 import asthmaCopdGraph from './fixtures/graph/concept_graph_2.json'
 import searchGraph from './fixtures/graph/search_concepts.json'
-import type { KgGraph } from './types'
-import { fromKgList, type KgWireEntry } from './wire'
+import type { KgGraph } from './model/types'
+import { fromKgList, type KgWireEntry } from './model/wire'
 
 // what the API sends, per fixture
 export const chdKg = chdFixture.kg as KgWireEntry[] // get_concept_graph: congenital heart disease

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { connections } from './connections'
-import { ASTHMA, COPD, TWO } from './test-fixtures'
+import { ASTHMA, COPD, TWO } from '../test-fixtures'
 const type = new Map(TWO.nodes.map((n) => [n.id, n.type]))
 const ofType = (ids: Set<string>, t: string) => [...ids].filter((id) => type.get(id) === t)
 const variablesOf = (study: string) => TWO.edges.filter((e) => e.target === study).map((e) => e.source)

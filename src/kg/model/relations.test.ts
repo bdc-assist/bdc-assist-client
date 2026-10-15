@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import { bridges } from './bridges'
 import { connections } from './connections'
-import { relations, toElements } from './elements'
-import { flowData } from './flow'
+import { toElements } from '../views/elements'
+import { relations } from './relations'
+import { flowData } from '../views/flow'
 import { studyList } from './list'
-import { ASTHMA, asthmaCopdKg, relatedKg } from './test-fixtures'
+import { ASTHMA, asthmaCopdKg, relatedKg } from '../test-fixtures'
 import { fromKgList, kgParts } from './wire'
 
 // asthma's concept graph, then its related concepts (get_concept_connections: concept →
