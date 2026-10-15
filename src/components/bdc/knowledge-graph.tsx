@@ -68,12 +68,16 @@ const LEGEND: { type: KgNode['type']; shape: string; background: string; border?
   },
 ]
 
-// Flow draws variables as bands, not nodes: flat mid-blue, as translucent as the bands
+// Flow and node-link bundles draw variables as bands, not nodes: flat mid-blue, solid
+// as node-link draws them; Flow's are translucent (FLOW_BAND)
+const MID_BLUE = 'color-mix(in srgb, var(--kg-variable-low), var(--kg-variable-high))'
 const BAND: { shape: string; background: string; border?: string; tip: string } = {
   shape: 'h-1.5 w-5 rounded-sm',
-  background: 'color-mix(in srgb, color-mix(in srgb, var(--kg-variable-low), var(--kg-variable-high)) 45%, transparent)',
+  background: MID_BLUE,
   tip: 'The variables linking a concept and a study; its width shows how many',
 }
+// as translucent as Flow's bands (flow.ts), which overlap
+const FLOW_BAND = { ...BAND, background: `color-mix(in srgb, ${MID_BLUE} 45%, transparent)` }
 
 // the halo colour at its opacity, as mountGraph draws seed and shared halos and seed labels
 const HALO = 'color-mix(in srgb, var(--kg-halo) calc(var(--kg-halo-opacity) * 100%), transparent)'
@@ -105,7 +109,7 @@ function Legend({ types, seeds, shared, mode, bundled }: LegendProps) {
     <ul aria-label="Legend" className="flex flex-wrap items-center gap-x-3 gap-y-1">
       {LEGEND.filter((l) => types.has(l.type)).map((l) => {
         const bands = l.type === 'variable' && (mode === 'flow' || bundled)
-        const { shape, background, border, tip } = bands ? BAND : l
+        const { shape, background, border, tip } = bands ? (mode === 'flow' ? FLOW_BAND : BAND) : l
         return (
           <LegendItem key={l.type} tip={tip}>
             <span className={shape} style={{ background, borderColor: border }} />
