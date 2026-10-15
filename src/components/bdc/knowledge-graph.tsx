@@ -568,6 +568,8 @@ type GraphBodyProps = {
   sources: string[] // the per-call graphs' labels (none: nothing to pick)
   source: number // which one is shown; -1: all merged
   onSource: (i: number) => void
+  focus: KgFocus | null // what's picked, the same in every view, and inline and maximized
+  onFocus: (f: KgFocus | null) => void
   zoomGestures: boolean | 'modifier' // see mountGraph: 'modifier' where the chat scrolls around the graph
   forcePositions: Map<string, { x: number; y: number }> // see mountGraph: shared by the panel and the dialog
   covered?: boolean // the maximized dialog is over it: when it closes, show what was moved there
@@ -580,6 +582,7 @@ const ZOOM_KEY = /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl'
 function GraphBody(props: GraphBodyProps) {
   const { json, shown, canvasClass, choice, onChoice, available, sharedOnly, onSharedOnly, canShare, zoomGestures } = props
   const { sources, source, onSource, grouped, onGrouped, canGroup, forcePositions, covered, detailsBeside } = props
+  const { focus, onFocus } = props
   const { variables, onVariables } = props
   const mode: ViewMode = choice === 'flow' || choice === 'list' ? choice : 'graph'
   const layout: KgLayout | undefined = mode === 'graph' ? (choice as KgLayout) : undefined
@@ -590,8 +593,6 @@ function GraphBody(props: GraphBodyProps) {
   const view = useRef<GraphView | null>(null)
   const flowContainer = useRef<HTMLDivElement>(null)
   const flowView = useRef<FlowView | null>(null)
-  // what's picked, the same in every view: a node or a concept × study pair
-  const [focus, setFocus] = useState<KgFocus | null>(null)
   const [zoomHint, setZoomHint] = useState(false)
   const hintTimer = useRef<number | undefined>(undefined)
   const showZoomHint = () => {
@@ -612,10 +613,7 @@ function GraphBody(props: GraphBodyProps) {
       variables,
       forcePositions,
       onZoomHint: showZoomHint,
-      onFocus: (f) => {
-        setFocus(f)
-        flowView.current?.focus(f) // the other view follows
-      },
+      onFocus, // the host keeps it, and the other views follow (below)
     })
     view.current = v
     // the container's size can change without the window's (details reopened,
@@ -626,7 +624,6 @@ function GraphBody(props: GraphBodyProps) {
       observer.disconnect()
       v.destroy()
       view.current = null
-      setFocus(null)
       clearTimeout(hintTimer.current)
     }
   }, [json]) // eslint-disable-line react-hooks/exhaustive-deps -- layout, grouped, sharedOnly, variables: see below
@@ -637,10 +634,7 @@ function GraphBody(props: GraphBodyProps) {
       collapseVersions: grouped,
       groupSynonyms: grouped,
       sharedOnly,
-      onFocus: (f) => {
-        setFocus(f)
-        view.current?.focus(f)
-      },
+      onFocus,
     })
     flowView.current = v
     const observer = new ResizeObserver(() => v.resize()) // laid out for its size
@@ -661,6 +655,12 @@ function GraphBody(props: GraphBodyProps) {
   useEffect(() => {
     if (!covered) view.current?.restorePositions()
   }, [covered])
+  // the focus, picked here or in the other copy (inline or maximized): every view shows it,
+  // also when just mounted (the dialog opening)
+  useEffect(() => {
+    view.current?.focus(focus)
+    flowView.current?.focus(focus)
+  }, [focus])
   // the views read their --kg-* colours once: again when the theme (the dark class) changes
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -680,14 +680,9 @@ function GraphBody(props: GraphBodyProps) {
     flowView.current?.setOptions(o)
   }, [grouped])
 
-  // picked in the list: both views show it too, for when they're switched to
+  // picked in the list: the views show it too, for when they're switched to
   // (picking the focused row or tag again clears it, like the graph's background)
-  const pickFromList = (f: KgFocus) => {
-    const next = sameFocus(focus, f) ? null : f
-    setFocus(next)
-    view.current?.focus(next)
-    flowView.current?.focus(next)
-  }
+  const pickFromList = (f: KgFocus) => onFocus(sameFocus(focus, f) ? null : f)
 
   return (
     <div data-slot="bdc-graph" className="flex min-h-0 flex-1 flex-col text-xs">
@@ -819,6 +814,11 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
   const [positions, setPositions] = useState(() => ({ json, map: new Map<string, { x: number; y: number }>() }))
   if (positions.json !== json) setPositions({ json, map: new Map() })
   const forcePositions = positions.map
+  // what's picked (a node or a concept × study pair), in both: maximizing keeps it.
+  // For this graph only: another starts with nothing picked
+  const [picks, setPicks] = useState<{ json: string; focus: KgFocus | null }>({ json, focus: null })
+  const focus = picks.json === json ? picks.focus : null
+  const onFocus = (f: KgFocus | null) => setPicks({ json, focus: f })
   const all = useMemo(() => groupSynonyms(collapseVersions(raw)), [raw])
   const merged = grouped ? all : raw
   // what this graph can show, worked out before Shared only so the filter never changes
@@ -858,6 +858,8 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
     sources: parts.map((p) => p.label),
     source,
     onSource: setSource,
+    focus,
+    onFocus,
   }
 
   return (

@@ -104,7 +104,7 @@ in mount.ts):
   links them
 - if every node already has a place, nothing moves: Shared only turned on (it only
   hides nodes), drags, and maximizing (inline and maximized share their positions,
-  `forcePositions`). Anything that brings in new nodes (Group or Shared only turned
+  `forcePositions`, and the focus). Anything that brings in new nodes (Group or Shared only turned
   off) lays out afresh, so the picture can jump and drags are lost. Kept simple on
   purpose; if the jumps bother, start from the current positions instead, with new
   nodes placed around their known neighbours
