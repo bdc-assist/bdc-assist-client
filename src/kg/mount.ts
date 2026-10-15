@@ -1,5 +1,4 @@
-import cytoscape, { type EdgeSingular, type LayoutOptions, type StylesheetJson } from 'cytoscape'
-import fcose from 'cytoscape-fcose'
+import cytoscape, { type EdgeSingular, type StylesheetJson } from 'cytoscape'
 
 import { bridges, sharedOnly } from './bridges'
 import { collapseVersions } from './collapse'
@@ -7,20 +6,17 @@ import { backgroundOf, haloOf, mix, toRgb } from './colour'
 import { groupSynonyms } from './group'
 import { toElements } from './elements'
 import { carryFocus, focusConnections, isPair, sameFocus, type KgFocus } from './focus'
-import { orient } from './orient'
+import { arrangeForce as settleForce } from './force'
 import { arrangeRadial, type Box } from './radial'
-import { withSeed } from './seeded'
 import type { KgGraph } from './types'
 import type { KgView, KgViewOptions } from './view'
-
-// fCoSE: Cytoscape's improved force-directed layout (an extension), for the force view
-cytoscape.use(fcose)
 
 /**
  * - radial: the seeds (what was asked about) in the middle, or without seeds the concepts;
  *   their variables around them, studies outside. Separate pieces (e.g. from unrelated
  *   calls) each get their own centre, side by side (see arrangeRadial)
- * - force: a force-directed layout (fCoSE, cytoscape-fcose); clusters form on their own
+ * - force: a force-directed layout (d3-force); clusters form on their own. Separate
+ *   pieces are packed side by side (see arrangeForce in force.ts)
  */
 export const KG_LAYOUTS = ['radial', 'force'] as const
 export type KgLayout = (typeof KG_LAYOUTS)[number]
@@ -83,10 +79,9 @@ const SHARED_HALO = 5
 const PADDING = 16
 
 // Force is stable: the same graph always gets the same layout. It starts from Radial
-// in this fixed box (not the container's, so inline and maximized start alike), with
-// a fixed seed for whatever randomness fcose uses
+// in this fixed box (not the container's, so inline and maximized start alike), and
+// d3-force is deterministic
 const FORCE_START: Box = { x1: 0, y1: 0, w: 800, h: 500 }
-const FORCE_SEED = 1
 
 /**
  * Draw `graph` into `container` (which needs a height). Variables are coloured from
@@ -245,22 +240,17 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
 
   // Stable Force: if every node has a known place (maximized, dragged, Shared only just
   // hid some), they go there and nothing moves. Otherwise it lays out afresh: from
-  // Radial (seeds in the middle) in a fixed box, fcose with a fixed seed, turned wide.
-  // So the same graph always looks the same, whatever was shown before.
+  // Radial (seeds in the middle) in a fixed box, d3-force per piece, turned wide, the
+  // pieces packed side by side (force.ts). So the same graph always looks the same,
+  // whatever was shown before.
   function arrangeForce() {
     if (restorePlaced()) return
-    const nodes = cy.nodes()
     arrangeRadial(cy, FORCE_START)
-    const layout = cy.layout(forceOptions())
-    layout.one('layoutstop', () => {
-      orientWide()
-      // only this layout's places: none left over from another, to mix with it later
-      placed.clear()
-      nodes.forEach((n) => void placed.set(n.id(), { ...n.position() }))
-    })
-    // fcose (cose-base) draws on Math.random when it puts back the tree branches it
-    // set aside while settling the rest
-    withSeed(FORCE_SEED, () => layout.run()) // synchronous: it doesn't animate
+    settleForce(cy)
+    cy.fit(undefined, PADDING)
+    // only this layout's places: none left over from another, to mix with it later
+    placed.clear()
+    cy.nodes().forEach((n) => void placed.set(n.id(), { ...n.position() }))
   }
 
   // every node has a known place: put them there (and fit) and say so
@@ -270,33 +260,6 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
     cy.batch(() => nodes.forEach((n) => void n.position(placed.get(n.id())!)))
     cy.fit(undefined, PADDING)
     return true
-  }
-
-  // force layouts settle at any angle: turn them wide, always (not to the container's
-  // shape), so inline and maximized get the same layout whichever runs it
-  function orientWide() {
-    const nodes = cy.nodes()
-    const turned = orient(nodes.map((n) => ({ ...n.position() })), true)
-    cy.batch(() => nodes.forEach((n, i) => void n.position(turned[i])))
-    cy.fit(undefined, PADDING)
-  }
-
-  // fcose from the nodes' current positions (randomize: false), so arrangeForce decides
-  // where it starts. The one place that knows it's fcose: another layout could take over
-  // as long as it starts from the current positions and runs synchronously
-  function forceOptions(): LayoutOptions {
-    return {
-      name: 'fcose',
-      quality: 'proof', // the slower, better pass; our graphs are small (tens of nodes)
-      randomize: false,
-      animate: false,
-      padding: PADDING,
-      nodeDimensionsIncludeLabels: true, // keep long study labels from piling up
-      nodeRepulsion: 8000,
-      idealEdgeLength: 70,
-      edgeElasticity: 0.45,
-      nodeSeparation: 80,
-    } as LayoutOptions // fcose's options aren't in Cytoscape's types
   }
 
   draw()
@@ -358,7 +321,9 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
   }
 }
 
-function styleFor(el: HTMLElement): StylesheetJson {
+/** mountGraph's Cytoscape style, with the --kg-* colours read from `el`. Exported for
+ * pages that draw toElements' elements their own way (e.g. design/force-layouts.html). */
+export function styleFor(el: HTMLElement): StylesheetJson {
   const css = getComputedStyle(el)
   const color = (key: keyof typeof COLORS) => {
     const [name, fallback] = COLORS[key]

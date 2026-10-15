@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Force layouts</title>
+<!-- Design scratch page, not part of the app build. Open via the dev server:
+     npm run dev, then /design/force-layouts.html. Draws with the app's own Cytoscape,
+     elements and style (src/kg); the candidate layouts load from a CDN, so nothing is
+     added to package.json. -->
+<script src="https://cdn.jsdelivr.net/npm/elkjs@0.9.3/lib/elk.bundled.js"></script>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #0a0a0a; --muted: #737373; --line: #e5e5e5; --panel: #fafafa;
+    /* the app's --kg-* colours (index.css, light theme) */
+    --kg-concept: #d97706; --kg-variable-low: #93c5fd; --kg-variable-high: #1e40af;
+    --kg-study: #059669; --kg-label: #737373; --kg-edge: #a1a1a1; --kg-selected: #0a0a0a;
+    --kg-halo: #fde047; --kg-halo-opacity: 0.45;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px 24px 48px; background: var(--bg); color: var(--fg);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 8px; }
+  h3 { font-size: 14px; margin: 0; }
+  p { margin: 0; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .controls {
+    position: sticky; top: 0; z-index: 2; display: flex; gap: 22px; align-items: center;
+    flex-wrap: wrap; padding: 10px 0; margin-top: 12px; background: var(--bg);
+    border-bottom: 1px solid var(--line);
+  }
+  .controls label { display: flex; gap: 6px; align-items: center; }
+  .controls .group { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .controls.tune { top: 49px; font-variant-numeric: tabular-nums; }
+  .controls.tune span { min-width: 3.5em; }
+  .panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 16px; margin-top: 16px; }
+  .panel header { display: flex; gap: 12px; align-items: baseline; margin-bottom: 4px; }
+  .panel .cy { height: 460px; background: var(--panel); border-radius: 6px; }
+  .panel .time { margin-left: auto; font-variant-numeric: tabular-nums; }
+  .error { color: #dc2626; }
+</style>
+</head>
+<body>
+<h1>Force layouts</h1>
+<p class="muted">
+  The same graph, drawn as the app draws it, under each candidate for the Force view. Every
+  layout starts from the app's Radial positions (<code>arrangeRadial</code>, the same fixed
+  800 × 500 box) and is turned wide afterwards, as Force is. The time is the layout alone.
+  What we want: stable (the same graph always looks the same: use "Run again"), seeds
+  central, clusters readable, fast. Steven's vis-network demo
+  (<code>../bdc-assist/tests/ui/kg_demo.html</code>) is the look to beat.
+</p>
+
+<div class="controls">
+  <label>Graph <select id="fixture"></select></label>
+  <label><input type="checkbox" id="group" checked /> Group</label>
+  <label><input type="checkbox" id="variables" /> Variables</label>
+  <span id="shown" class="group">Show:</span>
+  <button id="again">Run again</button>
+  <span class="muted" id="counts"></span>
+</div>
+
+<div class="controls tune">
+  <strong>d3-force</strong>
+  <label>link distance <input type="range" id="d3-distance" min="20" max="160" step="5" value="70" /> <span></span></label>
+  <label>charge <input type="range" id="d3-charge" min="-800" max="-20" step="10" value="-250" /> <span></span></label>
+  <label>collide <input type="range" id="d3-collide" min="0" max="60" step="1" value="28" /> <span></span></label>
+  <label><input type="checkbox" id="d3-labels" /> collide by label width</label>
+  <label title="0: no limit">charge reach <input type="range" id="d3-reach" min="0" max="1000" step="25" value="0" /> <span></span></label>
+  <label><input type="checkbox" id="d3-pack" checked /> pack pieces</label>
+  <label>centre pull <input type="range" id="d3-centre" min="0" max="0.2" step="0.005" value="0.03" /> <span></span></label>
+  <label>ticks <input type="range" id="d3-ticks" min="50" max="600" step="25" value="300" /> <span></span></label>
+  <button id="d3-reset">Reset</button>
+</div>
+
+<div class="panels" id="panels"></div>
+
+<script type="module">
+import cytoscape from 'cytoscape'
+import fcose from 'https://cdn.jsdelivr.net/npm/cytoscape-fcose@2.2.0/+esm' // the app's Force until 2026-10-15
+import cola from 'https://cdn.jsdelivr.net/npm/cytoscape-cola@2.5.1/+esm'
+import { forceSimulation, forceLink, forceManyBody, forceCollide, forceX, forceY } from 'https://cdn.jsdelivr.net/npm/d3-force@3.0.0/+esm'
+
+import { bridges } from '/src/kg/bridges.ts'
+import { collapseVersions } from '/src/kg/collapse.ts'
+import { toElements } from '/src/kg/elements.ts'
+import { groupSynonyms } from '/src/kg/group.ts'
+import { styleFor } from '/src/kg/mount.ts'
+import { orient } from '/src/kg/orient.ts'
+import { arrangeRadial } from '/src/kg/radial.ts'
+import { fromKgList } from '/src/kg/wire.ts'
+import chd from '/src/kg/fixtures/kg/concept_graph.json'
+import asthmaCopd from '/src/kg/fixtures/kg/concept_graph_2.json'
+import related from '/src/kg/fixtures/kg/concept_connections.json'
+import cohort from '/src/kg/fixtures/kg/cohort_variables.json'
+import search from '/src/kg/fixtures/kg/search_concepts.json'
+
+cytoscape.use(fcose)
+
+// Math.random seeded (mulberry32) while fn runs, as the app did for fcose (seeded.ts, removed)
+function withSeed(seed, fn) {
+  const original = Math.random
+  let s = seed >>> 0
+  Math.random = () => {
+    s = (s + 0x6d2b79f5) >>> 0
+    let t = s
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+  try {
+    return fn()
+  } finally {
+    Math.random = original
+  }
+}
+cytoscape.use(typeof cola === 'function' ? cola : cola.cytoscapeCola) // the CDN's ESM wrapper of a UMD build
+
+// the stub server's keywords, alone and in the combinations worth comparing
+const FIXTURES = {
+  'concept_graph_2: asthma + COPD': [asthmaCopd],
+  'concept_graph: CHD': [chd],
+  'concept_connections: asthma related': [related],
+  'cohort_variables: asthma + COPD terms': [cohort],
+  'search_concepts: BMI (no seeds)': [search],
+  'CHD + asthma related (two pieces)': [chd, related],
+  'CHD + BMI search (two pieces, one unseeded)': [chd, search],
+  'asthma + COPD + asthma related (largest)': [asthmaCopd, related],
+  'asthma + COPD + cohort terms': [asthmaCopd, cohort],
+}
+
+const FORCE_START = { x1: 0, y1: 0, w: 800, h: 500 } // as mount.ts
+const PADDING = 16
+
+// each candidate moves the nodes from their Radial start; sync or async
+const LAYOUTS = [
+  {
+    name: 'fcose (previous)',
+    note: 'the app\'s Force until 2026-10-15, seeded',
+    run: (cy) =>
+      withSeed(1, () =>
+        cy
+          .layout({
+            name: 'fcose', quality: 'proof', randomize: false, animate: false, fit: false,
+            nodeDimensionsIncludeLabels: true, nodeRepulsion: 8000, idealEdgeLength: 70,
+            edgeElasticity: 0.45, nodeSeparation: 80,
+          })
+          .run(),
+      ),
+  },
+  {
+    name: 'Cola',
+    note: 'cytoscape-cola: constraint-based, built for incremental updates',
+    run: (cy) => {
+      const layout = cy.layout({
+        name: 'cola', animate: false, randomize: false, fit: false, avoidOverlap: true,
+        handleDisconnected: true, nodeSpacing: 12, edgeLength: 80, maxSimulationTime: 4000,
+        nodeDimensionsIncludeLabels: true,
+      })
+      const done = layout.promiseOn('layoutstop')
+      layout.run()
+      return done
+    },
+  },
+  {
+    name: 'ELK stress',
+    note: 'elkjs, stress minimisation (ignores the start positions)',
+    run: async (cy) => {
+      const box = (n) => n.boundingBox({ includeLabels: true })
+      const graph = {
+        id: 'root',
+        layoutOptions: { 'elk.algorithm': 'stress', 'elk.stress.desiredEdgeLength': '90' },
+        children: cy.nodes().map((n) => ({ id: n.id(), width: box(n).w, height: box(n).h })),
+        edges: cy.edges().map((e) => ({ id: e.id(), sources: [e.source().id()], targets: [e.target().id()] })),
+      }
+      const laid = await new window.ELK().layout(graph)
+      cy.batch(() => laid.children.forEach((c) => cy.getElementById(c.id).position({ x: c.x + c.width / 2, y: c.y + c.height / 2 })))
+    },
+  },
+  {
+    name: 'd3-force',
+    note: 'the app\'s Force (force.ts) at the default settings; tune it above',
+    run: (cy) => {
+      const t = d3Settings()
+      // by label width: half the node's box with its label, so labels push apart too
+      const radius = (n) => (t.labels ? Math.max(t.collide, n.boundingBox({ includeLabels: true }).w / 2) : t.collide)
+      // packed: each piece on its own, round its own Radial start, turned wide, then
+      // side by side with a fixed gap. Otherwise the whole graph at once
+      const pieces = t.pack
+        ? cy.elements().components().sort((a, b) => a.nodes().boundingBox().x1 - b.nodes().boundingBox().x1)
+        : [cy.elements()]
+      for (const piece of pieces) {
+        // in graph order, not the order components() walks it: d3-force's result depends on it
+        const nodes = cy.nodes().filter((n) => piece.has(n)).map((n) => ({ id: n.id(), r: radius(n), ...n.position() }))
+        const links = cy.edges().filter((e) => piece.has(e)).map((e) => ({ source: e.source().id(), target: e.target().id() }))
+        // pulled towards where it starts, packed or not
+        const [cx, cy0] = [mean(nodes, 'x'), mean(nodes, 'y')]
+        const charge = forceManyBody().strength(t.charge)
+        if (t.reach) charge.distanceMax(t.reach)
+        forceSimulation(nodes)
+          .force('link', forceLink(links).id((d) => d.id).distance(t.distance))
+          .force('charge', charge)
+          .force('collide', forceCollide((d) => d.r))
+          .force('x', forceX(cx).strength(t.centre))
+          .force('y', forceY(cy0).strength(t.centre))
+          .stop()
+          .tick(t.ticks)
+        const placed = t.pack ? orient(nodes, true) : nodes
+        cy.batch(() => nodes.forEach((d, i) => cy.getElementById(d.id).position({ x: placed[i].x, y: placed[i].y })))
+      }
+      if (t.pack) packRow(pieces)
+    },
+  },
+]
+
+const $ = (id) => document.getElementById(id)
+const mean = (xs, k) => xs.reduce((a, d) => a + d[k], 0) / xs.length
+
+// pieces side by side, left to right in their start order (arrangeRadial's: seeded
+// first, then the bigger), centred on one line, PIECE_GAP apart
+const PIECE_GAP = 60
+function packRow(pieces) {
+  let x = 0
+  for (const piece of pieces) {
+    const box = piece.nodes().boundingBox({ includeLabels: true })
+    const [dx, dy] = [x - box.x1, -(box.y1 + box.h / 2)]
+    piece.nodes().forEach((n) => void n.position({ x: n.position('x') + dx, y: n.position('y') + dy }))
+    x += box.w + PIECE_GAP
+  }
+}
+
+// the d3-force sliders: their values, shown beside them
+const D3 = ['distance', 'charge', 'collide', 'reach', 'centre', 'ticks']
+const D3_DEFAULTS = Object.fromEntries(D3.map((k) => [k, $(`d3-${k}`).value]))
+function d3Settings() {
+  const t = Object.fromEntries(D3.map((k) => [k, Number($(`d3-${k}`).value)]))
+  for (const k of D3) $(`d3-${k}`).nextElementSibling.textContent = $(`d3-${k}`).value
+  $('d3-reach').nextElementSibling.textContent = t.reach ? t.reach : '∞'
+  return { ...t, labels: $('d3-labels').checked, pack: $('d3-pack').checked }
+}
+d3Settings()
+for (const name of Object.keys(FIXTURES)) $('fixture').append(new Option(name, name))
+
+// one panel per layout, each its own Cytoscape
+const panels = LAYOUTS.map((l) => {
+  const el = document.createElement('section')
+  el.className = 'panel'
+  el.innerHTML = `<header><h3>${l.name}</h3><span class="muted">${l.note}</span><span class="time muted"></span></header><div class="cy"></div>`
+  $('panels').append(el)
+  const container = el.querySelector('.cy')
+  const cy = cytoscape({ container, style: styleFor(container), boxSelectionEnabled: false, minZoom: 0.1, maxZoom: 4 })
+  // its toggle: hidden, it isn't laid out (ELK is slow); shown again, it catches up
+  const toggle = document.createElement('label')
+  toggle.innerHTML = `<input type="checkbox" checked /> ${l.name}`
+  $('shown').append(toggle)
+  const panel = { layout: l, cy, el, time: el.querySelector('.time'), on: () => toggle.firstChild.checked }
+  toggle.firstChild.addEventListener('change', () => {
+    el.hidden = !panel.on()
+    if (panel.on()) {
+      cy.resize()
+      draw(panel)
+    }
+  })
+  return panel
+})
+
+// what mountGraph draws for these settings (without Shared only)
+function elements() {
+  const raw = fromKgList(FIXTURES[$('fixture').value].flatMap((f) => f.kg))
+  let drawn = raw
+  if ($('group').checked) drawn = groupSynonyms(collapseVersions(raw))
+  const bundled = !$('variables').checked && drawn.nodes.some((n) => n.type === 'variable')
+  const shared = bridges(drawn)
+  const els = toElements(drawn, bundled)
+  for (const e of els) if (shared.has(e.data.id) && !e.data.source) e.classes = `${e.classes ?? ''} bridge`.trim()
+  return els
+}
+
+async function draw(only) {
+  if (only && !only.on()) return
+  const els = elements()
+  const nodes = els.filter((e) => !e.data.source).length
+  $('counts').textContent = `${nodes} nodes · ${els.length - nodes} edges`
+  for (const p of only ? [only] : panels.filter((p) => p.on())) {
+    const { cy } = p
+    cy.elements().remove()
+    cy.add(els)
+    arrangeRadial(cy, FORCE_START)
+    p.time.textContent = '…'
+    p.time.classList.remove('error')
+    try {
+      const t0 = performance.now()
+      await p.layout.run(cy)
+      p.time.textContent = `${Math.round(performance.now() - t0)} ms`
+    } catch (err) {
+      p.time.textContent = String(err)
+      p.time.classList.add('error')
+    }
+    // turned wide, as mount.ts orientWide does
+    const ns = cy.nodes()
+    const turned = orient(ns.map((n) => ({ ...n.position() })), true)
+    cy.batch(() => ns.forEach((n, i) => void n.position(turned[i])))
+    cy.fit(undefined, PADDING)
+  }
+}
+
+for (const id of ['fixture', 'group', 'variables']) $(id).addEventListener('change', () => draw())
+$('again').addEventListener('click', () => draw())
+// a d3 setting changed: only its panel again
+const d3Panel = panels.find((p) => p.layout.name === 'd3-force')
+for (const k of [...D3, 'labels', 'pack']) $(`d3-${k}`).addEventListener('input', () => draw(d3Panel))
+$('d3-reset').addEventListener('click', () => {
+  for (const k of D3) $(`d3-${k}`).value = D3_DEFAULTS[k]
+  $('d3-labels').checked = false
+  $('d3-pack').checked = true
+  draw(d3Panel)
+})
+draw()
+</script>
+</body>
+</html>

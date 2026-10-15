@@ -10,8 +10,9 @@ It is self-contained so it can be lifted into another system:
 - no framework: plain TypeScript and the DOM; React, Vue, Angular or plain HTML all
   call it the same way
 - no imports from the rest of this app
-- dependencies: [`cytoscape`](https://js.cytoscape.org) with `cytoscape-fcose` (graph
-  view) and [`d3-sankey`](https://github.com/d3/d3-sankey) (flow view)
+- dependencies: [`cytoscape`](https://js.cytoscape.org) and
+  [`d3-force`](https://github.com/d3/d3-force) (graph view), and
+  [`d3-sankey`](https://github.com/d3/d3-sankey) (flow view)
 - styling through CSS custom properties, so the host restyles it from its own CSS
 
 The demo client's wrapper, [`components/bdc/knowledge-graph.tsx`](../components/bdc/knowledge-graph.tsx),
@@ -204,7 +205,8 @@ used) first, so ids match what the views draw.
   their study's page instead, with `note: NO_VARIABLE_ACCESSION` ("No dbGaP variable
   accession available") so you can say why.
 - **The force layout is stable:** the same graph always gets the same layout (it
-  starts from the radial one, with a fixed seed, and is turned wide). Where every node
+  starts from the radial one, d3-force is deterministic, and it's turned wide; separate
+  pieces are packed side by side). Where every node
   already has a place, nothing moves: dragged nodes stay, and `sharedOnly` turned on
   only hides some. A redraw that brings in new nodes lays out afresh. Give a second
   view (e.g. maximized) the same `forcePositions` to show the first one's drags too.

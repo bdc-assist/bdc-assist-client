@@ -96,21 +96,24 @@ look the same: inline, in the maximized dialog, and after a reload. How (`arrang
 in mount.ts):
 
 - it starts from Radial (seeds in the middle) in a fixed box, not the container's, and
-  runs fcose from there (`randomize: false`) with `Math.random` seeded (`withSeed`,
-  seeded.ts), so the result is deterministic and seeds tend to stay central
-- it's always turned wide, not to the container's shape, so it doesn't matter which
-  view lays it out
+  runs d3-force from there (force.ts). d3-force is deterministic (its own fixed random
+  generator), so the same start gives the same result, and seeds tend to stay central
+- each piece is settled on its own and turned wide (not to the container's shape, so
+  it doesn't matter which view lays it out), then the pieces are packed side by side,
+  in Radial's order, a fixed gap apart. Settled together they'd drift apart: nothing
+  links them
 - if every node already has a place, nothing moves: Shared only turned on (it only
   hides nodes), drags, and maximizing (inline and maximized share their positions,
   `forcePositions`). Anything that brings in new nodes (Group or Shared only turned
   off) lays out afresh, so the picture can jump and drags are lost. Kept simple on
   purpose; if the jumps bother, start from the current positions instead, with new
   nodes placed around their known neighbours
-- fcose for now: only `forceOptions` knows it, so another layout can replace it if it
-  starts from the nodes' positions (Radial's) and runs synchronously. Candidates: Cola (built
-  for incremental, stable updates), d3-force (seedable), ELK stress
-- timing is fine on large graphs (concept_graph_2, 104 nodes), each graph in the chat
-  running its own layout
+- d3-force replaced fcose (2026-10-15), compared side by side with Cola and ELK stress
+  on the fixtures in `design/force-layouts.html` (dev server). ELK stress looked best
+  but took over 2 s on the largest graph, against about 100 ms; d3-force came next. Its
+  settings are the page's defaults
+- d3-force isn't a Cytoscape layout: `settle` takes positions and links and returns
+  positions, which are set on the nodes
 
 **Mixed graphs:** every view that's available shows the part it can, without a note
 on what it leaves out (the notes were dropped 2026-10-15). Only Radial and
@@ -329,7 +332,7 @@ type KgFocus = { node: string } | { concept: string; study: string }
   with concept_connections). Radial gives each piece its own centre, its seeds (or,
   without seeds, its concepts), and puts the pieces side by side: seeded pieces first,
   then the bigger, each as wide as √(its nodes) (`arrangeRadial`, radial.ts). Force
-  starts from that and fcose keeps the pieces apart.
+  starts from that and packs its pieces side by side the same way.
 - **Uneven coverage:** if Dug returns only the top N results per call, counts from
   different calls look comparable but aren't. Ask Dug.
 - **Provenance:** which call a node came from. This is parked; "Show" could become a
