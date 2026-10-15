@@ -30,8 +30,8 @@ const threadStorage = createThreadStorage(browserStorage())
 
 // shown on the empty thread; clicking one sends it
 const STARTERS = [
-  'What is PIC-SURE and what can I do with it in BDC?',
-  'How do I upload my own data to BDC?',
+  'What is BDC?',
+  'Can I upload my own data to BDC?',
   'Does BDC have COVID data?',
   'What are the latest BDC events?',
 ]
