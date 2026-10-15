@@ -1,6 +1,6 @@
 import { baseId } from './collapse'
 import { connections, type Connections } from './connections'
-import { NO_STUDY, type KgGraph, type KgNode } from './types'
+import { edgeId, NO_STUDY, type KgGraph, type KgNode } from './types'
 
 /**
  * What the user picked, the same in every view: a node, or a concept × study pair
@@ -32,8 +32,8 @@ export function pairVariables(graph: KgGraph, concept: string, study: string): K
  * What to light up for a focus: a node's connections (see connections), or for a
  * pair the concept, the study and the variables between them, with their edges.
  * NO_STUDY stands in for the missing study: it lights up with its variables, and
- * focused, it lights up them and their concepts. Edge ids are "source->target", like
- * toElements. Empty if it isn't in the graph.
+ * focused, it lights up them and their concepts. Edges by edgeId, as toElements gives
+ * them. Empty if it isn't in the graph.
  */
 export function focusConnections(graph: KgGraph, focus: KgFocus): Connections {
   const loose = studylessVariables(graph)
@@ -50,8 +50,8 @@ export function focusConnections(graph: KgGraph, focus: KgFocus): Connections {
   nodes.add(focus.concept).add(focus.study)
   for (const v of variables) {
     nodes.add(v.id)
-    edges.add(`${v.id}->${focus.concept}`)
-    if (focus.study !== NO_STUDY) edges.add(`${v.id}->${focus.study}`)
+    edges.add(edgeId(v.id, focus.concept))
+    if (focus.study !== NO_STUDY) edges.add(edgeId(v.id, focus.study))
   }
   return { nodes, edges }
 }
@@ -92,7 +92,7 @@ function placeholderConnections(graph: KgGraph, loose: Set<string>): Connections
   for (const e of graph.edges) {
     if (!loose.has(e.source)) continue
     nodes.add(e.target)
-    edges.add(`${e.source}->${e.target}`)
+    edges.add(edgeId(e.source, e.target))
   }
   return { nodes, edges }
 }

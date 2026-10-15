@@ -47,17 +47,14 @@ describe('flowData', () => {
     expect(nodes.map((n) => n.id)).toEqual(['C', 'S'])
   })
 
-  it('without any real study, draws nothing and lists the variables (real BMI search)', () => {
-    const g = collapseVersions(search as KgGraph)
-    const { nodes, links, withoutStudy } = flowData(g)
+  it('without any real study, draws nothing (real BMI search)', () => {
+    const { nodes, links } = flowData(collapseVersions(search as KgGraph))
     expect(links).toEqual([])
     expect(nodes).toEqual([])
-    expect(withoutStudy).toHaveLength(g.nodes.filter((n) => n.type === 'variable').length)
-    expect(flowData(CHD).withoutStudy).toEqual([])
   })
 
   it('alongside real studies, variables without one flow to the placeholder, last', () => {
-    const { nodes, links, withoutStudy } = flowData({
+    const { nodes, links } = flowData({
       nodes: [
         { id: 'C', label: 'c', type: 'concept' },
         { id: 'v', label: 'v', type: 'variable' },
@@ -70,7 +67,6 @@ describe('flowData', () => {
         { source: 'loose', target: 'C' },
       ],
     })
-    expect(withoutStudy).toEqual(['loose'])
     expect(nodes.map((n) => n.id)).toEqual(['C', 'S', NO_STUDY])
     expect(nodes.at(-1)).toMatchObject({ placeholder: true, node: { label: 'No study provided' } })
     expect(links.find((l) => l.target === NO_STUDY)).toEqual({ source: 'C', target: NO_STUDY, variables: ['loose'] })

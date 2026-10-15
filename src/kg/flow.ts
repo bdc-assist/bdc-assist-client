@@ -5,34 +5,33 @@ import { bundles } from './bundle'
 import { collapseVersions } from './collapse'
 import { haloOf } from './colour'
 import { groupSynonyms } from './group'
-import { carryFocus, focusConnections, isPair, sameFocus, studylessVariables, type KgFocus } from './focus'
+import { carryFocus, focusConnections, isPair, sameFocus, type KgFocus } from './focus'
 import { isConceptOrTerm, NO_STUDY, NO_STUDY_LABEL, type KgGraph, type KgNode } from './types'
 import type { KgView, KgViewOptions } from './view'
 
 // a concept or a study, or the "No study provided" placeholder (id NO_STUDY, placeholder: true)
 export type FlowNode = { id: string; node: KgNode; placeholder?: true }
 export type FlowLink = { source: string; target: string; variables: string[] } // concept → study
-export type FlowData = { nodes: FlowNode[]; links: FlowLink[]; withoutStudy: string[] } // withoutStudy: variables whose study isn't provided
+export type FlowData = { nodes: FlowNode[]; links: FlowLink[] }
 
 /**
  * The graph as flows from concepts to studies: one link per concept and study,
  * carrying the study's variables on that concept (its width). A variable on two
  * concepts counts in both. Only studies with variables appear; concepts and links
- * keep graph order. Variables whose study isn't provided (`withoutStudy`) flow to the
+ * keep graph order. Variables whose study isn't provided (studylessVariables) flow to the
  * "No study provided" placeholder, last, but only alongside real studies: with none
  * (e.g. search_concepts) there's nothing to draw.
  */
 export function flowData(graph: KgGraph): FlowData {
   const all = bundles(graph)
-  const withoutStudy = [...studylessVariables(graph)]
-  if (all.every((b) => b.study === NO_STUDY)) return { nodes: [], links: [], withoutStudy }
+  if (all.every((b) => b.study === NO_STUDY)) return { nodes: [], links: [] }
   const links = all.map((b) => ({ source: b.concept, target: b.study, variables: b.variables }))
   const used = new Set(links.flatMap((l) => [l.source, l.target]))
   const nodes: FlowNode[] = graph.nodes.filter((n) => used.has(n.id)).map((n) => ({ id: n.id, node: n }))
   if (used.has(NO_STUDY)) {
     nodes.push({ id: NO_STUDY, node: { id: NO_STUDY, label: NO_STUDY_LABEL, type: 'study' }, placeholder: true })
   }
-  return { nodes, links, withoutStudy }
+  return { nodes, links }
 }
 
 export type FlowOptions = KgViewOptions
@@ -73,7 +72,7 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
   let opts: FlowOptions = { collapseVersions: true, groupSynonyms: true, ...options }
   let current = graph
   let drawn: KgGraph = graph
-  let data: FlowData = { nodes: [], links: [], withoutStudy: [] }
+  let data: FlowData = { nodes: [], links: [] }
   let focused: KgFocus | null = null
 
   const svg = document.createElementNS(SVG, 'svg')
@@ -82,11 +81,10 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
   svg.style.font = 'inherit'
   container.append(svg)
   svg.addEventListener('click', (e) => {
-    const hit = (e.target as Element).closest('[data-id], [data-link]')
-    const link = hit?.getAttribute('data-link')
-    const id = hit?.getAttribute('data-id')
-    const [concept, study] = link?.split('->') ?? []
-    const f: KgFocus | null = link ? { concept, study } : id ? { node: id } : null
+    // a band (data-concept, data-study) or a bar (data-id)
+    const hit = (e.target as Element).closest<SVGElement>('[data-id], [data-concept]')
+    const { id, concept, study } = hit?.dataset ?? {}
+    const f: KgFocus | null = concept && study ? { concept, study } : id ? { node: id } : null
     focus(f)
     opts.onFocus?.(f)
   })
@@ -135,7 +133,7 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
       const [s, t] = [l.source as SNode, l.target as SNode]
       const el = bands.appendChild(document.createElementNS(SVG, 'path'))
       el.setAttribute('d', path(l) ?? '')
-      el.setAttribute('data-link', `${s.id}->${t.id}`)
+      Object.assign(el.dataset, { concept: s.id, study: t.id })
       Object.assign(el.style, { fill: 'none', stroke: fill.band, strokeOpacity: '0.45', strokeWidth: String(Math.max(1, l.width ?? 1)), cursor: 'pointer' })
       title(el, `${s.node.label} → ${t.node.label}: ${l.value} variable${l.value === 1 ? '' : 's'}`)
     }
@@ -206,9 +204,9 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
       const ring = el.querySelector<SVGElement>('[data-ring]')
       if (ring) ring.style.display = el.dataset.id === outlined ? '' : 'none'
     })
-    svg.querySelectorAll<SVGElement>('[data-link]').forEach((el) => {
-      const [s, t] = (el.dataset.link ?? '').split('->')
-      el.style.opacity = linked && !(linked.has(s) && linked.has(t)) ? FADED : ''
+    svg.querySelectorAll<SVGElement>('[data-concept]').forEach((el) => {
+      const { concept = '', study = '' } = el.dataset
+      el.style.opacity = linked && !(linked.has(concept) && linked.has(study)) ? FADED : ''
     })
   }
 

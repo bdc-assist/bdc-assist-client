@@ -1,4 +1,4 @@
-import type { KgEdge, KgGraph, KgNode, KgNodeType } from './types'
+import { edgeId, type KgEdge, type KgGraph, type KgNode, type KgNodeType } from './types'
 
 // The API's `kg` field (the `sources` and `done` events, POST /chat): one graph per
 // tool call, attached by the Dug interceptor (bdc-assist: examples/bdc/interceptors.py).
@@ -68,7 +68,7 @@ export function fromKgList(value: unknown): KgGraph | null {
     }
     for (const e of entry?.edges ?? []) {
       if (!e?.subject || !e.object) continue
-      const key = `${e.subject}->${e.object}`
+      const key = edgeId(e.subject, e.object)
       const edge = edges.get(key) ?? { source: e.subject, target: e.object }
       // one edge per pair; every way they're related is kept on it
       if (e.predicate && !edge.predicates?.includes(e.predicate)) edge.predicates = [...(edge.predicates ?? []), e.predicate]

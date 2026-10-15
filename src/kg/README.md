@@ -182,10 +182,11 @@ used) first, so ids match what the views draw.
 | `studyList(graph)` | `list.ts` | studies → concepts → variables, shared studies first: for a list or table view, or a text alternative to the graph |
 | `nodeLinks(node, graph)`, `conceptLink(id)` | `links.ts` | pages for a node: dbGaP study and variable pages (one per release; a variable without an accession gets its study, with a `note`); concepts by CURIE prefix (MONDO, EFO, UMLS, GTOPDB, otherwise bioregistry.io), marked "(login)" where an account is needed |
 | `focusConnections(graph, focus)`, `pairVariables(graph, concept, study)`, `studylessVariables(graph)` | `focus.ts` | what a focus lights up; a pair's variables; the variables whose study isn't provided |
+| `edgeId(source, target)` | `types.ts` | an edge's id as the views and `focusConnections` give it (`"source->target"`) |
 | `NO_STUDY`, `NO_STUDY_LABEL` | `types.ts` | the "No study provided" placeholder for variables whose study isn't provided: never a node in the graph, but views draw it and it focuses like a study (`{ node: NO_STUDY }`, `{ concept, study: NO_STUDY }`) |
 | `graphShape(graph)` | `shape.ts` | which views suit the graph (`available`: `true` or why not, for each of `KG_VIEWS`) and the `default` (Force); work it out before `sharedOnly`. `shapeOf(graph)` gives the shape it's based on: seeds, variables, studies, inter-concept links |
 | `bundles(graph)` | `bundle.ts` | one `{ concept, study, variables }` per concept and study (the study can be `NO_STUDY`): what Flow's bands and node-link's links draw |
-| `flowData(graph)` | `flow.ts` | the flow's concept → study links with their variables, for your own chart; variables without a study go to the placeholder (`placeholder: true`, last), but only alongside real studies; `withoutStudy` lists them |
+| `flowData(graph)` | `flow.ts` | the flow's concept → study links with their variables, for your own chart; variables without a study go to the placeholder (`placeholder: true`, last), but only alongside real studies (`studylessVariables` lists them) |
 | `fromKgList(kg)` | `wire.ts` | the API's per-call graphs merged into one |
 | `relations(graph)` | `elements.ts` | the concept → concept edges (drawn as light amber lines in the graph view; the flow view can't show them) |
 | `variableWeights(graph)` | `elements.ts` | `related_concepts_count` scaled to 0..1 within the graph |

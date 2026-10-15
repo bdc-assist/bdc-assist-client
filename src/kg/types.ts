@@ -26,6 +26,9 @@ export type KgNode = {
  * more than one way (asthma — ameliorates condition, applied to treat — epinephrine). */
 export type KgEdge = { source: string; target: string; predicates?: string[] }
 
+/** An edge's id, as the views and highlighting (Connections) use it: "source->target". */
+export const edgeId = (source: string, target: string) => `${source}->${target}`
+
 export type KgGraph = { nodes: KgNode[]; edges: KgEdge[] }
 
 /** The "No study provided" placeholder: views gather the variables whose study Dug didn't

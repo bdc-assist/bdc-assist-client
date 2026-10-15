@@ -1,6 +1,6 @@
-import type { KgGraph } from './types'
+import { edgeId, type KgGraph } from './types'
 
-export type Connections = { nodes: Set<string>; edges: Set<string> } // edge ids: "source->target"
+export type Connections = { nodes: Set<string>; edges: Set<string> } // edges by edgeId
 
 /**
  * What a node is connected to, for highlighting: its direct neighbours, and one
@@ -19,7 +19,7 @@ export function connections(graph: KgGraph, id: string): Connections {
   if (!type.has(id)) return { nodes, edges }
   const around = new Map<string, { other: string; edge: string }[]>()
   for (const e of graph.edges) {
-    const edge = `${e.source}->${e.target}`
+    const edge = edgeId(e.source, e.target)
     around.set(e.source, [...(around.get(e.source) ?? []), { other: e.target, edge }])
     around.set(e.target, [...(around.get(e.target) ?? []), { other: e.source, edge }])
   }

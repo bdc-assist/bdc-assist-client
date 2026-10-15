@@ -1,7 +1,7 @@
 import type { ElementDefinition } from 'cytoscape'
 
 import { bundles } from './bundle'
-import { NO_STUDY, NO_STUDY_LABEL, type KgGraph } from './types'
+import { edgeId, NO_STUDY, NO_STUDY_LABEL, type KgGraph } from './types'
 
 /** The concept → concept edges: relationships between concepts (e.g. from
  * get_concept_connections), as opposed to variables' links. */
@@ -63,7 +63,7 @@ export function toElements(graph: KgGraph, bundled = false): ElementDefinition[]
       const relation = types.get(e.source) === 'concept' && types.get(e.target) === 'concept'
       return {
         group: 'edges' as const,
-        data: { id: `${e.source}->${e.target}`, source: e.source, target: e.target, predicate: e.predicates?.join(' / ') },
+        data: { id: edgeId(e.source, e.target), source: e.source, target: e.target, predicate: e.predicates?.join(' / ') },
         ...(relation && { classes: 'relation' }),
       }
     }),
@@ -92,7 +92,7 @@ function bundledElements(graph: KgGraph): ElementDefinition[] {
     ...all.map((b) => ({
       group: 'edges' as const,
       data: {
-        id: `bundle:${b.concept}->${b.study}`,
+        id: `bundle:${edgeId(b.concept, b.study)}`,
         source: b.concept,
         target: b.study,
         concept: b.concept,
