@@ -1,5 +1,5 @@
 import { ChevronRightIcon, ExternalLinkIcon, Maximize2Icon, MinusIcon, PlusIcon, ScanIcon } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
@@ -39,79 +39,94 @@ function summary(g: KgGraph) {
   ].join(' · ')
 }
 
-// Swatches drawn like the nodes: same --kg-* colours (index.css), same shapes
-const LEGEND: { type: KgNode['type']; shape: string; background: string; border?: string }[] = [
-  { type: 'concept', shape: 'size-3 rounded-full', background: 'var(--kg-concept)' },
+// Swatches drawn like the nodes: same --kg-* colours (index.css), same shapes; the
+// tooltip says what each is
+const LEGEND: { type: KgNode['type']; shape: string; background: string; border?: string; tip: string }[] = [
+  {
+    type: 'concept',
+    shape: 'size-3 rounded-full',
+    background: 'var(--kg-concept)',
+    tip: 'A Dug concept from an ontology',
+  },
   {
     type: 'term', // tinted, with a border
     shape: 'size-3 rounded-full border-2',
     background: 'color-mix(in srgb, var(--kg-concept) 30%, transparent)',
     border: 'var(--kg-concept)',
+    tip: 'A word searched for; not matched to a concept',
   },
   {
     type: 'variable', // the colour ramp
     shape: 'h-2.5 w-5 rounded-full',
     background: 'linear-gradient(to right, var(--kg-variable-low), var(--kg-variable-high))',
+    tip: 'One study variable; the stronger the blue, the more concepts it links to',
   },
-  { type: 'study', shape: 'size-2.5 rounded-[2px]', background: 'var(--kg-study)' },
+  {
+    type: 'study',
+    shape: 'size-2.5 rounded-[2px]',
+    background: 'var(--kg-study)',
+    tip: 'A dbGaP study; its variables link it to concepts',
+  },
 ]
 
 // Flow draws variables as bands, not nodes: flat mid-blue, as translucent as the bands
-const BAND: { shape: string; background: string; border?: string } = {
+const BAND: { shape: string; background: string; border?: string; tip: string } = {
   shape: 'h-1.5 w-5 rounded-sm',
   background: 'color-mix(in srgb, color-mix(in srgb, var(--kg-variable-low), var(--kg-variable-high)) 45%, transparent)',
+  tip: 'The variables linking a concept and a study; its width shows how many',
 }
 
 // the halo colour at its opacity, as mountGraph draws seed and shared halos and seed labels
 const HALO = 'color-mix(in srgb, var(--kg-halo) calc(var(--kg-halo-opacity) * 100%), transparent)'
 
-// only what the graph has (its node types, seeds, shared nodes, inter-concept links),
-// drawn as the view draws it
+// only what the graph has (its node types, seeds, shared nodes), drawn as the view
+// draws it. Inter-concept links aren't listed: hovering one names it.
 type LegendProps = {
   types: ReadonlySet<KgNode['type']>
-  related: boolean
   seeds: boolean
   shared: boolean
   mode: ViewMode
   bundled: boolean // the graph draws bundles, not variables
 }
 
-function Legend({ types, related, seeds, shared, mode, bundled }: LegendProps) {
+// a legend entry: what it looks like and its name; the tooltip explains it
+function LegendItem({ tip, children }: { tip: string; children: ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <li className="flex cursor-default items-center gap-1.5">{children}</li>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{tip}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+function Legend({ types, seeds, shared, mode, bundled }: LegendProps) {
   return (
     <ul aria-label="Legend" className="flex flex-wrap items-center gap-x-3 gap-y-1">
       {LEGEND.filter((l) => types.has(l.type)).map((l) => {
         const bands = l.type === 'variable' && (mode === 'flow' || bundled)
-        const { shape, background, border } = bands ? BAND : l
+        const { shape, background, border, tip } = bands ? BAND : l
         return (
-          <li key={l.type} className="flex items-center gap-1.5">
+          <LegendItem key={l.type} tip={tip}>
             <span className={shape} style={{ background, borderColor: border }} />
             {bands ? 'Variables' : TYPE_LABELS[l.type]}
-            {l.type === 'variable' && (
-              <span className="opacity-70">{bands ? '(width: how many)' : '(stronger: links more concepts)'}</span>
-            )}
-          </li>
+          </LegendItem>
         )
       })}
       {seeds && (
-        // highlighted, like a seed's label in the graph
-        <li>
+        // highlighted, like a seed's label in the graph; the shared halo is the same colour
+        <LegendItem
+          tip={
+            shared
+              ? 'What the question asked about. A smaller halo marks what links two or more of them: shared'
+              : 'What the question asked about'
+          }
+        >
           <span className="text-foreground rounded-sm px-1 font-bold" style={{ background: HALO }}>
-            Asked about
+            Queried
           </span>
-        </li>
-      )}
-      {shared && (
-        <li className="flex items-center gap-1.5">
-          <span className="bg-muted-foreground size-2 rounded-full" style={{ boxShadow: `0 0 0 3px ${HALO}` }} />
-          Shared: links two or more of them
-        </li>
-      )}
-      {related && mode !== 'flow' && (
-        // Flow can't draw them (it says so in a note)
-        <li className="flex items-center gap-1.5">
-          <span className="w-4 border-t-2" style={{ borderColor: 'color-mix(in srgb, var(--kg-concept) 55%, transparent)' }} />
-          Related concepts
-        </li>
+        </LegendItem>
       )}
     </ul>
   )
@@ -681,7 +696,6 @@ function GraphBody(props: GraphBodyProps) {
       <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 border-t px-3 py-1.5">
         <Legend
           types={types}
-          related={relationCount > 0}
           seeds={hasSeeds}
           shared={canShare}
           mode={mode}

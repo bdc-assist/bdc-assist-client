@@ -151,9 +151,11 @@ the variables between them.
   over showing variables with the checkbox greyed out).
 - **Not drawn by default:** the blue ramp (variable weight) and halos on shared
   *variables*. Shared studies keep their halo. The legend follows the toggle, and the
-  view: it lists only what the view draws, as the view draws it. Today it follows the
-  graph's contents, except in Flow: variables are a band swatch ("width: how many"),
-  and inter-concept links are left out.
+  view: it lists only what the view draws, as the view draws it: variables are a band
+  swatch in Flow and with bundles. Each entry is a swatch and a name, with what it
+  means in a tooltip. "Queried" (a highlighted label) stands for the seeds, and its
+  tooltip covers the shared halo too. Inter-concept links aren't listed: hovering one
+  names it.
 - **Highlighting** is computed on the full graph and mapped to bundles: a concept
   lights up its bundles and their studies, and a study lights up its bundles and their
   concepts. It matches the other views.
