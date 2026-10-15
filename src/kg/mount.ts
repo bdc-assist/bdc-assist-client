@@ -383,7 +383,12 @@ export function styleFor(el: HTMLElement): StylesheetJson {
         'border-color': color('label'),
       },
     },
-    { selector: 'edge', style: { width: 1, 'line-color': color('edge'), 'curve-style': 'straight' } },
+    {
+      // round ends reach under the node: a wide bundle's flat end stops at the node's edge,
+      // leaving its corners off the curve
+      selector: 'edge',
+      style: { width: 1, 'line-color': color('edge'), 'curve-style': 'straight', 'line-cap': 'round' },
+    },
     {
       // a concept's variables in one study: flat mid-blue (a summary of variables, as
       // Flow's bands), as wide as there are (area-like: 1 + 2.2·√count)
