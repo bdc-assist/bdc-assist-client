@@ -1,13 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { collapseVersions } from './collapse'
-import asthmaCopd from './fixtures/graph/concept_graph_2.json'
-import chd from './fixtures/graph/concept_graph.json'
 import { studyList } from './list'
-import type { KgGraph } from './types'
-
-const CHD = collapseVersions(chd as KgGraph)
-const TWO = collapseVersions(asthmaCopd as KgGraph)
+import { CHD, TWO } from './test-fixtures'
 
 describe('studyList', () => {
   it('groups every variable under its study', () => {

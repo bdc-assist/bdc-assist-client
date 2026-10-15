@@ -2,16 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import { bridges, sharedOnly } from './bridges'
 import { collapseVersions } from './collapse'
-import asthmaCopd from './fixtures/graph/concept_graph_2.json'
-import chd from './fixtures/graph/concept_graph.json'
-import cohort from './fixtures/graph/cohort_variables.json'
-import search from './fixtures/graph/search_concepts.json'
+import { CHD, COHORT, SEARCH, TWO } from './test-fixtures'
 import type { KgGraph } from './types'
-
-const TWO = collapseVersions(asthmaCopd as KgGraph)
-const CHD = collapseVersions(chd as KgGraph)
-const COHORT = collapseVersions(cohort as KgGraph) // find_cohort_variables: search terms, not concepts
-const SEARCH = collapseVersions(search as KgGraph) // search_concepts: no seeds
 
 describe('bridges', () => {
   it('finds the studies with variables on both seeds (real asthma + COPD graph)', () => {

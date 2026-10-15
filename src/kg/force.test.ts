@@ -1,29 +1,20 @@
-import cytoscape from 'cytoscape'
+import type cytoscape from 'cytoscape'
 import { describe, expect, it } from 'vitest'
 
-import { toElements } from './elements'
-import chd from './fixtures/kg/concept_graph.json'
-import related from './fixtures/kg/concept_connections.json'
-import search from './fixtures/kg/search_concepts.json'
 import { arrangeForce, settle } from './force'
 import { arrangeRadial } from './radial'
-import { fromKgList } from './wire'
+import { bundledCy, chdKg, relatedKg, searchKg, span } from './test-fixtures'
+import type { KgWireEntry } from './wire'
 
-// as mountGraph's Force: the calls' graphs merged, bundled, from Radial in a fixed box
-function laidOut(...calls: { kg: unknown[] }[]) {
-  const cy = cytoscape({ headless: true, elements: toElements(fromKgList(calls.flatMap((c) => c.kg))!, true) })
+// as mountGraph's Force: from Radial in a fixed box
+function laidOut(...calls: KgWireEntry[][]) {
+  const cy = bundledCy(...calls)
   arrangeRadial(cy, { x1: 0, y1: 0, w: 800, h: 500 })
   arrangeForce(cy)
   return cy
 }
 
 const positions = (cy: cytoscape.Core) => cy.nodes().map((n) => [n.id(), n.position()])
-
-// the left and right edges of the nodes' positions
-const span = (nodes: cytoscape.NodeCollection) => {
-  const xs = nodes.map((n) => n.position('x'))
-  return [Math.min(...xs), Math.max(...xs)]
-}
 
 describe('settle', () => {
   const nodes = [
@@ -49,11 +40,11 @@ describe('settle', () => {
 
 describe('arrangeForce', () => {
   it('lays out the same graph the same way', () => {
-    expect(positions(laidOut(chd, related))).toEqual(positions(laidOut(chd, related)))
+    expect(positions(laidOut(chdKg, relatedKg))).toEqual(positions(laidOut(chdKg, relatedKg)))
   })
 
   it('packs separate pieces side by side, seeded first, without overlap', () => {
-    const cy = laidOut(search, chd)
+    const cy = laidOut(searchKg, chdKg)
     const seeded = cy.nodes('[?seed]').first().component().nodes()
     const other = cy.nodes().difference(seeded)
     expect(span(seeded)[1]).toBeLessThan(span(other)[0])

@@ -1,17 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { baseId, collapseVersions } from './collapse'
-import asthmaCopd from './fixtures/graph/concept_graph_2.json'
-import chd from './fixtures/graph/concept_graph.json'
-import cohort from './fixtures/graph/cohort_variables.json'
+import { asthmaCopd, chd as CHD, cohort as COHORT, count } from './test-fixtures'
 import type { KgGraph } from './types'
-
-// real server output for Dug get_concept_graph on congenital heart disease (MONDO:0005453),
-// fromKgList of fixtures/kg/concept_graph.json (bdc-assist's tests/fixtures/dug_concept_graph_chd.json)
-const CHD = chd as KgGraph
-const COHORT = cohort as KgGraph // find_cohort_variables: search terms, not concepts
-
-const count = (g: KgGraph, type: string) => g.nodes.filter((n) => n.type === type).length
 
 describe('baseId', () => {
   it('strips the dbGaP version', () => {

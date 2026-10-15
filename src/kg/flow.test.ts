@@ -1,14 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { collapseVersions } from './collapse'
-import asthmaCopd from './fixtures/graph/concept_graph_2.json'
-import search from './fixtures/graph/search_concepts.json'
-import chd from './fixtures/graph/concept_graph.json'
 import { flowData } from './flow'
-import { NO_STUDY, type KgGraph } from './types'
-
-const CHD = collapseVersions(chd as KgGraph)
-const TWO = collapseVersions(asthmaCopd as KgGraph)
+import { CHD, SEARCH, TWO } from './test-fixtures'
+import { NO_STUDY } from './types'
 
 describe('flowData', () => {
   it('one concept: a link to each study, as wide as its variables', () => {
@@ -48,7 +42,7 @@ describe('flowData', () => {
   })
 
   it('without any real study, draws nothing (real BMI search)', () => {
-    const { nodes, links } = flowData(collapseVersions(search as KgGraph))
+    const { nodes, links } = flowData(SEARCH)
     expect(links).toEqual([])
     expect(nodes).toEqual([])
   })

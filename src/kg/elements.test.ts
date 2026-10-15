@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { collapseVersions } from './collapse'
 import { toElements } from './elements'
-import chd from './fixtures/graph/concept_graph.json'
+import { CHD } from './test-fixtures'
 import { NO_STUDY, type KgGraph } from './types'
-
-const CHD = collapseVersions(chd as KgGraph)
 
 describe('toElements', () => {
   it('makes one element per node and edge', () => {

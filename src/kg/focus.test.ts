@@ -1,16 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { collapseVersions } from './collapse'
-import asthmaCopd from './fixtures/graph/concept_graph_2.json'
 import { bridges, sharedOnly } from './bridges'
+import { collapseVersions } from './collapse'
 import { carryFocus, focusConnections, pairVariables, sameFocus, studylessVariables } from './focus'
 import { groupSynonyms } from './group'
+import { ASTHMA, COPD, FHS, TWO } from './test-fixtures'
 import { NO_STUDY, type KgGraph } from './types'
-
-const TWO = collapseVersions(asthmaCopd as KgGraph)
-const ASTHMA = 'MONDO:0004979'
-const COPD = 'MONDO:0005002'
-const FHS = 'phs000007'
 const on = (target: string) => new Set(TWO.edges.filter((e) => e.target === target).map((e) => e.source))
 
 describe('pairVariables', () => {

@@ -3,19 +3,15 @@ import { describe, expect, it } from 'vitest'
 import { bridges } from './bridges'
 import { connections } from './connections'
 import { relations, toElements } from './elements'
-import asthmaCopdFixture from './fixtures/kg/concept_graph_2.json'
-import relatedFixture from './fixtures/kg/concept_connections.json'
 import { flowData } from './flow'
 import { studyList } from './list'
+import { ASTHMA, asthmaCopdKg, relatedKg } from './test-fixtures'
 import { fromKgList, kgParts } from './wire'
 
-// real Dug results through the interceptor: asthma's concept graph, then its related
-// concepts (get_concept_connections: concept → concept edges with predicates)
-const asthmaCopdKg = asthmaCopdFixture.kg
-const relatedKg = relatedFixture.kg
+// asthma's concept graph, then its related concepts (get_concept_connections: concept →
+// concept edges with predicates)
 const KG = [asthmaCopdKg[0], ...relatedKg]
 const G = fromKgList(KG)!
-const ASTHMA = 'MONDO:0004979'
 
 describe('concept–concept edges (real asthma data)', () => {
   it('are kept, with their predicates, and counted as relations', () => {

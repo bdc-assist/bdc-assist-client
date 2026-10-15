@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import connections from './fixtures/graph/concept_connections.json'
-import chd from './fixtures/graph/concept_graph.json'
-import search from './fixtures/graph/search_concepts.json'
 import { graphShape, shapeOf } from './shape'
+import { chd, related as connections, search } from './test-fixtures'
 import type { KgGraph } from './types'
 
 describe('shapeOf', () => {

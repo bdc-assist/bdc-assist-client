@@ -1,22 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import asthmaCopdFixture from './fixtures/kg/concept_graph_2.json'
-import asthmaCopd from './fixtures/graph/concept_graph_2.json'
-import chdFixture from './fixtures/kg/concept_graph.json'
-import chd from './fixtures/graph/concept_graph.json'
-import relatedFixture from './fixtures/kg/concept_connections.json'
-import searchFixture from './fixtures/kg/search_concepts.json'
-import type { KgGraph } from './types'
 import { toElements } from './elements'
+import { asthmaCopd, asthmaCopdKg, chd, chdKg, count, relatedKg, searchKg } from './test-fixtures'
+import type { KgGraph } from './types'
 import { fromKgList, kgLabel, kgParts } from './wire'
-
-// fixtures/kg/: what the API sends (bdc-assist's Dug interceptor on real Dug results);
-// fixtures/graph/: fromKgList of each, made by npm run fixtures
-const chdKg = chdFixture.kg
-const asthmaCopdKg = asthmaCopdFixture.kg
-const relatedKg = relatedFixture.kg
-const searchKg = searchFixture.kg
-const count = (g: KgGraph, t: string) => g.nodes.filter((n) => n.type === t).length
 
 describe('fromKgList', () => {
   it("merges the interceptor's per-call graphs into the same graph as before", () => {

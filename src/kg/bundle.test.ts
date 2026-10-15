@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { bundles } from './bundle'
-import { collapseVersions } from './collapse'
-import asthmaCopd from './fixtures/graph/concept_graph_2.json'
-import { NO_STUDY, type KgGraph } from './types'
-
-const TWO = collapseVersions(asthmaCopd as KgGraph)
+import { TWO } from './test-fixtures'
+import { NO_STUDY } from './types'
 
 describe('bundles', () => {
   it('one per concept and study, every variable–concept edge counted once', () => {

@@ -1,14 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { collapseVersions } from './collapse'
-import chd from './fixtures/graph/concept_graph.json'
 // every CURIE prefix Dug can return, per biolink category (from the Dug team)
 import dugPrefixes from './fixtures/dug_curie_prefixes.json'
 import { conceptLink, nodeLinks } from './links'
+import { CHD as COLLAPSED, chd as RAW } from './test-fixtures'
 import type { KgGraph } from './types'
-
-const RAW = chd as KgGraph
-const COLLAPSED = collapseVersions(RAW)
 const DBGAP = 'https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin'
 const node = (g: KgGraph, id: string) => g.nodes.find((n) => n.id === id)!
 

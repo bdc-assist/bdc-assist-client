@@ -1,14 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { collapseVersions } from './collapse'
-import cohort from './fixtures/graph/cohort_variables.json'
-import related from './fixtures/graph/concept_connections.json'
-import search from './fixtures/graph/search_concepts.json'
 import { groupSynonyms } from './group'
+import { cohort, related, SEARCH } from './test-fixtures' // SEARCH: every variable linked to the same 9 concepts
 import type { KgGraph } from './types'
-
-// search_concepts for "body mass index": every variable linked to the same 9 concepts
-const SEARCH = collapseVersions(search as KgGraph)
 
 describe('groupSynonyms', () => {
   it("merges a search's synonyms into one node (real BMI search)", () => {
