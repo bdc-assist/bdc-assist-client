@@ -20,7 +20,7 @@ Inside, `model/` is the graph as data (plain TypeScript, no DOM: merging, groupi
 what's shared, what a focus lights up, lists, links) and `views/` draws it (Cytoscape,
 SVG). `test-fixtures.ts` and `fixtures/` are for the tests.
 
-The demo client's wrapper, [`components/bdc/knowledge-graph.tsx`](../components/bdc/knowledge-graph.tsx),
+The demo client's wrapper, [`components/bdc/knowledge-graph/`](../components/bdc/knowledge-graph/index.tsx),
 is a working example of everything below (React, but only as glue).
 
 ## The data

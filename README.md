@@ -39,7 +39,7 @@ with a small graph.
 ## Knowledge graph code
 
 The drawing code in `src/kg/` has no framework or app dependencies, so another system can embed
-it: see [src/kg/README.md](src/kg/README.md). `src/components/bdc/knowledge-graph.tsx` is this
+it: see [src/kg/README.md](src/kg/README.md). `src/components/bdc/knowledge-graph/` is this
 app's React wrapper around it.
 
 ### Test fixtures
