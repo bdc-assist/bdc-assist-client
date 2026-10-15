@@ -286,8 +286,11 @@ type KgFocus = { node: string } | { concept: string; study: string }
   variable in Flow lights up its band, and a pair in node-link lights up the concept,
   study and variables between them. If a view has no equivalent, the focus stays but
   nothing in that view is highlighted.
-- **Redraws:** changing grouping, the source or "Shared only" redraws the graph and
-  clears the focus. **(open)** Should the focus be kept when the node is still there?
+- **Redraws:** changing Group, "Shared only" or Variables redraws the graph and keeps
+  the focus where it can (`carryFocus`): a node still drawn stays focused, one merged
+  moves to its group or merged release, and a group split apart moves to its first
+  member or release. It clears when the node is gone (hidden by "Shared only") or a
+  pair has no variables left. Switching the source is another graph, so it clears.
 - **Pairs as bundles:** a pair is exactly a concept–study bundle, so Flow bands and
   node-link bundles all focus as pairs. A pair with the "No study provided"
   placeholder means the concept's variables without a study: `pairVariables` handles

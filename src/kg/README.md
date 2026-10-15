@@ -112,7 +112,9 @@ A node (concept, study or variable), or a concept × study pair: "what does this
 have on this concept?" (a band in the flow view). The view highlights what it connects
 (see `focusConnections`) and fades the rest. To keep several views and your own UI in
 step, keep one focus in the host: on any view's `onFocus`, store it and call `focus()`
-on the others.
+on the others. A redraw (`setOptions` with other grouping or `sharedOnly`) keeps the
+focus where it can: on what it was merged into, or split into (`carryFocus`). When that
+moves or drops it, the view calls `onFocus`. `update()` with another graph clears it.
 
 ### `mountGraph(container, graph, options)` (`mount.ts`)
 

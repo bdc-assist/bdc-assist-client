@@ -1,3 +1,4 @@
+import { baseId } from './collapse'
 import { connections, type Connections } from './connections'
 import { NO_STUDY, type KgGraph, type KgNode } from './types'
 
@@ -53,6 +54,32 @@ export function focusConnections(graph: KgGraph, focus: KgFocus): Connections {
     if (focus.study !== NO_STUDY) edges.add(`${v.id}->${focus.study}`)
   }
   return { nodes, edges }
+}
+
+/**
+ * A focus picked on one drawing of a graph, carried over to another: after Group,
+ * Shared only or Variables redraws it. A node still drawn stays focused; one merged
+ * (versions, synonyms) moves to the node it was merged into; a merged node split
+ * apart moves to its first release or member, whose id and label it was drawn with.
+ * Null when it's gone (e.g. hidden by Shared only), or a pair has no variables left.
+ */
+export function carryFocus(focus: KgFocus | null, graph: KgGraph): KgFocus | null {
+  if (!focus) return null
+  if (!isPair(focus)) {
+    const node = carryNode(graph, focus.node)
+    return node ? { node } : null
+  }
+  const [concept, study] = [carryNode(graph, focus.concept), carryNode(graph, focus.study)]
+  return concept && study && pairVariables(graph, concept, study).length ? { concept, study } : null
+}
+
+function carryNode(graph: KgGraph, id: string): string | null {
+  if (id === NO_STUDY) return studylessVariables(graph).size ? NO_STUDY : null
+  const n =
+    graph.nodes.find((n) => n.id === id) ??
+    graph.nodes.find((n) => n.versions?.includes(id) || n.grouped?.some((m) => m.id === id)) ??
+    graph.nodes.find((n) => baseId(n.id) === id)
+  return n?.id ?? null
 }
 
 // the placeholder, its variables, and the concepts they're on

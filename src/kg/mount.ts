@@ -6,7 +6,7 @@ import { collapseVersions } from './collapse'
 import { backgroundOf, haloOf, mix, toRgb } from './colour'
 import { groupSynonyms } from './group'
 import { toElements } from './elements'
-import { focusConnections, isPair, type KgFocus } from './focus'
+import { carryFocus, focusConnections, isPair, sameFocus, type KgFocus } from './focus'
 import { orient } from './orient'
 import { withSeed } from './seeded'
 import type { KgGraph } from './types'
@@ -49,7 +49,8 @@ export type GraphOptions = KgViewOptions & {
 }
 
 /** The common view interface (KgView; setOptions: a new layout only rearranges the
- * nodes, collapseVersions, groupSynonyms and sharedOnly redraw and clear the selection), plus: */
+ * nodes, collapseVersions, groupSynonyms and sharedOnly redraw, keeping the focus where
+ * it can (carryFocus) and calling onFocus when it moves or goes), plus: */
 export type GraphView = KgView<GraphOptions> & {
   /** Zoom in (factor > 1) or out (< 1) around the middle of the view. */
   zoomBy(factor: number): void
@@ -107,13 +108,15 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
     maxZoom: 4,
     boxSelectionEnabled: false,
   })
+  let focused: KgFocus | null = null
   cy.on('tap', 'node', (e) => {
-    const f = { node: e.target.id() as string }
-    highlight(f)
-    opts.onFocus?.(f)
+    focused = { node: e.target.id() as string }
+    highlight(focused)
+    opts.onFocus?.(focused)
   })
   cy.on('tap', (e) => {
     if (e.target !== cy) return
+    focused = null
     highlight(null)
     opts.onFocus?.(null)
   })
@@ -137,9 +140,9 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
   cy.on('mouseout', 'edge.relation', () => container.removeAttribute('title'))
   // a bundle: its concept × study pair, like a band in Flow
   cy.on('tap', 'edge.bundle', (e) => {
-    const f = { concept: e.target.data('concept') as string, study: e.target.data('study') as string }
-    highlight(f)
-    opts.onFocus?.(f)
+    focused = { concept: e.target.data('concept') as string, study: e.target.data('study') as string }
+    highlight(focused)
+    opts.onFocus?.(focused)
   })
   cy.on('mouseover', 'edge.bundle', (e) => {
     const [s, t] = [e.target.source().data('label'), e.target.target().data('label')]
@@ -216,6 +219,16 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
         if (!on) e.addClass('faded')
       })
     })
+  }
+
+  // a focus from elsewhere (focus(), a redraw): what a tap does, plus the ring
+  function show(f: KgFocus | null) {
+    focused = f
+    cy.batch(() => {
+      cy.$(':selected').unselect()
+      if (f && !isPair(f)) cy.getElementById(f.node).select() // a pair has no single node to outline
+    })
+    highlight(f)
   }
 
   function arrange() {
@@ -314,7 +327,8 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
       current = g
       // another graph: its own stable layout. A shared Map is the host's to replace
       placed = opts.forcePositions ?? new Map()
-      opts.onFocus?.(null) // the focused node may be gone or renamed
+      focused = null // another graph: the focused node may be gone or renamed
+      opts.onFocus?.(null)
       draw()
     },
     setOptions(o) {
@@ -324,17 +338,14 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
       opts = { ...opts, ...o }
       cy.userZoomingEnabled(opts.zoomGestures === true)
       if (redraw || wantBundles() !== bundled) {
-        opts.onFocus?.(null)
         draw()
+        // the focus, on the new drawing: kept, moved to what it's merged into, or gone
+        const before = focused
+        show(carryFocus(focused, drawn))
+        if (!sameFocus(before, focused)) opts.onFocus?.(focused)
       } else if (relayout) arrange()
     },
-    focus(f) {
-      cy.batch(() => {
-        cy.$(':selected').unselect()
-        if (f && !isPair(f)) cy.getElementById(f.node).select() // a pair has no single node to outline
-      })
-      highlight(f)
-    },
+    focus: show,
     zoomBy(factor) {
       cy.zoom({
         level: cy.zoom() * factor,

@@ -11,7 +11,8 @@ export type KgViewOptions = {
   /** Show only what two or more seeds share (see bridges/sharedOnly; default false). */
   sharedOnly?: boolean
   /** The user picked something (a node, or a concept × study pair; null: the
-   * background). The host decides what to show, and tells other views (focus). */
+   * background). The host decides what to show, and tells other views (focus). Also
+   * called when a redraw (setOptions) moves the focus or drops it (see carryFocus). */
   onFocus?: (focus: KgFocus | null) => void
 }
 

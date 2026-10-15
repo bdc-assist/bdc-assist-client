@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import { collapseVersions } from './collapse'
 import asthmaCopd from './fixtures/graph/concept_graph_2.json'
-import { focusConnections, pairVariables, sameFocus, studylessVariables } from './focus'
+import { bridges, sharedOnly } from './bridges'
+import { carryFocus, focusConnections, pairVariables, sameFocus, studylessVariables } from './focus'
+import { groupSynonyms } from './group'
 import { NO_STUDY, type KgGraph } from './types'
 
 const TWO = collapseVersions(asthmaCopd as KgGraph)
@@ -86,5 +88,62 @@ describe('sameFocus', () => {
     expect(sameFocus({ concept: 'a', study: 'b' }, { concept: 'a', study: 'b' })).toBe(true)
     expect(sameFocus({ node: 'a' }, { concept: 'a', study: 'b' })).toBe(false)
     expect(sameFocus(null, null)).toBe(true)
+  })
+})
+
+describe('carryFocus', () => {
+  // two releases of a study and its variable, and two synonyms linked to both
+  const raw: KgGraph = {
+    nodes: [
+      { id: 'A', label: 'a', type: 'concept' },
+      { id: 'B', label: 'b', type: 'concept' },
+      { id: 'phv1.v1.p1', label: 'v', type: 'variable' },
+      { id: 'phv1.v2.p1', label: 'v', type: 'variable' },
+      { id: 'phs1.v1.p1', label: 's', type: 'study' },
+      { id: 'phs1.v2.p1', label: 's', type: 'study' },
+    ],
+    edges: [
+      { source: 'phv1.v1.p1', target: 'A' },
+      { source: 'phv1.v1.p1', target: 'B' },
+      { source: 'phv1.v2.p1', target: 'A' },
+      { source: 'phv1.v2.p1', target: 'B' },
+      { source: 'phv1.v1.p1', target: 'phs1.v1.p1' },
+      { source: 'phv1.v2.p1', target: 'phs1.v2.p1' },
+    ],
+  }
+  const grouped = groupSynonyms(collapseVersions(raw))
+
+  it('keeps a node still drawn, and nothing as nothing', () => {
+    expect(carryFocus({ node: 'phs1' }, grouped)).toEqual({ node: 'phs1' })
+    expect(carryFocus(null, grouped)).toBeNull()
+  })
+
+  it('moves a merged node to what it was merged into', () => {
+    expect(carryFocus({ node: 'phs1.v2.p1' }, grouped)).toEqual({ node: 'phs1' })
+    expect(carryFocus({ node: 'B' }, grouped)).toEqual({ node: 'A' }) // the group has the first member's id
+    expect(carryFocus({ concept: 'B', study: 'phs1.v2.p1' }, grouped)).toEqual({ concept: 'A', study: 'phs1' })
+  })
+
+  it('moves a split node to its first release or member', () => {
+    expect(carryFocus({ node: 'phs1' }, raw)).toEqual({ node: 'phs1.v1.p1' })
+    expect(carryFocus({ node: 'A' }, raw)).toEqual({ node: 'A' })
+    expect(carryFocus({ concept: 'A', study: 'phs1' }, raw)).toEqual({ concept: 'A', study: 'phs1.v1.p1' })
+  })
+
+  it('drops what Shared only hides', () => {
+    const hidden = TWO.nodes.find((n) => n.type === 'study' && !bridges(TWO).has(n.id))!
+    const shared = sharedOnly(TWO)
+    expect(carryFocus({ node: hidden.id }, shared)).toBeNull()
+    expect(carryFocus({ concept: ASTHMA, study: hidden.id }, shared)).toBeNull()
+    expect(carryFocus({ node: FHS }, shared)).toEqual({ node: FHS })
+  })
+
+  it('keeps the placeholder while it has variables', () => {
+    expect(carryFocus({ node: NO_STUDY }, raw)).toBeNull()
+    const loose: KgGraph = {
+      nodes: [...raw.nodes, { id: 'x', label: 'x', type: 'variable' }],
+      edges: [...raw.edges, { source: 'x', target: 'A' }],
+    }
+    expect(carryFocus({ concept: 'A', study: NO_STUDY }, loose)).toEqual({ concept: 'A', study: NO_STUDY })
   })
 })

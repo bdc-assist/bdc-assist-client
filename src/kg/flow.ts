@@ -5,7 +5,7 @@ import { bundles } from './bundle'
 import { collapseVersions } from './collapse'
 import { haloOf } from './colour'
 import { groupSynonyms } from './group'
-import { focusConnections, isPair, studylessVariables, type KgFocus } from './focus'
+import { carryFocus, focusConnections, isPair, sameFocus, studylessVariables, type KgFocus } from './focus'
 import { isConceptOrTerm, NO_STUDY, NO_STUDY_LABEL, type KgGraph, type KgNode } from './types'
 import type { KgView, KgViewOptions } from './view'
 
@@ -96,7 +96,7 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
     if (opts.groupSynonyms) drawn = groupSynonyms(drawn)
     if (opts.sharedOnly) drawn = sharedOnly(drawn)
     data = flowData(drawn)
-    focused = null
+    focused = carryFocus(focused, drawn) // kept, moved to what it's merged into, or gone
   }
 
   function render() {
@@ -224,6 +224,7 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
     update(g, o) {
       if (o) opts = { ...opts, ...o }
       current = g
+      focused = null // another graph: the focused node may be gone or renamed
       opts.onFocus?.(null)
       prepare()
       render()
@@ -233,9 +234,10 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
       const redraw = changed('collapseVersions') || changed('groupSynonyms') || changed('sharedOnly')
       opts = { ...opts, ...o }
       if (!redraw) return
-      opts.onFocus?.(null)
+      const before = focused
       prepare()
       render()
+      if (!sameFocus(before, focused)) opts.onFocus?.(focused)
     },
     focus,
     resize: render, // laid out for the container's size: text stays sharp
