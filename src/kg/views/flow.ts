@@ -1,10 +1,9 @@
 import { sankey, sankeyLinkHorizontal, type SankeyLink, type SankeyNode } from 'd3-sankey'
 
-import { bridges, sharedOnly } from '../model/bridges'
+import { bridges } from '../model/bridges'
 import { bundles } from '../model/bundle'
-import { collapseVersions } from '../model/collapse'
 import { haloOf } from './colour'
-import { groupSynonyms } from '../model/group'
+import { DRAW_DEFAULTS, DRAW_OPTIONS, drawnGraph } from '../model/drawn'
 import { carryFocus, focusConnections, isPair, sameFocus, type KgFocus } from '../model/focus'
 import { isConceptOrTerm, NO_STUDY, NO_STUDY_LABEL, type KgGraph, type KgNode } from '../model/types'
 import type { KgView, KgViewOptions } from './view'
@@ -69,7 +68,7 @@ const fill = {
  * them. No framework required.
  */
 export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowOptions = {}): FlowView {
-  let opts: FlowOptions = { collapseVersions: true, groupSynonyms: true, ...options }
+  let opts: FlowOptions = { ...DRAW_DEFAULTS, ...options }
   let current = graph
   let drawn: KgGraph = graph
   let data: FlowData = { nodes: [], links: [] }
@@ -90,9 +89,7 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
   })
 
   function prepare() {
-    drawn = opts.collapseVersions ? collapseVersions(current) : current
-    if (opts.groupSynonyms) drawn = groupSynonyms(drawn)
-    if (opts.sharedOnly) drawn = sharedOnly(drawn)
+    drawn = drawnGraph(current, opts)
     data = flowData(drawn)
     focused = carryFocus(focused, drawn) // kept, moved to what it's merged into, or gone
   }
@@ -228,8 +225,7 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
       render()
     },
     setOptions(o) {
-      const changed = (k: 'collapseVersions' | 'groupSynonyms' | 'sharedOnly') => o[k] !== undefined && o[k] !== opts[k]
-      const redraw = changed('collapseVersions') || changed('groupSynonyms') || changed('sharedOnly')
+      const redraw = DRAW_OPTIONS.some((k) => o[k] !== undefined && o[k] !== opts[k])
       opts = { ...opts, ...o }
       if (!redraw) return
       const before = focused

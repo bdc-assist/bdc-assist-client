@@ -5,10 +5,8 @@ import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-ic
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import {
   bridges,
-  collapseVersions,
+  drawnGraph,
   graphShape,
-  groupSynonyms,
-  sharedOnly as onlyShared,
   type KgFocus,
   type KgGraph,
   type KgNode,
@@ -68,7 +66,7 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
   const [picks, setPicks] = useState<{ json: string; focus: KgFocus | null }>({ json, focus: null })
   const focus = picks.json === json ? picks.focus : null
   const onFocus = (f: KgFocus | null) => setPicks({ json, focus: f })
-  const all = useMemo(() => groupSynonyms(collapseVersions(raw)), [raw])
+  const all = useMemo(() => drawnGraph(raw), [raw]) // versions and synonyms merged
   const merged = grouped ? all : raw
   // what this graph can show, worked out before Shared only so the filter never changes
   // it; the pick where it's available (so it comes back on switching Show back), else Force
@@ -82,8 +80,11 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
   }, [merged])
   // a single call's graph may share nothing: then the filter is off (and not offered)
   const sharedOnly = sharedOnlyWanted && sharedStudies > 0
-  // what the list and the details see: the same as mountGraph draws
-  const shown = useMemo(() => (sharedOnly ? onlyShared(merged) : merged), [merged, sharedOnly])
+  // what the list and the details see: what the views draw, with the options they get
+  const shown = useMemo(
+    () => drawnGraph(raw, { collapseVersions: grouped, groupSynonyms: grouped, sharedOnly }),
+    [raw, grouped, sharedOnly],
+  )
   // what was asked about, in this graph (all results, or the one call shown)
   const asked = merged.nodes.filter((n) => n.seed).map((n) => n.label)
   const title = (

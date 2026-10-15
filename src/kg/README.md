@@ -91,6 +91,7 @@ can switch between them without caring which one is showing.
 
 ```ts
 type KgViewOptions = {
+  // how it's drawn (DrawOptions, model/drawn.ts; drawnGraph applies the same)
   collapseVersions?: boolean  // merge a study's or variable's dbGaP releases into one node (default true)
   groupSynonyms?: boolean     // merge concepts with exactly the same neighbours, e.g. synonyms (default true)
   sharedOnly?: boolean        // only studies with variables on two or more seeds (default false)
@@ -175,11 +176,12 @@ Set these on the container or any ancestor; any CSS colour works (including
 
 ## Helpers for your own UI
 
-All plain functions of a `KgGraph`. Apply `collapseVersions`, `groupSynonyms` (and `sharedOnly`, if
-used) first, so ids match what the views draw.
+All plain functions of a `KgGraph`. Give them `drawnGraph(graph, options)`, with the options
+the views get, so ids match what the views draw.
 
 | Function | File | |
 |---|---|---|
+| `drawnGraph(graph, options)` | `model/drawn.ts` | the graph as the views draw it with these `DrawOptions` (`collapseVersions`, `groupSynonyms`, `sharedOnly`, same defaults): releases merged, then synonyms, then reduced to what the seeds share |
 | `collapseVersions(graph)`, `baseId(id)` | `model/collapse.ts` | merge dbGaP releases (`phs000007.v34.p15` + `.v31.p12` → `phs000007`, with `versions`) |
 | `groupSynonyms(graph)` | `model/group.ts` | merge concepts with exactly the same neighbours (some variables), e.g. a search's synonyms, into "first + N more" (with `grouped`); never seeds or terms |
 | `bridges(graph)`, `sharedOnly(graph)` | `model/bridges.ts` | the nodes connecting two or more seeds (other concepts, e.g. synonyms, don't count); the graph reduced to them |

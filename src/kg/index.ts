@@ -23,6 +23,7 @@ export {
 } from './model/wire'
 
 // reshaping it, as the views do
+export { drawnGraph, type DrawOptions } from './model/drawn'
 export { baseId, collapseVersions } from './model/collapse'
 export { groupSynonyms } from './model/group'
 export { bridges, sharedOnly } from './model/bridges'
