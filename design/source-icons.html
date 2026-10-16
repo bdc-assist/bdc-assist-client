@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Source icons</title>
+<!-- Design scratch page, not part of the app build. Open via the dev server:
+     npm run dev, then /design/source-icons.html. The icons are the app's own (lucide-react);
+     the list copies SOURCE_TYPES in src/components/bdc/message-parts.tsx: keep the two in step. -->
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px 24px 48px; background: #ffffff; color: #0a0a0a;
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 28px 0 6px; }
+  .muted { color: #737373; font-size: 13px; }
+  code { font-size: 12px; }
+  .themes { display: flex; flex-wrap: wrap; gap: 16px; }
+  /* a light and a dark panel, coloured like the app's message footer */
+  .panel { --fg: #0a0a0a; --muted: #737373; --hover: #f5f5f5; --line: #e5e5e5;
+    background: #ffffff; color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; flex: 1 1 420px; min-width: 0; }
+  .panel.dark { --fg: #fafafa; --muted: #a1a1a1; --hover: #262626; --line: #262626; background: #0a0a0a; }
+  .panel h3 { font-size: 13px; margin: 0 0 8px; color: var(--muted); font-weight: 500; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  td, th { text-align: left; padding: 6px 12px 6px 0; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  th { color: var(--muted); font-weight: 500; }
+  /* as the app draws them: a 24px box, a 16px icon, muted until hovered */
+  .icon { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 4px;
+    border-radius: 6px; color: var(--muted); }
+  .icon:hover, .group:hover { color: var(--fg); background: var(--hover); }
+  .group { display: inline-flex; align-items: center; gap: 2px; height: 24px; padding: 0 4px; border-radius: 6px;
+    color: var(--muted); font-size: 12px; }
+  .big { color: var(--fg); }
+  .row { display: flex; gap: 4px; align-items: center; justify-content: flex-end; padding: 6px 0; }
+  /* a message's footer: its toolbar on the left, the source row on the right */
+  .footer { display: flex; align-items: center; gap: 4px; padding: 6px 0; }
+  .footer .spacer { flex: 1; }
+  .note { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>Source icons</h1>
+<p class="muted">Every icon the source row under an answer uses (<code>SOURCE_TYPES</code> in message-parts.tsx), at the
+  app's size and enlarged, in light and dark. Hover to see the hover state.</p>
+<div id="root"></div>
+
+<script type="module">
+import { createElement as h, Fragment } from 'react'
+import { createRoot } from 'react-dom/client'
+import {
+  BadgeCheckIcon, BookmarkCheckIcon, BookOpenIcon, CalendarDaysIcon, CheckIcon, ChevronDownIcon, CircleHelpIcon,
+  CirclePlayIcon, ClipboardCheckIcon, DatabaseIcon, FileCheckIcon, FileTextIcon, GlobeIcon, InfoIcon,
+  MessageSquareCheckIcon, MessageSquareQuoteIcon, MoreHorizontalIcon, NewspaperIcon, RefreshCwIcon, StampIcon, ThumbsDownIcon, ThumbsUpIcon,
+  UserRoundIcon,
+} from 'lucide-react'
+
+// as SOURCE_TYPES (and OTHER_SOURCE, for a type the app doesn't know), in its order
+const TYPES = [
+  ['page', 'BDC website', 'BDC website pages', GlobeIcon, 'GlobeIcon'],
+  ['docs', 'Documentation', 'Documentation', BookOpenIcon, 'BookOpenIcon'],
+  ['faq', 'FAQ', 'FAQs', CircleHelpIcon, 'CircleHelpIcon'],
+  ['video', 'Video', 'Videos', CirclePlayIcon, 'CirclePlayIcon'],
+  ['event', 'Event', 'Events', CalendarDaysIcon, 'CalendarDaysIcon'],
+  ['update', 'Update', 'Updates', NewspaperIcon, 'NewspaperIcon'],
+  ['fellow', 'Fellow', 'Fellows', UserRoundIcon, 'UserRoundIcon'],
+  ['dbgap-study', 'dbGaP study', 'dbGaP studies', DatabaseIcon, 'DatabaseIcon'],
+  ['predefined', 'Predefined response', 'Predefined responses', BadgeCheckIcon, 'BadgeCheckIcon'],
+  ['(any other)', 'Source', 'Sources', FileTextIcon, 'FileTextIcon'],
+]
+
+// candidates for `predefined` (a canned answer or disclaimer BDC approved), current first
+const CANDIDATES = [
+  [BadgeCheckIcon, 'BadgeCheckIcon', 'chosen: verified / approved'],
+  [InfoIcon, 'InfoIcon', 'before'],
+  [MessageSquareCheckIcon, 'MessageSquareCheckIcon', 'an approved response; a check, but inside a bubble'],
+  [StampIcon, 'StampIcon', 'officially stamped'],
+  [ClipboardCheckIcon, 'ClipboardCheckIcon', 'reviewed, signed off; clipboard near the copy icon?'],
+  [FileCheckIcon, 'FileCheckIcon', 'approved document; near the fallback FileTextIcon?'],
+  [MessageSquareQuoteIcon, 'MessageSquareQuoteIcon', 'prepared wording'],
+  [BookmarkCheckIcon, 'BookmarkCheckIcon', 'saved, approved'],
+]
+
+const small = (Icon, title) => h('span', { className: 'icon', title }, h(Icon, { size: 16 }))
+const group = (Icon, n, title) =>
+  h('span', { className: 'group', title }, h(Icon, { size: 16 }), n, h(ChevronDownIcon, { size: 12 }))
+
+function Panel({ dark }) {
+  return h('div', { className: `panel${dark ? ' dark' : ''}` },
+    h('h3', null, dark ? 'Dark' : 'Light'),
+    h('table', null,
+      h('thead', null, h('tr', null, ['Type', 'Label', 'One', 'Several', 'Enlarged', 'Lucide'].map((t) => h('th', { key: t }, t)))),
+      h('tbody', null, TYPES.map(([key, label, many, Icon, name]) =>
+        h('tr', { key },
+          h('td', null, h('code', null, key)),
+          h('td', null, label),
+          h('td', null, small(Icon, label)),
+          h('td', null, group(Icon, 3, many)),
+          h('td', null, h(Icon, { size: 32, className: 'big', strokeWidth: 1.5 })),
+          h('td', null, h('code', null, name)),
+        ))),
+    ),
+    // a row as it sits under an answer: docs, a group of studies (last), and a predefined response
+    h('h3', { style: { marginTop: 14 } }, 'A row as under an answer'),
+    h('div', { className: 'row' },
+      small(BookOpenIcon, 'Documentation'),
+      small(CircleHelpIcon, 'FAQ'),
+      small(BadgeCheckIcon, 'Predefined response'),
+      group(DatabaseIcon, 12, 'dbGaP studies'),
+    ),
+  )
+}
+
+// each candidate in a message's footer: the toolbar (copy just clicked: a check) on the
+// left, the source row on the right, as the app lays them out
+function Candidates({ dark }) {
+  return h('div', { className: `panel${dark ? ' dark' : ''}` },
+    h('h3', null, dark ? 'Dark' : 'Light'),
+    h('table', null,
+      h('thead', null, h('tr', null, ['Lucide', 'Enlarged', 'In a message footer (copy just clicked)'].map((t) => h('th', { key: t }, t)))),
+      h('tbody', null, CANDIDATES.map(([Icon, name, note]) =>
+        h('tr', { key: name },
+          h('td', null, h('code', null, name), h('div', { className: 'note' }, note)),
+          h('td', null, h(Icon, { size: 32, className: 'big', strokeWidth: 1.5 })),
+          h('td', null, h('div', { className: 'footer' },
+            small(CheckIcon, 'Copied'),
+            small(ThumbsUpIcon, 'Good'),
+            small(ThumbsDownIcon, 'Bad'),
+            small(RefreshCwIcon, 'Refresh'),
+            small(MoreHorizontalIcon, 'More'),
+            h('span', { className: 'spacer' }),
+            small(BookOpenIcon, 'Documentation'),
+            small(Icon, 'Predefined response'),
+            group(DatabaseIcon, 12, 'dbGaP studies'),
+          )),
+        ))),
+    ),
+  )
+}
+
+createRoot(document.getElementById('root')).render(
+  h(Fragment, null,
+    h('h2', null, 'Candidates for a predefined response'),
+    h('p', { className: 'muted' }, 'A canned answer or disclaimer BDC approved. The toolbar\'s copy button turns into a check once clicked, shown here, so a plain check is out.'),
+    h('div', { className: 'themes' }, h(Candidates, { dark: false }), h(Candidates, { dark: true })),
+    h('h2', null, 'All types'),
+    h('div', { className: 'themes' }, h(Panel, { dark: false }), h(Panel, { dark: true })),
+  ),
+)
+</script>
+</body>
+</html>
