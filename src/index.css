@@ -164,25 +164,20 @@
 }
 
 /* Knowledge graph colours: src/kg reads these from the graph's container (any CSS
-   colour; unset ones fall back to its defaults), and the legend uses the same ones.
-   Node colours are src/kg's defaults; labels and edges follow the theme. */
+   colour), and the legend and list use the same ones (KG_CSS). Only what differs from
+   src/kg's defaults (src/kg/views/marks.ts): labels, edges and the focus ring follow the
+   theme, and dark mode has its own ramp and halo. */
 [data-slot="bdc-graph"] {
-  --kg-concept: #d97706;
-  --kg-variable-low: #93c5fd;
-  --kg-variable-high: #1e40af;
-  --kg-study: #059669;
   --kg-label: var(--color-muted-foreground);
   --kg-edge: var(--color-ring);
   --kg-selected: var(--color-foreground);
-  /* seeds and shared nodes: a highlighter yellow, stronger on light backgrounds than dark */
-  --kg-halo: #fde047;
-  --kg-halo-opacity: 0.45;
 }
 
 .dark [data-slot="bdc-graph"] {
   /* the variable ramp runs from low to high contrast with the background: reversed */
   --kg-variable-low: #1e40af;
   --kg-variable-high: #93c5fd;
+  /* seeds and shared nodes: a highlighter yellow, weaker on dark backgrounds than light */
   --kg-halo: #facc15;
   --kg-halo-opacity: 0.25;
 }

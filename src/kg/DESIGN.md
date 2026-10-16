@@ -55,8 +55,10 @@ Computed on the graph being shown (the source picked, grouped or not), **before*
 | Concept star | concept_connections | 1 | | | ✓ |
 | Mixed | several calls in "All results" | any | any | any | any |
 
-`graphShape(graph) → { available: Record<View, true | reason>, default: View }`
-(shape.ts) turns a shape into the views on offer.
+`viewChoices(graph) → { views: Record<View, true | reason>, default: View }`
+(views/view.ts, from `shapeOf` in model/shape.ts) turns a shape into the views on offer.
+`default` stays in the result, though it's Force for every shape so far: a new shape
+may want another.
 
 ## 3. Views
 
@@ -93,10 +95,10 @@ when switching "Show", as long as it's available there.
 
 **Force must be stable** before it becomes the default. The same graph should always
 look the same: inline, in the maximized dialog, and after a reload. How (`arrangeForce`
-in mount.ts):
+in views/graph.ts):
 
 - it starts from Radial (seeds in the middle) in a fixed box, not the container's, and
-  runs d3-force from there (force.ts). d3-force is deterministic (its own fixed random
+  runs d3-force from there (views/force.ts). d3-force is deterministic (its own fixed random
   generator), so the same start gives the same result, and seeds tend to stay central
 - each piece is settled on its own and turned wide (not to the container's shape, so
   it doesn't matter which view lays it out), then the pieces are packed side by side,
@@ -164,7 +166,7 @@ the variables between them.
   concepts. It matches the other views.
 - **Stability:** switching adds or removes nodes, so Force lays out afresh (§2's simple
   rule); concepts and studies don't keep their places.
-- **Code:** `bundles` (bundle.ts), shared with Flow, turns variable paths into bundle
+- **Code:** `bundles` (model/bundle.ts), shared with Flow, turns variable paths into bundle
   edges listing their variables (`toElements(graph, true)`; `variables` option). A bundle edge is drawn in the bundle style (flat mid-blue,
   width = count, §4), so it's never confused with an edge from Dug.
 
@@ -227,7 +229,7 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
 | Interaction | `--kg-selected` outline ring, outside the border | the focus itself | node-link, Flow. List: a shaded row |
 | Interaction | Opacity 0.15 | faded: not connected to the focus | all but List, which fades to 0.35 |
 
-**Values**
+**Values** (in code: `views/marks.ts`, which both views and `KG_CSS` take them from)
 
 - **Halo:** highlighter yellow, `#fde047` at 0.45 on light and `#facc15` at 0.25 on dark.
   Not a type hue, so it says nothing about type. Easy to change: `--kg-halo` and
@@ -239,6 +241,10 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
 - **Selection ring:** 2px, 3px outside the shape, so the border stays free for the
   category layer: Cytoscape's `outline-*` in node-link, a separate rect in Flow.
 - **Term fill:** 30% amber, 70% background; the border is full amber.
+- **Placeholder fill:** node-link's "No study provided" is filled with the background
+  colour, not left clear: it still reads as outlined, hides the round ends of the bundles
+  reaching under it, and takes clicks over its whole shape. Flow's bands stop at its bar,
+  so the bar stays clear.
 - **Inter-concept link:** 55% amber, 45% background, 1.5px.
 - **Dark theme:** the blue ramp runs from low to high contrast against the background,
   so dark mode swaps its ends (`#1e40af` → `#93c5fd`). Flat mid-blue is the same in both.
@@ -267,11 +273,6 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
 - **Words:** use only Dug's vocabulary. Say "type", not "kind". Show predicates and
   categories verbatim.
 
-**Deviations to fix**
-
-- Node-link's "No study provided" uses `background-opacity: 0`: check that the inside of the
-  shape takes clicks (Cytoscape probably tests the whole shape).
-
 ## 5. Selection model
 
 There is one focus, kept by the host and shared by every view.
@@ -280,7 +281,7 @@ There is one focus, kept by the host and shared by every view.
 type KgFocus = { node: string } | { concept: string; study: string }
 ```
 
-- **What lights up** comes from one place, `focusConnections` (focus.ts), and every
+- **What lights up** comes from one place, `focusConnections` (model/focus.ts), and every
   view uses it, List included. Nodes and edges in the set keep their normal style;
   everything else fades. The focus itself gets the selected outline. Connected edges
   aren't restyled, and full labels aren't shown on highlight.
@@ -331,7 +332,7 @@ type KgFocus = { node: string } | { concept: string; study: string }
 - **Disconnected parts:** separate calls can give separate pieces (e.g. concept_graph
   with concept_connections). Radial gives each piece its own centre, its seeds (or,
   without seeds, its concepts), and puts the pieces side by side: seeded pieces first,
-  then the bigger, each as wide as √(its nodes) (`arrangeRadial`, radial.ts). Force
+  then the bigger, each as wide as √(its nodes) (`arrangeRadial`, views/radial.ts). Force
   starts from that and packs its pieces side by side the same way.
 - **Uneven coverage:** if Dug returns only the top N results per call, counts from
   different calls look comparable but aren't. Ask Dug.
@@ -356,7 +357,7 @@ type KgFocus = { node: string } | { concept: string; study: string }
 3. ~~Stable Force~~ (done): start from the Radial positions, a fixed seed, turned
    wide; positions kept when every node has one (maximize, drags, Shared only on).
 4. ~~Collapsed links in node-link~~ (done): the default, with the Variables toggle.
-5. ~~`graphShape`~~ (done): availability, the Force default, greyed-out views, the
+5. ~~`graphShape`, now `viewChoices`~~ (done): availability, the Force default, greyed-out views, the
    pick carried over. List without variables (a star): the concepts, seeds first.
 6. ~~Removing the Columns layout~~ (done). The star's list became a plain list of its
    concepts in step 5; grouping it by predicate is parked.

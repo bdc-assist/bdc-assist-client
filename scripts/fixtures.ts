@@ -6,7 +6,7 @@
 import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
-import { fromKgList } from '../src/kg/wire.ts'
+import { fromKgList } from '../src/kg/model/wire.ts'
 
 const root = resolve(import.meta.dirname, '..')
 const from = join(resolve(root, process.env.BDC_ASSIST ?? '../bdc-assist'), 'tests/fixtures/kg')

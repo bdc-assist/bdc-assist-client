@@ -1,0 +1,107 @@
+import { describe, expect, it } from 'vitest'
+
+import { toElements } from './elements'
+import { CHD } from '../test-fixtures'
+import { NO_STUDY, type KgGraph } from '../model/types'
+
+describe('toElements', () => {
+  it('makes one element per node and edge', () => {
+    const els = toElements(CHD)
+    expect(els.filter((e) => e.group === 'nodes')).toHaveLength(CHD.nodes.length)
+    expect(els.filter((e) => e.group === 'edges')).toHaveLength(CHD.edges.length)
+    expect(els.find((e) => e.data.id === 'phs000007')?.data).toEqual({
+      id: 'phs000007',
+      label: 'Framingham Cohort',
+      type: 'study',
+      order: 'phs000007',
+    })
+  })
+
+  it('marks the seed (real CHD graph: congenital heart disease was asked about)', () => {
+    const seeds = toElements(CHD).filter((e) => e.data.seed)
+    expect(seeds.map((e) => e.data.id)).toEqual(['MONDO:0005453'])
+  })
+
+  it("orders variables by their study, so they sit next to it", () => {
+    const order = (id: string) => toElements(CHD).find((e) => e.data.id === id)?.data.order
+    expect(order('phv00001546')).toBe('phs000007 phv00001546') // FC219, Framingham
+    const sorted = toElements(CHD)
+      .filter((e) => e.data.type === 'variable')
+      .map((e) => String(e.data.order))
+      .sort()
+    // Framingham's variables come first: phs000007 sorts before every other study
+    expect(sorted.slice(0, 2).every((o) => o.startsWith('phs000007 '))).toBe(true)
+  })
+
+  it('weights variables by related_concepts_count, highest 1, lowest 0', () => {
+    const weights = toElements(CHD)
+      .filter((e) => e.data.type === 'variable')
+      .map((e) => [e.data.label, e.data.weight])
+    const w = Object.fromEntries(weights)
+    expect(w['F33ANGHRTHSPDY']).toBe(1) // 35, the most
+    expect(w['HEARTDIS']).toBe(0) // 9, the fewest
+    expect(w['FC219']).toBeCloseTo((12 - 9) / (35 - 9))
+    expect(toElements(CHD).find((e) => e.data.type === 'study')?.data.weight).toBeUndefined()
+  })
+
+  it('weights every variable 1 when the counts are equal or missing', () => {
+    const g: KgGraph = {
+      nodes: [
+        { id: 'a', label: 'a', type: 'variable', related_concepts_count: 5 },
+        { id: 'b', label: 'b', type: 'variable', related_concepts_count: 5 },
+        { id: 'c', label: 'c', type: 'variable' },
+      ],
+      edges: [],
+    }
+    expect(toElements(g).map((e) => e.data.weight)).toEqual([1, 1, 1])
+    // one missing count doesn't flatten the others
+    g.nodes[1].related_concepts_count = 9
+    expect(toElements(g).map((e) => e.data.weight)).toEqual([0, 1, 1])
+  })
+
+  it('gives edges stable ids', () => {
+    const edge = toElements(CHD).find((e) => e.group === 'edges')!
+    expect(edge.data.id).toBe(`${edge.data.source}->${edge.data.target}`)
+  })
+
+  describe('bundled', () => {
+    const graph: KgGraph = {
+      nodes: [
+        { id: 'C', label: 'c', type: 'concept' },
+        { id: 'D', label: 'd', type: 'concept' },
+        { id: 'v', label: 'v', type: 'variable' },
+        { id: 'w', label: 'w', type: 'variable' },
+        { id: 'loose', label: 'l', type: 'variable' },
+        { id: 'S', label: 's', type: 'study' },
+      ],
+      edges: [
+        { source: 'C', target: 'D', predicates: ['related_to'] },
+        { source: 'v', target: 'C' },
+        { source: 'v', target: 'S' },
+        { source: 'w', target: 'C' },
+        { source: 'w', target: 'S' },
+        { source: 'loose', target: 'C' },
+      ],
+    }
+    const els = toElements(graph, true)
+
+    it('drops variables for one edge per concept and study, keeping inter-concept links', () => {
+      expect(els.filter((e) => e.group === 'nodes').map((e) => e.data.id)).toEqual(['C', 'D', 'S', NO_STUDY])
+      const edges = els.filter((e) => e.group === 'edges')
+      expect(edges.map((e) => [e.data.id, e.classes])).toEqual([
+        ['C->D', 'relation'],
+        ['bundle:C->S', 'bundle'],
+        [`bundle:C->${NO_STUDY}`, 'bundle'],
+      ])
+      expect(edges[1].data).toMatchObject({ concept: 'C', study: 'S', variables: ['v', 'w'], count: 2 })
+    })
+
+    it('adds the placeholder, last in its ring, only for variables without a study', () => {
+      const placeholder = els.find((e) => e.data.id === NO_STUDY)
+      expect(placeholder?.classes).toBe('placeholder')
+      expect(placeholder?.data.order > 'phs999999').toBe(true)
+      const withStudies = toElements({ ...graph, edges: graph.edges.filter((e) => e.source !== 'loose') }, true)
+      expect(withStudies.some((e) => e.data.id === NO_STUDY)).toBe(false)
+    })
+  })
+})

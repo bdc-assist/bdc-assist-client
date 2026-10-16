@@ -1,7 +1,6 @@
 import type { ChatModelAdapter, ThreadMessage } from '@assistant-ui/react'
 
-import type { KgGraph } from '@/kg/types'
-import { fromKgList, kgParts, type KgPart } from '@/kg/wire'
+import { fromKgList, kgParts, type KgGraph, type KgPart } from '@/kg'
 import { readSSE } from '@/lib/sse'
 
 // Wire format of POST /chat/stream (bdc-assist: stream_chat in r_assist/api.py; its README's API section).

@@ -1,0 +1,113 @@
+import { describe, expect, it } from 'vitest'
+
+import { bridges, sharedOnly } from './bridges'
+import { collapseVersions } from './collapse'
+import { CHD, COHORT, SEARCH, TWO } from '../test-fixtures'
+import type { KgGraph } from './types'
+
+describe('bridges', () => {
+  it('finds the studies with variables on both seeds (real asthma + COPD graph)', () => {
+    expect([...bridges(TWO)].sort()).toEqual(['phs000007', 'phs000280']) // Framingham, ARIC
+  })
+
+  it("doesn't count concepts nobody asked about (real BMI search: every variable on 9 synonyms)", () => {
+    expect(SEARCH.nodes.some((n) => n.seed)).toBe(false)
+    expect(bridges(SEARCH).size).toBe(0)
+  })
+
+  it('counts only seeds when there are other concepts too', () => {
+    const g: KgGraph = {
+      nodes: [
+        { id: 'A', label: 'a', type: 'concept', seed: true },
+        { id: 'S', label: 'synonym of a', type: 'concept' },
+        { id: 'v', label: 'v', type: 'variable' },
+      ],
+      edges: [
+        { source: 'v', target: 'A' },
+        { source: 'v', target: 'S' },
+      ],
+    }
+    expect(bridges(g).size).toBe(0)
+  })
+
+  it('counts search terms like concepts (real asthma + COPD cohort search)', () => {
+    const studies = COHORT.nodes.filter((n) => n.type === 'study' && bridges(COHORT).has(n.id))
+    expect(studies.length).toBeGreaterThan(0)
+    expect(sharedOnly(COHORT).nodes.filter((n) => n.type === 'term').map((n) => n.id)).toEqual(['asthma', 'COPD'])
+  })
+
+  it('finds none with a single seed', () => {
+    expect(bridges(CHD).size).toBe(0)
+  })
+
+  it('counts a study whose releases only become shared once merged', () => {
+    const g: KgGraph = {
+      nodes: [
+        { id: 'A', label: 'a', type: 'concept', seed: true },
+        { id: 'B', label: 'b', type: 'concept', seed: true },
+        { id: 'phv1.v1.p1', label: 'v1', type: 'variable' },
+        { id: 'phv2.v1.p2', label: 'v2', type: 'variable' },
+        { id: 'phs1.v1.p1', label: 's', type: 'study' },
+        { id: 'phs1.v2.p2', label: 's', type: 'study' },
+      ],
+      edges: [
+        { source: 'phv1.v1.p1', target: 'A' },
+        { source: 'phv1.v1.p1', target: 'phs1.v1.p1' },
+        { source: 'phv2.v1.p2', target: 'B' },
+        { source: 'phv2.v1.p2', target: 'phs1.v2.p2' },
+      ],
+    }
+    expect(bridges(g).size).toBe(0) // each release has one concept
+    expect([...bridges(collapseVersions(g))]).toEqual(['phs1'])
+  })
+
+  it('counts a variable on two seeds, and its study', () => {
+    const g: KgGraph = {
+      nodes: [
+        { id: 'A', label: 'a', type: 'concept', seed: true },
+        { id: 'B', label: 'b', type: 'concept', seed: true },
+        { id: 'v', label: 'copd or asthma', type: 'variable' },
+        { id: 's', label: 's', type: 'study' },
+      ],
+      edges: [
+        { source: 'v', target: 'A' },
+        { source: 'v', target: 'B' },
+        { source: 'v', target: 's' },
+      ],
+    }
+    expect([...bridges(g)].sort()).toEqual(['s', 'v'])
+  })
+
+  it('does not count a concept related to other concepts', () => {
+    const g: KgGraph = {
+      nodes: [
+        { id: 'A', label: 'a', type: 'concept', seed: true },
+        { id: 'B', label: 'b', type: 'concept', seed: true },
+        { id: 'C', label: 'c', type: 'concept' },
+      ],
+      edges: [
+        { source: 'A', target: 'B', predicates: ['related_to'] },
+        { source: 'A', target: 'C', predicates: ['related_to'] },
+      ],
+    }
+    expect(bridges(g).size).toBe(0)
+  })
+})
+
+describe('sharedOnly', () => {
+  it('keeps the concepts, the shared studies and their variables', () => {
+    const g = sharedOnly(TWO)
+    const ids = (t: string) => g.nodes.filter((n) => n.type === t).map((n) => n.id).sort()
+    expect(ids('concept')).toEqual(['MONDO:0004979', 'MONDO:0005002'])
+    expect(ids('study')).toEqual(['phs000007', 'phs000280'])
+    const variables = TWO.edges.filter((e) => e.target === 'phs000007' || e.target === 'phs000280').map((e) => e.source)
+    expect(ids('variable')).toEqual(variables.sort())
+    const kept = new Set(g.nodes.map((n) => n.id))
+    expect(g.edges.every((e) => kept.has(e.source) && kept.has(e.target))).toBe(true)
+  })
+
+  it('leaves just the concepts when nothing is shared', () => {
+    expect(sharedOnly(CHD).nodes.map((n) => n.type)).toEqual(['concept'])
+    expect(sharedOnly(CHD).edges).toEqual([])
+  })
+})

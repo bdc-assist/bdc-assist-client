@@ -3,6 +3,23 @@
   "plugins": ["react", "typescript", "oxc"],
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["@/kg/*", "**/kg/model/*", "**/kg/views/*"],
+            "message": "Import src/kg from '@/kg' (its public API, src/kg/index.ts), never its files."
+          }
+        ]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["src/kg/**", "scripts/fixtures.ts"],
+      "rules": { "no-restricted-imports": "off" }
+    }
+  ]
 }
