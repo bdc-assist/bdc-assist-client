@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tools layout</title>
+<!-- Design scratch page, not part of the app build. Open via the dev server:
+     npm run dev, then /design/tools-layout.html. A mock-up of a proposed `tools` part: links to
+     BDC platforms, beside the follow-ups (left) and above the source row. Tools, their icons and
+     wording are placeholders; the server would choose them from a fixed list. No icon before
+     a tool's name until we have official logos; the external-link icon after it (as on dbGaP links) says it opens elsewhere. -->
+<style>
+  :root { --bg: #ffffff; --fg: #0a0a0a; --muted: #737373; --hover: #f5f5f5; --line: #e5e5e5; --panel: #fafafa; }
+  :root[data-theme="dark"] { --bg: #0a0a0a; --fg: #fafafa; --muted: #a1a1a1; --hover: #262626; --line: #262626; --panel: #141414; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px 24px 48px; background: var(--bg); color: var(--fg);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 28px 0 4px; }
+  h3 { font-size: 13px; margin: 18px 0 6px; color: var(--muted); font-weight: 500; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .controls { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 20px; align-items: center;
+    padding: 10px 0; background: var(--bg); border-bottom: 1px solid var(--line); margin-bottom: 8px; font-size: 13px; }
+  .controls label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .controls select { font: inherit; }
+
+  /* a message as the app draws it: text, then what comes next, then the toolbar row */
+  .msg { container-type: inline-size; position: relative; border: 1px dashed var(--line); border-radius: 8px;
+    padding: 12px 12px 0; margin-bottom: 12px; background: var(--bg); }
+  .msg p { margin: 0 0 4px; }
+
+  /* follow-ups left, tools right; stacked when the message is narrow */
+  .next { display: flex; gap: 16px; align-items: flex-start; margin-top: 12px; }
+  .followups { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
+  .followup { display: flex; gap: 6px; align-items: baseline; color: var(--muted); font-size: 14px; padding: 2px 6px;
+    margin: 0 -6px; border-radius: 6px; cursor: pointer; }
+  .followup:hover { color: var(--fg); background: var(--hover); }
+  .followup svg { align-self: center; flex-shrink: 0; }
+  .tools { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; margin-left: auto; flex-shrink: 0; }
+  .tools-label { font-size: 12px; color: var(--muted); }
+  /* chips: bordered, name + an arrow out */
+  .tool.chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; font-size: 13px;
+    border: 1px solid var(--line); border-radius: 6px; color: var(--fg); text-decoration: none; cursor: pointer; }
+  .tool.chip:hover { background: var(--hover); }
+  /* links: like the follow-ups, but leaving the app */
+  .tool.link { display: inline-flex; align-items: center; gap: 6px; padding: 2px 6px; margin: 0 -6px; font-size: 14px;
+    color: var(--muted); text-decoration: none; border-radius: 6px; cursor: pointer; }
+  .tool.link:hover { color: var(--fg); background: var(--hover); }
+  .tool .out { color: var(--muted); }
+  /* beside the follow-ups: a faint line between the two */
+  .followups + .tools { border-left: 1px solid var(--line); padding-left: 16px; align-self: stretch; }
+  .tools.inline { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; align-items: center; column-gap: 6px; }
+  @container (max-width: 480px) {
+    .next { flex-direction: column; gap: 10px; }
+    /* the stack beside the follow-ups drops under them; a row on its own stays right */
+    .tools:not(.inline) { margin-left: 0; align-items: flex-start; }
+    .followups + .tools { border-left: none; padding-left: 0; }
+  }
+
+  /* the toolbar row: actions left, sources right (24px icons, muted) */
+  .toolbar { display: flex; align-items: center; gap: 4px; min-height: 30px; padding: 6px 0 8px; }
+  .toolbar .spacer { flex: 1; }
+  .icon { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 4px;
+    border-radius: 6px; color: var(--muted); cursor: pointer; }
+  .icon:hover, .group:hover { color: var(--fg); background: var(--hover); }
+  .group { display: inline-flex; align-items: center; gap: 2px; height: 24px; padding: 0 4px; border-radius: 6px;
+    color: var(--muted); font-size: 12px; cursor: pointer; }
+
+  .widths { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+  .frame h3 { margin-top: 0; }
+</style>
+</head>
+<body>
+<h1>Tools layout</h1>
+<p class="muted">A proposed <code>tools</code> part: links to BDC platforms, right of the follow-ups. Three states, at three
+  message widths. Beside the follow-ups the tools stack; on an older answer, without them, they go on one row
+  that wraps. Below 480px the stack drops under the follow-ups. Tools are placeholders.</p>
+<div id="root"></div>
+
+<script type="module">
+import { createElement as h, Fragment, useEffect, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import {
+  BadgeCheckIcon, BookOpenIcon, ChevronDownIcon, CopyIcon, CornerDownRightIcon, DatabaseIcon, ExternalLinkIcon,
+  MoreHorizontalIcon, RefreshCwIcon, ThumbsDownIcon, ThumbsUpIcon,
+} from 'lucide-react'
+
+const ANSWER = 'BDC has several cohorts with asthma and COPD variables, including Framingham, ARIC and COPDGene. ' +
+  'Most measure lung function (FEV1, FVC) and smoking history; Framingham and ARIC cover both conditions.'
+const FOLLOWUPS = [
+  'Which of these studies have lung function measured over time?',
+  'How do I request access to COPDGene, and how long does approval usually take for a new project?',
+  'What smoking variables does ARIC have?',
+]
+// no icon: lucide's would only guess at each platform; official logos, if we get them, could go
+// before the name. The external-link icon after it says it leaves the app, as on dbGaP links
+const TOOLS = [
+  { title: 'PIC-SURE', reason: 'Explore and filter these variables across studies' },
+  { title: 'Terra', reason: 'Analyse the data in a cloud workspace' },
+  { title: 'Dockstore', reason: 'Find workflows for lung function analysis' },
+]
+
+const icon = (Icon, title) => h('span', { className: 'icon', title }, h(Icon, { size: 16 }))
+
+function Tools({ style, label, inline }) {
+  return h('div', { className: `tools${inline ? ' inline' : ''}` },
+    label && h('span', { className: 'tools-label' }, 'Open in BDC'),
+    TOOLS.map(({ title, reason }) =>
+      h('a', { key: title, className: `tool ${style}`, title: `${reason} (opens ${title})`, href: '#', onClick: (e) => e.preventDefault() },
+        title,
+        h(ExternalLinkIcon, { size: 12, className: 'out' }),
+      )),
+  )
+}
+
+function Message({ followups, tools, opts }) {
+  return h('div', { className: 'msg' },
+    h('p', null, ANSWER),
+    (followups || tools) && h('div', { className: 'next' },
+      followups && h('ul', { className: 'followups' }, FOLLOWUPS.map((f) =>
+        h('li', { key: f }, h('span', { className: 'followup' }, h(CornerDownRightIcon, { size: 14 }), f)))),
+      // beside the follow-ups: stacked; alone (an older answer, follow-ups gone): one row, wrapping
+      tools && h(Tools, { ...opts, inline: !followups }),
+    ),
+    h('div', { className: 'toolbar' },
+      icon(CopyIcon, 'Copy'), icon(ThumbsUpIcon, 'Good'), icon(ThumbsDownIcon, 'Bad'), icon(RefreshCwIcon, 'Refresh'),
+      icon(MoreHorizontalIcon, 'More'),
+      h('span', { className: 'spacer' }),
+      icon(BookOpenIcon, 'Documentation'), icon(BadgeCheckIcon, 'Predefined response'),
+      h('span', { className: 'group', title: 'dbGaP studies' }, h(DatabaseIcon, { size: 16 }), 12, h(ChevronDownIcon, { size: 12 })),
+    ),
+  )
+}
+
+function Page() {
+  const [style, setStyle] = useState('chip')
+  const [label, setLabel] = useState(false)
+  const [dark, setDark] = useState(false)
+  useEffect(() => { document.documentElement.dataset.theme = dark ? 'dark' : 'light' }, [dark])
+  const opts = { style, label }
+  const check = (text, value, set) =>
+    h('label', null, h('input', { type: 'checkbox', checked: value, onChange: (e) => set(e.target.checked) }), text)
+  return h(Fragment, null,
+    h('div', { className: 'controls' },
+      h('label', null, 'Tools as ',
+        h('select', { value: style, onChange: (e) => setStyle(e.target.value) },
+          h('option', { value: 'chip' }, 'chips (bordered)'),
+          h('option', { value: 'link' }, 'links (like follow-ups)'))),
+      check('"Open in BDC" label', label, setLabel),
+      check('dark', dark, setDark),
+    ),
+    [760, 520, 360].map((w) =>
+      h(Fragment, { key: w },
+        h('h2', null, `${w}px message`),
+        h('div', { className: 'widths' },
+          [
+            ['Last answer: follow-ups and tools', true, true],
+            ['An older answer: follow-ups go, tools stay, on one row', false, true],
+            ['No tools for this answer', true, false],
+          ].map(([title, followups, tools]) =>
+            h('div', { key: title, className: 'frame', style: { width: w } },
+              h('h3', null, title),
+              h(Message, { followups, tools, opts }),
+            )),
+        ),
+      )),
+  )
+}
+
+createRoot(document.getElementById('root')).render(h(Page))
+</script>
+</body>
+</html>
