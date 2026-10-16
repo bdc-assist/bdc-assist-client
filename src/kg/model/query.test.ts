@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import { bridges } from './bridges'
-import { connections } from './connections'
+import { connections } from './focus'
 import { toElements } from '../views/elements'
-import { relations } from './relations'
+import { lookup, relations } from './query'
 import { flowData } from '../views/flow'
 import { studyList } from './list'
-import { ASTHMA, asthmaCopdKg, relatedKg } from '../test-fixtures'
+import { ASTHMA, asthmaCopdKg, FHS, relatedKg, TWO } from '../test-fixtures'
 import { fromKgList, kgParts } from './wire'
 
 // asthma's concept graph, then its related concepts (get_concept_connections: concept →
@@ -57,5 +57,20 @@ describe('concept–concept edges (real asthma data)', () => {
     expect(kgParts(KG).map((p) => p.label)).toEqual(['asthma concept graph', 'asthma related concepts'])
     // on its own nothing names it, so the label keeps the id
     expect(kgParts(relatedKg).map((p) => p.label)).toEqual(['MONDO:0004979 related concepts'])
+  })
+})
+
+describe('lookup', () => {
+  it('is worked out once per graph', () => {
+    expect(lookup(TWO)).toBe(lookup(TWO))
+    expect(lookup({ ...TWO })).not.toBe(lookup(TWO))
+  })
+
+  it("has each variable's study and concepts (real asthma + COPD graph)", () => {
+    const { studyOf, conceptsOf, around } = lookup(TWO)
+    const v = TWO.edges.find((e) => e.target === FHS)!.source // a Framingham variable
+    expect(studyOf.get(v)).toBe(FHS)
+    expect(conceptsOf.get(v)).toEqual(TWO.edges.filter((e) => e.source === v && e.target !== FHS).map((e) => e.target))
+    expect(around.get(FHS)?.map((a) => a.other)).toContain(v)
   })
 })

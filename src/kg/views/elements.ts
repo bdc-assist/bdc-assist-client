@@ -1,8 +1,8 @@
 import type { ElementDefinition } from 'cytoscape'
 
 import { bundles } from '../model/bundle'
+import { lookup, variableWeights } from '../model/query'
 import { edgeId, NO_STUDY, NO_STUDY_LABEL, type KgGraph } from '../model/types'
-import { variableWeights } from '../model/weights'
 
 /**
  * Cytoscape elements for a graph. Each node's data carries `order`, the key the
@@ -18,9 +18,7 @@ import { variableWeights } from '../model/weights'
  */
 export function toElements(graph: KgGraph, bundled = false): ElementDefinition[] {
   if (bundled) return bundledElements(graph)
-  const studyOf = new Map<string, string>() // variable id → study id
-  const types = new Map(graph.nodes.map((n) => [n.id, n.type]))
-  for (const e of graph.edges) if (types.get(e.target) === 'study') studyOf.set(e.source, e.target)
+  const { type: types, studyOf } = lookup(graph)
   const order = (id: string, type: string) => (type === 'variable' ? `${studyOf.get(id) ?? ''} ${id}` : id)
   const weights = variableWeights(graph)
   return [

@@ -30,9 +30,7 @@ export { bridges, sharedOnly } from './model/bridges'
 
 // what's in it
 export { bundles, type Bundle } from './model/bundle'
-export { connections, type Connections } from './model/connections'
-export { relations } from './model/relations'
-export { variableWeights } from './model/weights'
+export { relations, variableWeights } from './model/query'
 export {
   graphShape,
   KG_LAYOUTS,
@@ -47,11 +45,13 @@ export {
 // what's picked
 export {
   carryFocus,
+  connections,
   focusConnections,
   isPair,
   pairVariables,
   sameFocus,
   studylessVariables,
+  type Connections,
   type KgFocus,
 } from './model/focus'
 

@@ -1,3 +1,4 @@
+import { lookup } from './query'
 import { isConceptOrTerm, type KgGraph } from './types'
 
 /**
@@ -8,15 +9,13 @@ import { isConceptOrTerm, type KgGraph } from './types'
  * Use it on the graph as drawn: merging releases can make a study a bridge.
  */
 export function bridges(graph: KgGraph): Set<string> {
-  const type = new Map(graph.nodes.map((n) => [n.id, n.type]))
-  const seeds = new Set(graph.nodes.filter((n) => n.seed).map((n) => n.id))
+  const { type, seeds, targets, studyOf } = lookup(graph)
   const conceptsOf = new Map<string, Set<string>>() // variable or study → its seeds
-  const studyOf = new Map<string, string>()
   const add = (id: string, concept: string) => conceptsOf.set(id, (conceptsOf.get(id) ?? new Set()).add(concept))
-  for (const e of graph.edges) {
-    // variables only: a seed related to other concepts isn't a bridge between them
-    if (seeds.has(e.target) && type.get(e.source) === 'variable') add(e.source, e.target)
-    if (type.get(e.target) === 'study') studyOf.set(e.source, e.target)
+  // variables only: a seed related to other concepts isn't a bridge between them
+  for (const [source, ts] of targets) {
+    if (type.get(source) !== 'variable') continue
+    for (const t of ts) if (seeds.has(t)) add(source, t)
   }
   for (const [variable, study] of studyOf) for (const c of conceptsOf.get(variable) ?? []) add(study, c)
   return new Set([...conceptsOf].filter(([, cs]) => cs.size >= 2).map(([id]) => id))
@@ -29,8 +28,7 @@ export function bridges(graph: KgGraph): Set<string> {
  */
 export function sharedOnly(graph: KgGraph): KgGraph {
   const shared = bridges(graph)
-  const type = new Map(graph.nodes.map((n) => [n.id, n.type]))
-  const studyOf = new Map(graph.edges.filter((e) => type.get(e.target) === 'study').map((e) => [e.source, e.target]))
+  const { type, studyOf } = lookup(graph)
   const keep = (id: string) => {
     const t = type.get(id)
     if (isConceptOrTerm(t) || shared.has(id)) return true

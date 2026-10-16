@@ -1,3 +1,4 @@
+import { lookup } from './query'
 import type { KgGraph, KgNode } from './types'
 
 /** `note`: the link stands in for a page that doesn't exist (see NO_VARIABLE_ACCESSION). */
@@ -48,8 +49,8 @@ export function nodeLinks(node: KgNode, graph: KgGraph): KgLink[] {
   if (node.type === 'study') {
     return ids.map((id) => ({ label: id, url: `${DBGAP}/study.cgi?study_id=${encodeURIComponent(id)}` }))
   }
-  const studyIds = new Set(graph.edges.filter((e) => e.source === node.id).map((e) => e.target))
-  const study = graph.nodes.find((n) => n.type === 'study' && studyIds.has(n.id))
+  const { byId, studyOf } = lookup(graph)
+  const study = byId.get(studyOf.get(node.id) ?? '')
   if (!study) return []
   const releases = study.versions ?? [study.id]
   const out = new Map<string, KgLink>() // by url: several releases can fall back to one study page

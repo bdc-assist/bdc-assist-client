@@ -1,4 +1,4 @@
-import { relations } from './relations'
+import { relations } from './query'
 import type { KgGraph } from './types'
 
 /**

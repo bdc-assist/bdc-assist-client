@@ -1,4 +1,4 @@
-import { variableWeights } from './weights'
+import { lookup, variableWeights } from './query'
 import { isConceptOrTerm, type KgGraph, type KgNode } from './types'
 
 export type ListVariable = {
@@ -28,24 +28,20 @@ export type ListStudy = {
  * alternative to the graph.
  */
 export function studyList(graph: KgGraph): ListStudy[] {
-  const byId = new Map(graph.nodes.map((n) => [n.id, n]))
+  const { byId, studyOf, conceptsOf: conceptIdsOf } = lookup(graph)
   const conceptOrder = new Map(graph.nodes.filter((n) => isConceptOrTerm(n.type)).map((n, i) => [n.id, i]))
   const weights = variableWeights(graph)
-  const studyOf = new Map<string, string>()
-  const conceptsOf = new Map<string, KgNode[]>()
-  for (const e of graph.edges) {
-    const target = byId.get(e.target)
-    if (target?.type === 'study') studyOf.set(e.source, e.target)
-    if (target && isConceptOrTerm(target.type)) conceptsOf.set(e.source, [...(conceptsOf.get(e.source) ?? []), target])
-  }
+  const conceptsOf = (id: string) => (conceptIdsOf.get(id) ?? []).map((c) => byId.get(c)!)
   const inOrder = (cs: KgNode[]) => [...new Set(cs)].sort((a, b) => conceptOrder.get(a.id)! - conceptOrder.get(b.id)!)
 
   const groups = new Map<string | null, ListVariable[]>()
   for (const v of graph.nodes) {
     if (v.type !== 'variable') continue
     const key = studyOf.get(v.id) ?? null
-    const item = { variable: v, concepts: inOrder(conceptsOf.get(v.id) ?? []), weight: weights.get(v.id) ?? 1 }
-    groups.set(key, [...(groups.get(key) ?? []), item])
+    const item = { variable: v, concepts: inOrder(conceptsOf(v.id)), weight: weights.get(v.id) ?? 1 }
+    const group = groups.get(key)
+    if (group) group.push(item)
+    else groups.set(key, [item])
   }
   const label = (n: KgNode | null) => n?.label ?? ''
   // how many of what was asked about a study covers (any concepts when nothing was asked about)

@@ -1,4 +1,5 @@
 import { repointEdges } from './collapse'
+import { lookup } from './query'
 import type { KgGraph, KgNode } from './types'
 
 /**
@@ -12,20 +13,16 @@ import type { KgGraph, KgNode } from './types'
  * input is not modified. Use after collapseVersions, which can make neighbours equal.
  */
 export function groupSynonyms(graph: KgGraph): KgGraph {
-  const type = new Map(graph.nodes.map((n) => [n.id, n.type]))
-  const neighbours = new Map<string, Set<string>>()
-  const link = (a: string, b: string) => neighbours.set(a, (neighbours.get(a) ?? new Set()).add(b))
-  for (const e of graph.edges) {
-    link(e.source, e.target)
-    link(e.target, e.source)
-  }
+  const { type, around } = lookup(graph)
   const groups = new Map<string, KgNode[]>() // sorted neighbour ids → the concepts with them
   for (const n of graph.nodes) {
     if (n.type !== 'concept' || n.seed) continue
-    const ns = [...(neighbours.get(n.id) ?? [])]
+    const ns = [...new Set((around.get(n.id) ?? []).map((a) => a.other))]
     if (!ns.some((id) => type.get(id) === 'variable')) continue
     const key = JSON.stringify(ns.sort())
-    groups.set(key, [...(groups.get(key) ?? []), n])
+    const group = groups.get(key)
+    if (group) group.push(n)
+    else groups.set(key, [n])
   }
   const idOf = new Map<string, string>() // a grouped concept → its group's id
   const merged = new Map<string, KgNode>()

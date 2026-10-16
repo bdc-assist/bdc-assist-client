@@ -202,8 +202,8 @@ the views get, so ids match what the views draw.
 | `bundles(graph)` | `model/bundle.ts` | one `{ concept, study, variables }` per concept and study (the study can be `NO_STUDY`): what Flow's bands and node-link's links draw |
 | `flowData(graph)` | `views/flow.ts` | the flow's concept → study links with their variables, for your own chart; variables without a study go to the placeholder (`placeholder: true`, last), but only alongside real studies (`studylessVariables` lists them) |
 | `fromKgList(kg)` | `model/wire.ts` | the API's per-call graphs merged into one |
-| `relations(graph)` | `model/relations.ts` | the concept → concept edges (drawn as light amber lines in the graph view; the flow view can't show them) |
-| `variableWeights(graph)` | `model/weights.ts` | `related_concepts_count` scaled to 0..1 within the graph |
+| `relations(graph)` | `model/query.ts` | the concept → concept edges (drawn as light amber lines in the graph view; the flow view can't show them) |
+| `variableWeights(graph)` | `model/query.ts` | `related_concepts_count` scaled to 0..1 within the graph |
 | `isConceptOrTerm(type)` | `model/types.ts` | concepts and search terms play the same part (what variables are about); most views treat them alike, but a term has no link or category |
 
 ## Things to know

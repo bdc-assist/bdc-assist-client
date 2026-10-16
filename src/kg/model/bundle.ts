@@ -1,4 +1,5 @@
-import { isConceptOrTerm, NO_STUDY, type KgGraph } from './types'
+import { lookup } from './query'
+import { NO_STUDY, type KgGraph } from './types'
 
 /** The variables a study has on a concept, as one link. The study can be NO_STUDY: the
  * concept's variables whose study isn't provided. */
@@ -11,14 +12,7 @@ export type Bundle = { concept: string; study: string; variables: string[] }
  * their first variable appears. Flow draws them as bands, node-link as links.
  */
 export function bundles(graph: KgGraph): Bundle[] {
-  const type = new Map(graph.nodes.map((n) => [n.id, n.type]))
-  const studyOf = new Map<string, string>()
-  const conceptsOf = new Map<string, string[]>()
-  for (const e of graph.edges) {
-    const t = type.get(e.target)
-    if (t === 'study') studyOf.set(e.source, e.target)
-    if (isConceptOrTerm(t)) conceptsOf.set(e.source, [...(conceptsOf.get(e.source) ?? []), e.target])
-  }
+  const { studyOf, conceptsOf } = lookup(graph)
   const real = new Map<string, Bundle>()
   const loose = new Map<string, Bundle>() // concept → NO_STUDY
   for (const n of graph.nodes) {

@@ -1,6 +1,36 @@
 import { baseId } from './collapse'
-import { connections, type Connections } from './connections'
+import { lookup } from './query'
 import { edgeId, NO_STUDY, type KgGraph, type KgNode } from './types'
+
+export type Connections = { nodes: Set<string>; edges: Set<string> } // edges by edgeId
+
+/**
+ * What a node is connected to, for highlighting: its direct neighbours, and one
+ * step further through variables only. A concept links to everything, so going
+ * on through concepts or studies would light up the whole graph; going through
+ * variables gives the useful picture:
+ * - a study: its variables, and the concepts they're on
+ * - a concept: its variables, and their studies
+ * - a variable: its concept(s) and its study
+ * Includes the node itself; empty for an id not in the graph.
+ */
+export function connections(graph: KgGraph, id: string): Connections {
+  const { type, around } = lookup(graph)
+  const nodes = new Set<string>()
+  const edges = new Set<string>()
+  if (!type.has(id)) return { nodes, edges }
+  nodes.add(id)
+  for (const { other, edge } of around.get(id) ?? []) {
+    nodes.add(other)
+    edges.add(edge)
+    if (type.get(id) === 'variable' || type.get(other) !== 'variable') continue
+    for (const next of around.get(other) ?? []) {
+      nodes.add(next.other)
+      edges.add(next.edge)
+    }
+  }
+  return { nodes, edges }
+}
 
 /**
  * What the user picked, the same in every view: a node, or a concept × study pair
@@ -16,16 +46,16 @@ export const sameFocus = (a: KgFocus | null, b: KgFocus | null) =>
 
 /** The variables whose study isn't provided: the ones under the NO_STUDY placeholder. */
 export function studylessVariables(graph: KgGraph): Set<string> {
-  const studies = new Set(graph.nodes.filter((n) => n.type === 'study').map((n) => n.id))
-  const inStudy = new Set(graph.edges.filter((e) => studies.has(e.target)).map((e) => e.source))
-  return new Set(graph.nodes.filter((n) => n.type === 'variable' && !inStudy.has(n.id)).map((n) => n.id))
+  const { studyOf } = lookup(graph)
+  return new Set(graph.nodes.filter((n) => n.type === 'variable' && !studyOf.has(n.id)).map((n) => n.id))
 }
 
 /** The variables of `study` (or of none: NO_STUDY) that are on `concept`, in graph order. */
 export function pairVariables(graph: KgGraph, concept: string, study: string): KgNode[] {
-  const on = (target: string) => new Set(graph.edges.filter((e) => e.target === target).map((e) => e.source))
-  const [onConcept, inStudy] = [on(concept), study === NO_STUDY ? studylessVariables(graph) : on(study)]
-  return graph.nodes.filter((n) => n.type === 'variable' && onConcept.has(n.id) && inStudy.has(n.id))
+  const { targets, studyOf } = lookup(graph)
+  const on = (id: string, target: string) => targets.get(id)?.includes(target) ?? false
+  const inStudy = (id: string) => (study === NO_STUDY ? !studyOf.has(id) : on(id, study))
+  return graph.nodes.filter((n) => n.type === 'variable' && on(n.id, concept) && inStudy(n.id))
 }
 
 /**
@@ -76,7 +106,7 @@ export function carryFocus(focus: KgFocus | null, graph: KgGraph): KgFocus | nul
 function carryNode(graph: KgGraph, id: string): string | null {
   if (id === NO_STUDY) return studylessVariables(graph).size ? NO_STUDY : null
   const n =
-    graph.nodes.find((n) => n.id === id) ??
+    lookup(graph).byId.get(id) ??
     graph.nodes.find((n) => n.versions?.includes(id) || n.grouped?.some((m) => m.id === id)) ??
     graph.nodes.find((n) => baseId(n.id) === id)
   return n?.id ?? null
