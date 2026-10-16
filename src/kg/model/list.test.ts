@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { studyList } from './list'
-import { CHD, TWO } from '../test-fixtures'
+import { conceptList, studyList } from './list'
+import { ASTHMA, CHD, related, TWO } from '../test-fixtures'
 
 describe('studyList', () => {
   it('groups every variable under its study', () => {
@@ -98,5 +98,14 @@ describe('studyList', () => {
       ],
     })
     expect(list.map((s) => s.study?.id)).toEqual(['S2', 'S1'])
+  })
+})
+
+describe('conceptList', () => {
+  it('lists the concepts, the one asked about first (real asthma related concepts)', () => {
+    const list = conceptList(related)
+    expect(studyList(related)).toEqual([]) // no variables: nothing to list by study
+    expect(list[0].id).toBe(ASTHMA)
+    expect(list).toHaveLength(related.nodes.length)
   })
 })

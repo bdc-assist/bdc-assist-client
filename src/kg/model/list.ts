@@ -68,3 +68,11 @@ export function studyList(graph: KgGraph): ListStudy[] {
         label(a.study).localeCompare(label(b.study)),
     )
 }
+
+/** The graph's concepts and search terms, the ones asked about (seeds) first, then in
+ * graph order: the list for a graph without variables (e.g. get_concept_connections),
+ * where studyList has nothing. */
+export function conceptList(graph: KgGraph): KgNode[] {
+  const concepts = graph.nodes.filter((n) => isConceptOrTerm(n.type))
+  return [...concepts.filter((n) => n.seed), ...concepts.filter((n) => !n.seed)]
+}

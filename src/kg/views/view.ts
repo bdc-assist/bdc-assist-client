@@ -19,6 +19,9 @@ export type KgLayout = (typeof KG_LAYOUTS)[number]
 export const KG_VIEWS = ['force', 'radial', 'flow', 'list'] as const
 export type KgViewName = KgLayout | 'flow' | 'list'
 
+/** A view that's one of mountGraph's layouts (rather than Flow or a list). */
+export const isLayout = (view: KgViewName): view is KgLayout => (KG_LAYOUTS as readonly string[]).includes(view)
+
 /** Every view, and whether it can show a graph: `true`, or why not (for a tooltip);
  * and the one to start with. */
 export type KgViewChoices = { views: Record<KgViewName, true | string>; default: KgViewName }

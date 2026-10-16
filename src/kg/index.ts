@@ -29,7 +29,7 @@ export { mountFlow, type FlowOptions, type FlowView } from './views/flow'
 export { KG_CSS } from './views/marks' // their colours as CSS, for your legend or list
 
 // which views suit a graph
-export { KG_VIEWS, viewChoices, type KgLayout, type KgViewChoices, type KgViewName } from './views/view'
+export { isLayout, KG_VIEWS, viewChoices, type KgLayout, type KgViewChoices, type KgViewName } from './views/view'
 
 // what's picked, the same in every view
 export {
@@ -44,7 +44,7 @@ export { edgeId } from './model/types' // the ids of focusConnections' edges
 
 // for your own UI: give these drawnGraph's graph, so ids match what the views draw
 export { drawnGraph, type DrawOptions } from './model/drawn'
-export { studyList, type ListConceptGroup, type ListStudy, type ListVariable } from './model/list'
+export { conceptList, studyList, type ListConceptGroup, type ListStudy, type ListVariable } from './model/list'
 export { nodeLinks, NO_VARIABLE_ACCESSION, type KgLink } from './model/links'
 export { bridges } from './model/bridges'
 export { bundles, type Bundle } from './model/bundle'

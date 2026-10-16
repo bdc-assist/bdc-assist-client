@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
+  isLayout,
   mountFlow,
   mountGraph,
   sameFocus,
@@ -11,7 +12,6 @@ import {
   type GraphView,
   type KgFocus,
   type KgGraph,
-  type KgLayout,
   type KgViewChoices,
   type KgViewName,
 } from '@/kg'
@@ -26,7 +26,7 @@ import { StudyList } from './study-list'
  * inline and, separately, in the maximized dialog. Carries the --kg-* colours
  * (index.css), so they apply in the dialog's portal too. */
 export type GraphBodyProps = {
-  json: string
+  raw: KgGraph // the graph as the answer has it; a new one (by content) remounts the views
   shown: KgGraph
   canvasClass: string
   choice: KgViewName // the view shown: the user's pick where this graph has it
@@ -55,12 +55,12 @@ const ZOOM_STEP = 1.3
 const ZOOM_KEY = /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl'
 
 export function GraphBody(props: GraphBodyProps) {
-  const { json, shown, canvasClass, choice, onChoice, views, sharedOnly, onSharedOnly, canShare, zoomGestures } = props
+  const { raw, shown, canvasClass, choice, onChoice, views, sharedOnly, onSharedOnly, canShare, zoomGestures } = props
   const { sources, source, onSource, grouped, onGrouped, canGroup, forcePositions, covered, detailsBeside } = props
   const { focus, onFocus } = props
   const { variables, onVariables } = props
-  const mode: ViewMode = choice === 'flow' || choice === 'list' ? choice : 'graph'
-  const layout: KgLayout | undefined = mode === 'graph' ? (choice as KgLayout) : undefined
+  const mode: ViewMode = isLayout(choice) ? 'graph' : choice
+  const layout = isLayout(choice) ? choice : undefined
   const types = useMemo(() => new Set(shown.nodes.map((n) => n.type)), [shown])
   const hasSeeds = useMemo(() => shown.nodes.some((n) => n.seed), [shown])
   const bundled = mode === 'graph' && !variables
@@ -79,7 +79,7 @@ export function GraphBody(props: GraphBodyProps) {
   // mounts with the layout of the moment (Force while another view shows); later changes
   // go through setOptions below
   useEffect(() => {
-    const v = mountGraph(container.current!, JSON.parse(json) as KgGraph, {
+    const v = mountGraph(container.current!, raw, {
       layout: layout ?? 'force',
       collapseVersions: grouped,
       groupSynonyms: grouped,
@@ -101,11 +101,11 @@ export function GraphBody(props: GraphBodyProps) {
       view.current = null
       clearTimeout(hintTimer.current)
     }
-  }, [json]) // eslint-disable-line react-hooks/exhaustive-deps -- layout, grouped, sharedOnly, variables: see below
+  }, [raw]) // eslint-disable-line react-hooks/exhaustive-deps -- layout, grouped, sharedOnly, variables: see below
 
   // the flow (Sankey): its own view of the same graph, kept mounted like the graph
   useEffect(() => {
-    const v = mountFlow(flowContainer.current!, JSON.parse(json) as KgGraph, {
+    const v = mountFlow(flowContainer.current!, raw, {
       collapseVersions: grouped,
       groupSynonyms: grouped,
       sharedOnly,
@@ -119,7 +119,7 @@ export function GraphBody(props: GraphBodyProps) {
       v.destroy()
       flowView.current = null
     }
-  }, [json]) // eslint-disable-line react-hooks/exhaustive-deps -- grouped, sharedOnly: see below
+  }, [raw]) // eslint-disable-line react-hooks/exhaustive-deps -- grouped, sharedOnly: see below
 
   // another view keeps the graph's last layout
   useEffect(() => {

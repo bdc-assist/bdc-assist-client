@@ -194,13 +194,14 @@ the views draw.
 |---|---|---|
 | `fromKgList(kg)`, `kgParts(kg)` | `model/wire.ts` | the API's per-call graphs merged into one; each call's graph on its own, labelled in the user's terms |
 | `drawnGraph(graph, options)` | `model/drawn.ts` | the graph as the views draw it with these `DrawOptions`, same defaults: `collapseVersions` merges a study's or variable's dbGaP releases (`phs000007.v34.p15` + `.v31.p12` → `phs000007`, with `versions`), then `groupSynonyms` merges concepts with exactly the same neighbours (some variables), e.g. a search's synonyms, into "first + N more" (with `grouped`; never seeds or terms), then `sharedOnly` keeps what two or more seeds share |
-| `studyList(graph)` | `model/list.ts` | studies → concepts → variables, shared studies first: for a list or table view, or a text alternative to the graph |
+| `studyList(graph)`, `conceptList(graph)` | `model/list.ts` | studies → concepts → variables, shared studies first: for a list or table view, or a text alternative to the graph; for a graph without variables, where that's empty, its concepts, the ones asked about first |
 | `nodeLinks(node, graph)` | `model/links.ts` | pages for a node: dbGaP study and variable pages (one per release; a variable without an accession gets its study, with a `note`); concepts by CURIE prefix (MONDO, EFO, UMLS, GTOPDB, otherwise bioregistry.io), marked "(login)" where an account is needed |
 | `focusConnections(graph, focus)`, `pairVariables(graph, concept, study)` | `model/focus.ts` | what a focus lights up; a pair's variables |
 | `edgeId(source, target)` | `model/types.ts` | an edge's id as the views and `focusConnections` give it (`"source->target"`) |
 | `bridges(graph)` | `model/bridges.ts` | the nodes connecting two or more seeds (other concepts, e.g. synonyms, don't count): "shared" |
 | `bundles(graph)` | `model/bundle.ts` | one `{ concept, study, variables }` per concept and study (the study can be `NO_STUDY`): what Flow's bands and node-link's links draw, for your own chart |
 | `viewChoices(graph)` | `views/view.ts` | which views suit the graph (`views`: `true` or why not, for each of `KG_VIEWS`) and the `default` (Force so far); work it out before `sharedOnly` |
+| `isLayout(view)` | `views/view.ts` | whether a view (`KgViewName`) is one of `mountGraph`'s layouts, rather than Flow or a list |
 | `NO_STUDY`, `NO_STUDY_LABEL`, `NO_STUDY_NODE` | `model/types.ts` | the "No study provided" placeholder for variables whose study isn't provided: never a node in the graph, but views draw it and it focuses like a study (`{ node: NO_STUDY }`, `{ concept, study: NO_STUDY }`); `NO_STUDY_NODE` is it as a `KgNode`, to show it like one (a row, details) |
 | `isConceptOrTerm(type)` | `model/types.ts` | concepts and search terms play the same part (what variables are about); most views treat them alike, but a term has no link or category |
 | `KG_CSS` | `views/marks.ts` | the views' colours as CSS (see Colours) |

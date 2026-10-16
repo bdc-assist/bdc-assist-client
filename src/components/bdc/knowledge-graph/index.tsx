@@ -50,9 +50,10 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
   const [source, setSource] = useState(-1) // which graph: -1 all merged, else parts[source]
   const current = (source >= 0 && parts[source]?.graph) || graph
   // the message is re-rendered on every stream event, and done delivers the same
-  // graph again as a new object: redraw only when the content changes. A new
-  // source is a new graph too, so the views start over (and the focus clears).
-  const json = JSON.stringify(current)
+  // graph again as a new object: redraw only when the content changes, so compare it as
+  // JSON, worked out only when the object changes (not on every event). A new source is
+  // a new graph too, so the views start over (and the focus clears).
+  const json = useMemo(() => JSON.stringify(current), [current])
   const raw = useMemo(() => JSON.parse(json) as KgGraph, [json])
   // Force's positions, shared by the panel and the dialog so maximizing keeps the layout;
   // a new graph starts afresh (React redoes the render before showing it). State, not
@@ -130,7 +131,7 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
           </TooltipIconButton>
         </summary>
         <GraphBody
-          json={json}
+          raw={raw}
           shown={shown}
           canvasClass="h-72"
           choice={choice}
@@ -150,7 +151,7 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
           <DialogTitle className="text-muted-foreground px-3 py-2.5 pr-12 text-xs font-normal">{title}</DialogTitle>
           {maximized && (
             <GraphBody
-              json={json}
+              raw={raw}
               shown={shown}
               canvasClass="min-h-0 flex-1"
               choice={choice}

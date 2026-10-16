@@ -1,16 +1,17 @@
 import { ChevronRightIcon } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 
 import {
   bridges,
+  conceptList,
   focusConnections,
   KG_CSS,
   NO_STUDY_NODE,
-  isConceptOrTerm,
   isPair,
   studyList,
   type KgFocus,
   type KgGraph,
+  type KgNode,
   type ListVariable,
 } from '@/kg'
 
@@ -86,25 +87,38 @@ export function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgF
       ))}
     </ul>
   )
+  // a concept's row: picks `pick` (the concept, or its pair with a study); its mark, its
+  // name ("(search term)" for a term), then `after`
+  const conceptButton = (
+    concept: KgNode,
+    pick: KgFocus,
+    selected: boolean,
+    dim: boolean,
+    after: ReactNode,
+    { title, heading = false }: { title?: string; heading?: boolean } = {},
+  ) => (
+    <button type="button" title={title} onClick={() => onPick(pick)} aria-current={selected || undefined} {...row(selected, dim)}>
+      <ConceptMark concept={concept} shared={shared.has(concept.id)} />
+      <NodeLabel node={concept} className={heading ? 'truncate font-medium' : ''} />
+      {concept.type === 'term' && <span className="text-muted-foreground shrink-0">(search term)</span>}
+      {after}
+    </button>
+  )
 
   if (!groups.length) {
     // no variables (e.g. concept_connections): just the concepts, the ones asked about first
-    const concepts = graph.nodes.filter((n) => isConceptOrTerm(n.type)).sort((a, b) => Number(!!b.seed) - Number(!!a.seed))
     return (
       <ul aria-label="Concepts" className="divide-y">
-        {concepts.map((concept) => (
+        {conceptList(graph).map((concept) => (
           <li key={concept.id} className="flex px-1.5 py-1">
-            <button
-              type="button"
-              onClick={() => onPick({ node: concept.id })}
-              aria-current={isNode(concept.id) || undefined}
-              {...row(isNode(concept.id), dimmed(concept.id))}
-            >
-              <ConceptMark concept={concept} shared={shared.has(concept.id)} />
-              <NodeLabel node={concept} className="truncate font-medium" />
-              {concept.type === 'term' && <span className="text-muted-foreground shrink-0">(search term)</span>}
-              {concept.concept_type && <span className="text-muted-foreground truncate">{concept.concept_type}</span>}
-            </button>
+            {conceptButton(
+              concept,
+              { node: concept.id },
+              isNode(concept.id),
+              dimmed(concept.id),
+              concept.concept_type && <span className="text-muted-foreground truncate">{concept.concept_type}</span>,
+              { heading: true },
+            )}
           </li>
         ))}
       </ul>
@@ -122,17 +136,14 @@ export function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgF
               <div className="flex items-center gap-0.5">
                 {foldButton(key, concept?.label ?? 'variables without a concept')}
                 {concept ? (
-                  <button
-                    type="button"
-                    onClick={() => onPick({ node: concept.id })}
-                    aria-current={isNode(concept.id) || undefined}
-                    {...row(isNode(concept.id), dimmed(concept.id))}
-                  >
-                    <ConceptMark concept={concept} shared={shared.has(concept.id)} />
-                    <NodeLabel node={concept} className="truncate font-medium" />
-                    {concept.type === 'term' && <span className="text-muted-foreground shrink-0">(search term)</span>}
-                    <span className="text-muted-foreground shrink-0">· {vs.length}</span>
-                  </button>
+                  conceptButton(
+                    concept,
+                    { node: concept.id },
+                    isNode(concept.id),
+                    dimmed(concept.id),
+                    <span className="text-muted-foreground shrink-0">· {vs.length}</span>,
+                    { heading: true },
+                  )
                 ) : (
                   <span className="text-muted-foreground px-1.5 py-1">No concept</span>
                 )}
@@ -180,19 +191,19 @@ export function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgF
                   <li key={concept?.id ?? '(no concept)'}>
                     <div className="flex">
                       {concept ? (
-                        <button
-                          type="button"
-                          title={real ? `What this study has on ${concept.label}` : `${concept.label}: variables with no study provided`}
-                          onClick={() => onPick({ concept: concept.id, study: study.id })}
-                          aria-current={isPairOf(concept.id, study.id) || undefined}
+                        conceptButton(
+                          concept,
+                          { concept: concept.id, study: study.id },
+                          isPairOf(concept.id, study.id),
                           // a pair row: lit only when both its concept and its study are
-                          {...row(isPairOf(concept.id, study.id), dimmed(concept.id) || dimmed(study.id))}
-                        >
-                          <ConceptMark concept={concept} shared={shared.has(concept.id)} />
-                          <NodeLabel node={concept} />
-                          {concept.type === 'term' && <span className="text-muted-foreground shrink-0">(search term)</span>}
-                          <span className="text-muted-foreground shrink-0">· {vs.length}</span>
-                        </button>
+                          dimmed(concept.id) || dimmed(study.id),
+                          <span className="text-muted-foreground shrink-0">· {vs.length}</span>,
+                          {
+                            title: real
+                              ? `What this study has on ${concept.label}`
+                              : `${concept.label}: variables with no study provided`,
+                          },
+                        )
                       ) : (
                         <span className="text-muted-foreground px-1.5 py-1">No concept</span>
                       )}
