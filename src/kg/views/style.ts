@@ -50,10 +50,12 @@ export function styleFor(el: HTMLElement): StylesheetJson {
       style: { 'background-color': c.study, shape: 'round-rectangle', width: 16, height: 16 },
     },
     {
-      // "No study provided": a stand-in, not a study: outlined in grey, never study green
+      // "No study provided": a stand-in, not a study: outlined in grey, never study green.
+      // Filled with the background, not left clear, so it still looks outlined but hides
+      // the round ends of the bundles that reach under it
       selector: 'node.placeholder',
       style: {
-        'background-opacity': 0,
+        'background-color': c.background,
         'border-width': 1.5,
         'border-color': c.label,
       },

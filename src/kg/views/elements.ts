@@ -1,8 +1,8 @@
 import type { ElementDefinition } from 'cytoscape'
 
 import { bundles } from '../model/bundle'
-import { lookup, variableWeights } from '../model/query'
-import { edgeId, NO_STUDY, NO_STUDY_LABEL, type KgGraph } from '../model/types'
+import { lookup, relations, variableWeights } from '../model/query'
+import { edgeId, NO_STUDY, NO_STUDY_NODE, type KgGraph } from '../model/types'
 
 /**
  * Cytoscape elements for a graph. Each node's data carries `order`, the key the
@@ -18,7 +18,8 @@ import { edgeId, NO_STUDY, NO_STUDY_LABEL, type KgGraph } from '../model/types'
  */
 export function toElements(graph: KgGraph, bundled = false): ElementDefinition[] {
   if (bundled) return bundledElements(graph)
-  const { type: types, studyOf } = lookup(graph)
+  const { studyOf } = lookup(graph)
+  const related = new Set(relations(graph))
   const order = (id: string, type: string) => (type === 'variable' ? `${studyOf.get(id) ?? ''} ${id}` : id)
   const weights = variableWeights(graph)
   return [
@@ -35,7 +36,7 @@ export function toElements(graph: KgGraph, bundled = false): ElementDefinition[]
     })),
     ...graph.edges.map((e) => {
       // concept → concept: a relationship between concepts (class `relation`), named by Dug
-      const relation = types.get(e.source) === 'concept' && types.get(e.target) === 'concept'
+      const relation = related.has(e)
       return {
         group: 'edges' as const,
         data: { id: edgeId(e.source, e.target), source: e.source, target: e.target, predicate: e.predicates?.join(' / ') },
@@ -59,7 +60,7 @@ function bundledElements(graph: KgGraph): ElementDefinition[] {
       ? [
           {
             group: 'nodes' as const,
-            data: { id: NO_STUDY, label: NO_STUDY_LABEL, type: 'study', order: '\uffff' }, // last
+            data: { ...NO_STUDY_NODE, order: '\uffff' }, // last
             classes: 'placeholder',
           },
         ]

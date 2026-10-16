@@ -76,6 +76,7 @@ export function resolvedColors(el: HTMLElement) {
   const [concept, low, high] = [color('concept'), color('variableLow'), color('variableHigh')]
   const background = backgroundOf(el)
   return {
+    background,
     concept,
     study: color('study'),
     edge: color('edge'),

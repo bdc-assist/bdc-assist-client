@@ -78,51 +78,42 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
     boxSelectionEnabled: false,
   })
   let focused: KgFocus | null = null
-  cy.on('tap', 'node', (e) => {
-    focused = { node: e.target.id() as string }
-    highlight(focused)
-    opts.onFocus?.(focused)
-  })
-  cy.on('tap', (e) => {
-    if (e.target !== cy) return
-    focused = null
-    highlight(null)
-    opts.onFocus?.(null)
-  })
-  // labels on the canvas are cut short ("…"): show the whole one as the browser's
-  // own tooltip, and a pointer, since nodes are clickable
-  cy.on('mouseover', 'node', (e) => {
-    container.title = String(e.target.data('label'))
-    container.style.cursor = 'pointer'
-  })
-  cy.on('mouseout', 'node', () => {
+  // the user picked something (null: the background): highlight it, and tell the host
+  function pick(f: KgFocus | null) {
+    focused = f
+    highlight(f)
+    opts.onFocus?.(f)
+  }
+  // the browser's own tooltip on the canvas, and a pointer over what's clickable
+  function hover(title: string, clickable = true) {
+    container.title = title
+    if (clickable) container.style.cursor = 'pointer'
+  }
+  function unhover() {
     container.removeAttribute('title')
     container.style.cursor = ''
+  }
+  cy.on('tap', 'node', (e) => pick({ node: e.target.id() as string }))
+  // a bundle: its concept × study pair, like a band in Flow
+  cy.on('tap', 'edge.bundle', (e) => pick({ concept: e.target.data('concept') as string, study: e.target.data('study') as string }))
+  cy.on('tap', (e) => {
+    if (e.target === cy) pick(null)
   })
+  // labels on the canvas are cut short ("…"): show the whole one
+  cy.on('mouseover', 'node', (e) => hover(String(e.target.data('label'))))
   // a relationship between concepts: name it ("asthma — causes — smoking"). Dug doesn't
   // say which way it reads, so the wording stays neutral.
   cy.on('mouseover', 'edge.relation', (e) => {
     const [s, t] = [e.target.source().data('label'), e.target.target().data('label')]
     const predicate = String(e.target.data('predicate') || 'related to').replace(/_/g, ' ')
-    container.title = `${s} — ${predicate} — ${t}`
-  })
-  cy.on('mouseout', 'edge.relation', () => container.removeAttribute('title'))
-  // a bundle: its concept × study pair, like a band in Flow
-  cy.on('tap', 'edge.bundle', (e) => {
-    focused = { concept: e.target.data('concept') as string, study: e.target.data('study') as string }
-    highlight(focused)
-    opts.onFocus?.(focused)
+    hover(`${s} — ${predicate} — ${t}`, false)
   })
   cy.on('mouseover', 'edge.bundle', (e) => {
     const [s, t] = [e.target.source().data('label'), e.target.target().data('label')]
     const n = e.target.data('count') as number
-    container.title = `${s} — ${n} ${n === 1 ? 'variable' : 'variables'} — ${t}`
-    container.style.cursor = 'pointer'
+    hover(`${s} — ${n} ${n === 1 ? 'variable' : 'variables'} — ${t}`)
   })
-  cy.on('mouseout', 'edge.bundle', () => {
-    container.removeAttribute('title')
-    container.style.cursor = ''
-  })
+  cy.on('mouseout', 'node, edge.relation, edge.bundle', unhover)
   // a node dragged in Force stays where it was put, also across redraws
   cy.on('dragfree', 'node', (e) => {
     if (opts.layout === 'force') placed.set(e.target.id(), { ...e.target.position() })

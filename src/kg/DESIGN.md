@@ -241,6 +241,10 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
 - **Selection ring:** 2px, 3px outside the shape, so the border stays free for the
   category layer: Cytoscape's `outline-*` in node-link, a separate rect in Flow.
 - **Term fill:** 30% amber, 70% background; the border is full amber.
+- **Placeholder fill:** node-link's "No study provided" is filled with the background
+  colour, not left clear: it still reads as outlined, hides the round ends of the bundles
+  reaching under it, and takes clicks over its whole shape. Flow's bands stop at its bar,
+  so the bar stays clear.
 - **Inter-concept link:** 55% amber, 45% background, 1.5px.
 - **Dark theme:** the blue ramp runs from low to high contrast against the background,
   so dark mode swaps its ends (`#1e40af` → `#93c5fd`). Flat mid-blue is the same in both.
@@ -268,11 +272,6 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
   lists.
 - **Words:** use only Dug's vocabulary. Say "type", not "kind". Show predicates and
   categories verbatim.
-
-**Deviations to fix**
-
-- Node-link's "No study provided" uses `background-opacity: 0`: check that the inside of the
-  shape takes clicks (Cytoscape probably tests the whole shape).
 
 ## 5. Selection model
 

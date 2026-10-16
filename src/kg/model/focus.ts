@@ -41,8 +41,11 @@ export type KgFocus = { node: string } | { concept: string; study: string }
 
 export const isPair = (f: KgFocus): f is { concept: string; study: string } => 'concept' in f
 
-export const sameFocus = (a: KgFocus | null, b: KgFocus | null) =>
-  JSON.stringify(a) === JSON.stringify(b)
+export const sameFocus = (a: KgFocus | null, b: KgFocus | null): boolean => {
+  if (!a || !b) return a === b
+  if (isPair(a)) return isPair(b) && a.concept === b.concept && a.study === b.study
+  return !isPair(b) && a.node === b.node
+}
 
 /** The variables whose study isn't provided: the ones under the NO_STUDY placeholder. */
 export function studylessVariables(graph: KgGraph): Set<string> {

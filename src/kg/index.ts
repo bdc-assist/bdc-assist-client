@@ -15,6 +15,7 @@ export {
   isConceptOrTerm,
   NO_STUDY,
   NO_STUDY_LABEL,
+  NO_STUDY_NODE,
   type KgEdge,
   type KgGraph,
   type KgNode,

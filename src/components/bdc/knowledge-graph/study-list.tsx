@@ -5,6 +5,7 @@ import {
   bridges,
   focusConnections,
   KG_CSS,
+  NO_STUDY_NODE,
   isConceptOrTerm,
   isPair,
   studyList,
@@ -14,7 +15,7 @@ import {
 } from '@/kg'
 
 import { ConceptMark, NodeLabel } from './marks'
-import { PLACEHOLDER, sharedHalo } from './shared'
+import { sharedHalo } from './shared'
 
 // The list marks the focus its own way (DESIGN.md §4): the focused row is shaded,
 // clearly more than a hovered one; rows outside the focus's connections dim less than
@@ -149,7 +150,7 @@ export function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgF
       {groups.map(({ study: real, variables, byConcept }) => {
         // variables whose study Dug didn't provide (e.g. search_concepts): the "No study provided"
         // placeholder, last, outlined in grey; it focuses like a study
-        const study = real ?? PLACEHOLDER
+        const study = real ?? NO_STUDY_NODE
         return (
           <li key={study.id} className="px-1.5 py-1">
             <div className="flex items-center gap-0.5">

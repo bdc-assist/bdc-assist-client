@@ -1,6 +1,5 @@
 // The knowledge graph the views draw: the API's per-call `kg` graphs merged into one
-// (see fromKgList in wire.ts). Everything under src/kg/ is self-contained: no imports
-// from the rest of the app, no React, so it can move into another host system as-is.
+// (see fromKgList in wire.ts).
 
 /** A term is a search word standing in for a concept (find_cohort_variables): its id is
  * the word, and it has no link or category. */
@@ -52,3 +51,6 @@ export function repointEdges(edges: KgEdge[], idOf: Map<string, string>): KgEdge
  * { node: NO_STUDY }, or { concept, study: NO_STUDY } for a concept's study-less variables. */
 export const NO_STUDY = '(no study provided)'
 export const NO_STUDY_LABEL = 'No study provided'
+
+/** The placeholder as a node, for showing it like one (a bar, a row, details). */
+export const NO_STUDY_NODE: KgNode = Object.freeze({ id: NO_STUDY, label: NO_STUDY_LABEL, type: 'study' })

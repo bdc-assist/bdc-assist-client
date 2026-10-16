@@ -4,6 +4,7 @@ import {
   isPair,
   NO_STUDY,
   NO_STUDY_LABEL,
+  NO_STUDY_NODE,
   nodeLinks,
   pairVariables,
   type KgFocus,
@@ -12,7 +13,7 @@ import {
   type KgNode,
 } from '@/kg'
 
-import { PLACEHOLDER, TYPE_LABELS } from './shared'
+import { TYPE_LABELS } from './shared'
 
 function ExternalLink({ link }: { link: KgLink }) {
   return (
@@ -140,7 +141,7 @@ function PairDetails({ concept, study, graph }: { concept: KgNode; study: KgNode
 }
 
 export function FocusDetails({ focus, graph }: { focus: KgFocus | null; graph: KgGraph }) {
-  const byId = (id: string) => (id === NO_STUDY ? PLACEHOLDER : graph.nodes.find((n) => n.id === id))
+  const byId = (id: string) => (id === NO_STUDY ? NO_STUDY_NODE : graph.nodes.find((n) => n.id === id))
   if (focus && !isPair(focus) && focus.node === NO_STUDY) {
     return (
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">

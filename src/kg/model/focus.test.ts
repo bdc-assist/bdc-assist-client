@@ -84,6 +84,12 @@ describe('sameFocus', () => {
     expect(sameFocus({ node: 'a' }, { concept: 'a', study: 'b' })).toBe(false)
     expect(sameFocus(null, null)).toBe(true)
   })
+
+  it('ignores the order the fields were written in, and tells null apart', () => {
+    expect(sameFocus({ study: 'b', concept: 'a' }, { concept: 'a', study: 'b' })).toBe(true)
+    expect(sameFocus({ node: 'a' }, null)).toBe(false)
+    expect(sameFocus({ concept: 'a', study: 'b' }, { concept: 'a', study: 'c' })).toBe(false)
+  })
 })
 
 describe('carryFocus', () => {

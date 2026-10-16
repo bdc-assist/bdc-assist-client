@@ -5,7 +5,7 @@ import { bundles } from '../model/bundle'
 import { AMOUNTS, haloOf, HALO_PAD, KG_CSS } from './marks'
 import { DRAW_DEFAULTS, DRAW_OPTIONS, drawnGraph } from '../model/drawn'
 import { carryFocus, focusConnections, isPair, sameFocus, type KgFocus } from '../model/focus'
-import { isConceptOrTerm, NO_STUDY, NO_STUDY_LABEL, type KgGraph, type KgNode } from '../model/types'
+import { isConceptOrTerm, NO_STUDY, NO_STUDY_NODE, type KgGraph, type KgNode } from '../model/types'
 import type { KgView, KgViewOptions } from './view'
 
 // a concept or a study, or the "No study provided" placeholder (id NO_STUDY, placeholder: true)
@@ -28,7 +28,7 @@ export function flowData(graph: KgGraph): FlowData {
   const used = new Set(links.flatMap((l) => [l.source, l.target]))
   const nodes: FlowNode[] = graph.nodes.filter((n) => used.has(n.id)).map((n) => ({ id: n.id, node: n }))
   if (used.has(NO_STUDY)) {
-    nodes.push({ id: NO_STUDY, node: { id: NO_STUDY, label: NO_STUDY_LABEL, type: 'study' }, placeholder: true })
+    nodes.push({ id: NO_STUDY, node: NO_STUDY_NODE, placeholder: true })
   }
   return { nodes, links }
 }

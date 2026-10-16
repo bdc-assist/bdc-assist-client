@@ -66,7 +66,9 @@ export function variableWeights(graph: KgGraph): Map<string, number> {
   const counts = graph.nodes.flatMap((n) =>
     n.type === 'variable' && n.related_concepts_count !== undefined ? [n.related_concepts_count] : [],
   )
-  const [lo, hi] = [Math.min(...counts), Math.max(...counts)]
+  // a loop, not Math.min(...counts): spreading a very long list overflows the stack
+  let [lo, hi] = [Infinity, -Infinity]
+  for (const c of counts) [lo, hi] = [Math.min(lo, c), Math.max(hi, c)]
   return new Map(
     graph.nodes
       .filter((n) => n.type === 'variable')

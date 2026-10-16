@@ -201,7 +201,7 @@ the views draw.
 | `bridges(graph)` | `model/bridges.ts` | the nodes connecting two or more seeds (other concepts, e.g. synonyms, don't count): "shared" |
 | `bundles(graph)` | `model/bundle.ts` | one `{ concept, study, variables }` per concept and study (the study can be `NO_STUDY`): what Flow's bands and node-link's links draw, for your own chart |
 | `viewChoices(graph)` | `views/view.ts` | which views suit the graph (`views`: `true` or why not, for each of `KG_VIEWS`) and the `default` (Force so far); work it out before `sharedOnly` |
-| `NO_STUDY`, `NO_STUDY_LABEL` | `model/types.ts` | the "No study provided" placeholder for variables whose study isn't provided: never a node in the graph, but views draw it and it focuses like a study (`{ node: NO_STUDY }`, `{ concept, study: NO_STUDY }`) |
+| `NO_STUDY`, `NO_STUDY_LABEL`, `NO_STUDY_NODE` | `model/types.ts` | the "No study provided" placeholder for variables whose study isn't provided: never a node in the graph, but views draw it and it focuses like a study (`{ node: NO_STUDY }`, `{ concept, study: NO_STUDY }`); `NO_STUDY_NODE` is it as a `KgNode`, to show it like one (a row, details) |
 | `isConceptOrTerm(type)` | `model/types.ts` | concepts and search terms play the same part (what variables are about); most views treat them alike, but a term has no link or category |
 | `KG_CSS` | `views/marks.ts` | the views' colours as CSS (see Colours) |
 
