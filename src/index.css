@@ -144,6 +144,18 @@
   html {
     @apply font-sans;
     }
+  /* Everything clickable gets a pointer, as the graph's nodes and bands do: Tailwind 4
+     gives buttons the default arrow (desktop convention), which read as inconsistent
+     next to the graph. Also dropdowns, checkboxes and radios, and the label around a
+     checkbox or radio (clicking its text toggles it; a dropdown's label only focuses it).
+     Disabled ones keep the arrow. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  select:not(:disabled),
+  input:is([type="checkbox"], [type="radio"]):not(:disabled),
+  label:has(> input:is([type="checkbox"], [type="radio"]):not(:disabled)) {
+    cursor: pointer;
+  }
 }
 
 @custom-variant data-open (&:where([data-state="open"], [data-open]:not([data-open="false"])));
