@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import {
   bridges,
   focusConnections,
+  KG_CSS,
   isConceptOrTerm,
   isPair,
   studyList,
@@ -16,10 +17,12 @@ import { ConceptMark, NodeLabel } from './marks'
 import { PLACEHOLDER, sharedHalo } from './shared'
 
 // The list marks the focus its own way (DESIGN.md §4): the focused row is shaded,
-// clearly more than a hovered one; rows outside the focus's connections dim to 0.35,
-// since they're text to read
-const rowClass = (selected: boolean, dimmed: boolean) =>
-  `flex min-w-0 flex-1 items-baseline gap-2 rounded-md px-1.5 py-1 text-start transition-opacity ${selected ? 'bg-foreground/10' : 'hover:bg-foreground/5'} ${dimmed ? 'opacity-35' : ''}`
+// clearly more than a hovered one; rows outside the focus's connections dim less than
+// in the views (KG_CSS.listFaded), since they're text to read
+const row = (selected: boolean, dimmed: boolean) => ({
+  className: `flex min-w-0 flex-1 items-baseline gap-2 rounded-md px-1.5 py-1 text-start transition-opacity ${selected ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`,
+  style: dimmed ? { opacity: KG_CSS.listFaded } : undefined,
+})
 
 /** The graph as text: studies (foldable), each with a row per concept (that
  * concept × study pair) and the variables under it (studyList). Without any studies
@@ -63,12 +66,12 @@ export function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgF
             type="button"
             onClick={() => onPick({ node: variable.id })}
             aria-current={isNode(variable.id) || undefined}
-            className={rowClass(isNode(variable.id), dimmed(variable.id))}
+            {...row(isNode(variable.id), dimmed(variable.id))}
           >
             <span
               className="size-2 shrink-0 self-center rounded-full"
               style={{
-                background: `color-mix(in srgb, var(--kg-variable-high) ${Math.round(weight * 100)}%, var(--kg-variable-low))`,
+                background: KG_CSS.variable(weight),
                 ...sharedHalo(shared.has(variable.id)),
               }}
             />
@@ -94,7 +97,7 @@ export function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgF
               type="button"
               onClick={() => onPick({ node: concept.id })}
               aria-current={isNode(concept.id) || undefined}
-              className={rowClass(isNode(concept.id), dimmed(concept.id))}
+              {...row(isNode(concept.id), dimmed(concept.id))}
             >
               <ConceptMark concept={concept} shared={shared.has(concept.id)} />
               <NodeLabel node={concept} className="truncate font-medium" />
@@ -122,7 +125,7 @@ export function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgF
                     type="button"
                     onClick={() => onPick({ node: concept.id })}
                     aria-current={isNode(concept.id) || undefined}
-                    className={rowClass(isNode(concept.id), dimmed(concept.id))}
+                    {...row(isNode(concept.id), dimmed(concept.id))}
                   >
                     <ConceptMark concept={concept} shared={shared.has(concept.id)} />
                     <NodeLabel node={concept} className="truncate font-medium" />
@@ -155,14 +158,14 @@ export function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgF
                 type="button"
                 onClick={() => onPick({ node: study.id })}
                 aria-current={isNode(study.id) || undefined}
-                className={rowClass(isNode(study.id), dimmed(study.id))}
+                {...row(isNode(study.id), dimmed(study.id))}
               >
                 <span
                   className="size-2 shrink-0 self-center rounded-[2px]"
                   style={
                     real
-                      ? { background: 'var(--kg-study)', ...sharedHalo(shared.has(study.id)) }
-                      : { border: '1.5px solid var(--kg-label)' }
+                      ? { background: KG_CSS.study, ...sharedHalo(shared.has(study.id)) }
+                      : { border: `1.5px solid ${KG_CSS.placeholder}` }
                   }
                 />
                 <NodeLabel node={study} className={`truncate font-medium ${real ? '' : 'text-muted-foreground'}`} />
@@ -182,7 +185,7 @@ export function StudyList({ graph, focus, onPick }: { graph: KgGraph; focus: KgF
                           onClick={() => onPick({ concept: concept.id, study: study.id })}
                           aria-current={isPairOf(concept.id, study.id) || undefined}
                           // a pair row: lit only when both its concept and its study are
-                          className={rowClass(isPairOf(concept.id, study.id), dimmed(concept.id) || dimmed(study.id))}
+                          {...row(isPairOf(concept.id, study.id), dimmed(concept.id) || dimmed(study.id))}
                         >
                           <ConceptMark concept={concept} shared={shared.has(concept.id)} />
                           <NodeLabel node={concept} />

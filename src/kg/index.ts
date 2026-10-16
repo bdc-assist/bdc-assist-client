@@ -61,6 +61,7 @@ export { conceptLink, nodeLinks, NO_VARIABLE_ACCESSION, type KgLink } from './mo
 
 // the views
 export type { KgView, KgViewOptions } from './views/view'
+export { KG_CSS } from './views/marks' // their colours as CSS, for your legend or list
 export { mountGraph, type GraphOptions, type GraphView } from './views/graph'
 export {
   flowData,

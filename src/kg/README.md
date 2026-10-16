@@ -160,7 +160,8 @@ variable focus highlights its band. It lays out for the container's size, so cal
 ## Colours
 
 Set these on the container or any ancestor; any CSS colour works (including
-`oklch()` and `var()`). Unset ones use the defaults.
+`oklch()` and `var()`). Unset ones use the defaults. The defaults, and the amounts the
+marks mix and fade by, are all in `views/marks.ts`.
 
 | Property | Default | Used for |
 |---|---|---|
@@ -173,6 +174,13 @@ Set these on the container or any ancestor; any CSS colour works (including
 | `--kg-selected` | `#0f172a` | the outline ring around the focused node |
 | `--kg-halo` | `#fde047` | the halo of seeds (wide) and shared nodes (narrow), and seeds' highlighted labels (graph view) |
 | `--kg-halo-opacity` | `0.45` | a number, not a colour: the opacity of the halos and the seeds' label highlight, whose text turns black or white to read on it. Lower it on dark backgrounds |
+
+For your own legend or list, `KG_CSS` gives the views' marks as CSS values that follow
+these properties: `concept`, `term` (its fill; the border is `concept`), `study`, `label`,
+`selected`, `variable(weight)` (0..1, as `ListVariable.weight`), `variableLow` and
+`variableHigh`, `band` and `flowBand` (bundles in node-link and Flow), `halo` (at its
+opacity: seeds' highlighted labels, shared swatches' rings), `placeholder` (the "No study
+provided" outline), and the opacities `faded` and `listFaded`.
 
 ## Helpers for your own UI
 

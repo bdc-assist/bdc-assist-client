@@ -1,12 +1,12 @@
-import cytoscape, { type EdgeSingular, type StylesheetJson } from 'cytoscape'
+import cytoscape from 'cytoscape'
 
 import { bridges } from '../model/bridges'
-import { backgroundOf, haloOf, mix, toRgb } from './colour'
 import { DRAW_DEFAULTS, DRAW_OPTIONS, drawnGraph } from '../model/drawn'
 import { toElements } from './elements'
 import { carryFocus, focusConnections, isPair, sameFocus, type KgFocus } from '../model/focus'
 import { arrangeForce as settleForce } from './force'
 import { arrangeRadial, type Box } from './radial'
+import { styleFor } from './style'
 import type { KgLayout } from '../model/shape'
 import type { KgGraph } from '../model/types'
 import type { KgView, KgViewOptions } from './view'
@@ -48,23 +48,6 @@ export type GraphView = KgView<GraphOptions> & {
    * it has moved them (e.g. dragged in the maximized one). */
   restorePositions(): void
 }
-
-// Colours come from CSS custom properties on the container (or any ancestor), so
-// a host restyles the graph from its own CSS. Any CSS colour works (see colour.ts).
-const COLORS = {
-  concept: ['--kg-concept', '#d97706'],
-  // variables run from low to high along their weight (related_concepts_count)
-  variableLow: ['--kg-variable-low', '#93c5fd'],
-  variableHigh: ['--kg-variable-high', '#1e40af'],
-  study: ['--kg-study', '#059669'],
-  edge: ['--kg-edge', '#cbd5e1'],
-  label: ['--kg-label', '#475569'],
-  selected: ['--kg-selected', '#0f172a'],
-} as const
-
-// halo padding: wide for a seed, narrow for a shared node
-const SEED_HALO = 14
-const SHARED_HALO = 5
 
 const PADDING = 16
 
@@ -306,123 +289,4 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
       cy.destroy()
     },
   }
-}
-
-/** mountGraph's Cytoscape style, with the --kg-* colours read from `el`. Exported for
- * pages that draw toElements' elements their own way (e.g. design/force-layouts.html). */
-export function styleFor(el: HTMLElement): StylesheetJson {
-  const css = getComputedStyle(el)
-  const color = (key: keyof typeof COLORS) => {
-    const [name, fallback] = COLORS[key]
-    const value = css.getPropertyValue(name).trim()
-    return (value && toRgb(value)) || fallback
-  }
-  const halo = haloOf(el)
-  const background = backgroundOf(el)
-  // the concept colour mixed into the background: terms' fill, inter-concept links
-  const tint = (amount: number) => mix(background, color('concept'), amount)
-  return [
-    {
-      selector: 'node',
-      style: {
-        label: 'data(label)',
-        'font-family': css.fontFamily,
-        'font-size': 10,
-        color: color('label'),
-        'text-valign': 'bottom',
-        'text-margin-y': 3,
-        'text-wrap': 'ellipsis',
-        'text-max-width': '110px',
-        width: 12,
-        height: 12,
-      },
-    },
-    {
-      selector: 'node[type = "concept"], node[type = "term"]',
-      style: {
-        'background-color': color('concept'),
-        width: 24,
-        height: 24,
-        'font-size': 12,
-        'font-weight': 'bold',
-        'text-max-width': '200px',
-      },
-    },
-    {
-      // a search word standing in for a concept: tinted, with a border in the concept colour
-      selector: 'node[type = "term"]',
-      style: { 'background-color': tint(0.3), 'border-width': 2, 'border-color': color('concept') },
-    },
-    {
-      selector: 'node[type = "variable"]',
-      style: { 'background-color': (n) => mix(color('variableLow'), color('variableHigh'), n.data('weight') ?? 1) },
-    },
-    {
-      selector: 'node[type = "study"]',
-      style: { 'background-color': color('study'), shape: 'round-rectangle', width: 16, height: 16 },
-    },
-    {
-      // "No study provided": a stand-in, not a study: outlined in grey, never study green
-      selector: 'node.placeholder',
-      style: {
-        'background-opacity': 0,
-        'border-width': 1.5,
-        'border-color': color('label'),
-      },
-    },
-    {
-      // round ends reach under the node: a wide bundle's flat end stops at the node's edge,
-      // leaving its corners off the curve
-      selector: 'edge',
-      style: { width: 1, 'line-color': color('edge'), 'curve-style': 'straight', 'line-cap': 'round' },
-    },
-    {
-      // a concept's variables in one study: flat mid-blue (a summary of variables, as
-      // Flow's bands), as wide as there are (area-like: 1 + 2.2·√count)
-      selector: 'edge.bundle',
-      style: {
-        'line-color': mix(color('variableLow'), color('variableHigh'), 0.5),
-        width: (e: EdgeSingular) => 1 + 2.2 * Math.sqrt(e.data('count') as number),
-      },
-    },
-    {
-      // concept → concept: a light tint of the concept colour (not opacity: that means faded)
-      selector: 'edge.relation',
-      style: { 'line-color': tint(0.55), width: 1.5 },
-    },
-    {
-      // connects two or more seeds (shared): a narrow halo
-      selector: 'node.bridge',
-      style: {
-        'underlay-color': halo.color,
-        'underlay-padding': SHARED_HALO,
-        'underlay-opacity': halo.opacity,
-        'underlay-shape': 'ellipse',
-      },
-    },
-    {
-      // what a call asked about (the API's seeds), of any type: a wide halo, and the
-      // label highlighted in the same colour. After .bridge, so a shared seed gets the wide one
-      selector: 'node[?seed]',
-      style: {
-        'underlay-color': halo.color,
-        'underlay-padding': SEED_HALO,
-        'underlay-opacity': halo.opacity,
-        'underlay-shape': 'ellipse',
-        'text-background-color': halo.color,
-        'text-background-opacity': halo.opacity,
-        'text-background-padding': '2px',
-        'text-background-shape': 'roundrectangle', // the types only know the old spelling
-        color: halo.text, // black or white, for the highlight as it looks over the background
-        'text-margin-y': 5,
-      },
-    },
-    { selector: 'node.bridge[type = "study"], node[?seed][type = "study"]', style: { 'underlay-shape': 'round-rectangle' } },
-    { selector: '.faded', style: { opacity: 0.15 } },
-    {
-      // the focus: a ring outside the node, leaving the border to the node's type (terms)
-      selector: 'node:selected',
-      style: { 'outline-width': 2, 'outline-color': color('selected'), 'outline-offset': 3, 'outline-opacity': 1 },
-    },
-  ]
 }

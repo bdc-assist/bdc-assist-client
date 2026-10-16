@@ -2,7 +2,7 @@ import { sankey, sankeyLinkHorizontal, type SankeyLink, type SankeyNode } from '
 
 import { bridges } from '../model/bridges'
 import { bundles } from '../model/bundle'
-import { haloOf } from './colour'
+import { AMOUNTS, haloOf, HALO_PAD, KG_CSS } from './marks'
 import { DRAW_DEFAULTS, DRAW_OPTIONS, drawnGraph } from '../model/drawn'
 import { carryFocus, focusConnections, isPair, sameFocus, type KgFocus } from '../model/focus'
 import { isConceptOrTerm, NO_STUDY, NO_STUDY_LABEL, type KgGraph, type KgNode } from '../model/types'
@@ -41,22 +41,10 @@ type SLink = SankeyLink<FlowNode, FlowLink & { value: number }>
 
 const SVG = 'http://www.w3.org/2000/svg'
 const NODE_WIDTH = 10
-const FADED = '0.15'
-// halo around a bar, as in mountGraph but scaled to the bars: wide for a seed, narrow for shared
-const SEED_HALO = 6
-const SHARED_HALO = 3
 const RING = 3 // the focus's ring: this far outside its bar
 
-// colours: the same --kg-* custom properties as mountGraph; SVG takes them as-is.
-// Bands are bundles of variables, so they're blue: the middle of the variable ramp.
-const fill = {
-  concept: 'var(--kg-concept, #d97706)',
-  term: 'color-mix(in srgb, var(--kg-concept, #d97706) 30%, transparent)', // tinted, with a border
-  study: 'var(--kg-study, #059669)',
-  band: 'color-mix(in srgb, var(--kg-variable-low, #93c5fd), var(--kg-variable-high, #1e40af))',
-  selected: 'var(--kg-selected, #0f172a)',
-  placeholder: 'var(--kg-label, #475569)',
-} as const
+// colours: KG_CSS, the --kg-* custom properties as CSS, which SVG takes as-is. Bands are
+// bundles of variables, so they're blue: the middle of the variable ramp, translucent.
 
 /**
  * Draw `graph` into `container` (which needs a size) as a Sankey diagram: concepts
@@ -131,7 +119,7 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
       const el = bands.appendChild(document.createElementNS(SVG, 'path'))
       el.setAttribute('d', path(l) ?? '')
       Object.assign(el.dataset, { concept: s.id, study: t.id })
-      Object.assign(el.style, { fill: 'none', stroke: fill.band, strokeOpacity: '0.45', strokeWidth: String(Math.max(1, l.width ?? 1)), cursor: 'pointer' })
+      Object.assign(el.style, { fill: 'none', stroke: KG_CSS.band, strokeOpacity: String(AMOUNTS.flowBand), strokeWidth: String(Math.max(1, l.width ?? 1)), cursor: 'pointer' })
       title(el, `${s.node.label} → ${t.node.label}: ${l.value} variable${l.value === 1 ? '' : 's'}`)
     }
     const boxes = g('kg-flow-nodes')
@@ -145,23 +133,23 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
       item.setAttribute('data-id', n.id)
       item.style.cursor = 'pointer'
       // what a call asked about (any type): a wide halo; connects two or more seeds: a narrow one
-      const pad = n.node.seed ? SEED_HALO : shared.has(n.id) ? SHARED_HALO : 0
+      const pad = n.node.seed ? HALO_PAD.flow.seed : shared.has(n.id) ? HALO_PAD.flow.shared : 0
       if (pad) {
         rect(item, { x: x0 - pad, y: y0 - pad, width: w + 2 * pad, height: h + 2 * pad, rx: pad }, {
           fill: halo.color,
           fillOpacity: String(halo.opacity),
         })
       }
-      const bar = rect(item, { x: x0, y: y0, width: w, height: h, rx: 2 }, { fill: isConcept ? fill.concept : fill.study })
+      const bar = rect(item, { x: x0, y: y0, width: w, height: h, rx: 2 }, { fill: isConcept ? KG_CSS.concept : KG_CSS.study })
       // a search word standing in for a concept: tinted, with a border in the concept colour
-      if (n.node.type === 'term') Object.assign(bar.style, { fill: fill.term, stroke: fill.concept, strokeWidth: '1.5' })
+      if (n.node.type === 'term') Object.assign(bar.style, { fill: KG_CSS.term, stroke: KG_CSS.concept, strokeWidth: '1.5' })
       // "No study provided": outlined in grey, never study green; transparent, not none, so
       // all of it takes clicks
-      if (n.placeholder) Object.assign(bar.style, { fill: 'transparent', stroke: fill.placeholder, strokeWidth: '1.5' })
+      if (n.placeholder) Object.assign(bar.style, { fill: 'transparent', stroke: KG_CSS.placeholder, strokeWidth: '1.5' })
       // the focus's ring, shown by highlight(); clicks go to the bar
       const ring = rect(item, { x: x0 - RING, y: y0 - RING, width: w + 2 * RING, height: h + 2 * RING, rx: 4 }, {
         fill: 'none',
-        stroke: fill.selected,
+        stroke: KG_CSS.selected,
         strokeWidth: '2',
         pointerEvents: 'none',
         display: 'none',
@@ -173,7 +161,7 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
       text.setAttribute('y', String((y0 + y1) / 2))
       text.setAttribute('dominant-baseline', 'middle')
       text.setAttribute('text-anchor', isConcept ? 'end' : 'start')
-      Object.assign(text.style, { fill: 'var(--kg-label, #475569)', fontSize: isConcept ? '12px' : '10px', fontWeight: isConcept ? '600' : '400' })
+      Object.assign(text.style, { fill: KG_CSS.label, fontSize: isConcept ? '12px' : '10px', fontWeight: isConcept ? '600' : '400' })
       const chars = ((isConcept ? left : right) - gap - 4) / (isConcept ? 6.5 : 5.5)
       text.textContent = clip(n.node.label, chars)
       // a seed's label is highlighted in the halo colour, as in mountGraph
@@ -197,13 +185,13 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
     const linked = focused ? focusConnections(drawn, focused).nodes : null
     const outlined = focused && !isPair(focused) ? focused.node : null
     svg.querySelectorAll<SVGElement>('.kg-flow-nodes [data-id]').forEach((el) => {
-      el.style.opacity = linked && !linked.has(el.dataset.id ?? '') ? FADED : ''
+      el.style.opacity = linked && !linked.has(el.dataset.id ?? '') ? KG_CSS.faded : ''
       const ring = el.querySelector<SVGElement>('[data-ring]')
       if (ring) ring.style.display = el.dataset.id === outlined ? '' : 'none'
     })
     svg.querySelectorAll<SVGElement>('[data-concept]').forEach((el) => {
       const { concept = '', study = '' } = el.dataset
-      el.style.opacity = linked && !(linked.has(concept) && linked.has(study)) ? FADED : ''
+      el.style.opacity = linked && !(linked.has(concept) && linked.has(study)) ? KG_CSS.faded : ''
     })
   }
 

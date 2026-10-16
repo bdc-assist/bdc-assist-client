@@ -227,7 +227,7 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
 | Interaction | `--kg-selected` outline ring, outside the border | the focus itself | node-link, Flow. List: a shaded row |
 | Interaction | Opacity 0.15 | faded: not connected to the focus | all but List, which fades to 0.35 |
 
-**Values**
+**Values** (in code: `views/marks.ts`, which both views and `KG_CSS` take them from)
 
 - **Halo:** highlighter yellow, `#fde047` at 0.45 on light and `#facc15` at 0.25 on dark.
   Not a type hue, so it says nothing about type. Easy to change: `--kg-halo` and

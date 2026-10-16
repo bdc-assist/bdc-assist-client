@@ -1,11 +1,8 @@
-import { type KgNode, NO_STUDY, NO_STUDY_LABEL } from '@/kg'
+import { KG_CSS, type KgNode, NO_STUDY, NO_STUDY_LABEL } from '@/kg'
 
 // What several parts of the knowledge graph panel share.
 
 export const TYPE_LABELS: Record<KgNode['type'], string> = { concept: 'Concept', term: 'Search term', variable: 'Variable', study: 'Study' }
-
-// the halo colour at its opacity, as mountGraph draws seed and shared halos and seed labels
-export const HALO = 'color-mix(in srgb, var(--kg-halo) calc(var(--kg-halo-opacity) * 100%), transparent)'
 
 export type ViewMode = 'graph' | 'flow' | 'list'
 
@@ -13,4 +10,4 @@ export type ViewMode = 'graph' | 'flow' | 'list'
 export const PLACEHOLDER: KgNode = { id: NO_STUDY, label: NO_STUDY_LABEL, type: 'study' }
 
 // a shared node's swatch (it connects two or more seeds): a narrow halo, as in the graph
-export const sharedHalo = (shared: boolean) => (shared ? { boxShadow: `0 0 0 2px ${HALO}` } : {})
+export const sharedHalo = (shared: boolean) => (shared ? { boxShadow: `0 0 0 2px ${KG_CSS.halo}` } : {})

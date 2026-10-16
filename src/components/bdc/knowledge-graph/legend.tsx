@@ -1,50 +1,48 @@
 import type { ReactNode } from 'react'
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import type { KgNode } from '@/kg'
+import { KG_CSS, type KgNode } from '@/kg'
 
-import { HALO, TYPE_LABELS, type ViewMode } from './shared'
+import { TYPE_LABELS, type ViewMode } from './shared'
 
-// Swatches drawn like the nodes: same --kg-* colours (index.css), same shapes; the
+// Swatches drawn like the nodes: same colours (KG_CSS), same shapes; the
 // tooltip says what each is
 const LEGEND: { type: KgNode['type']; shape: string; background: string; border?: string; tip: string }[] = [
   {
     type: 'concept',
     shape: 'size-3 rounded-full',
-    background: 'var(--kg-concept)',
+    background: KG_CSS.concept,
     tip: 'A Dug concept from an ontology',
   },
   {
     type: 'term', // tinted, with a border
     shape: 'size-3 rounded-full border-2',
-    background: 'color-mix(in srgb, var(--kg-concept) 30%, transparent)',
-    border: 'var(--kg-concept)',
+    background: KG_CSS.term,
+    border: KG_CSS.concept,
     tip: 'A word searched for; not matched to a concept',
   },
   {
     type: 'variable', // the colour ramp
     shape: 'h-2.5 w-5 rounded-full',
-    background: 'linear-gradient(to right, var(--kg-variable-low), var(--kg-variable-high))',
+    background: `linear-gradient(to right, ${KG_CSS.variableLow}, ${KG_CSS.variableHigh})`,
     tip: 'One study variable; the stronger the blue, the more concepts it links to',
   },
   {
     type: 'study',
     shape: 'size-2.5 rounded-[2px]',
-    background: 'var(--kg-study)',
+    background: KG_CSS.study,
     tip: 'A dbGaP study; its variables link it to concepts',
   },
 ]
 
 // Flow and node-link bundles draw variables as bands, not nodes: flat mid-blue, solid
 // as node-link draws them; Flow's are translucent (FLOW_BAND)
-const MID_BLUE = 'color-mix(in srgb, var(--kg-variable-low), var(--kg-variable-high))'
 const BAND: { shape: string; background: string; border?: string; tip: string } = {
   shape: 'h-1.5 w-5 rounded-sm',
-  background: MID_BLUE,
+  background: KG_CSS.band,
   tip: 'The variables linking a concept and a study; its width shows how many',
 }
-// as translucent as Flow's bands (flow.ts), which overlap
-const FLOW_BAND = { ...BAND, background: `color-mix(in srgb, ${MID_BLUE} 45%, transparent)` }
+const FLOW_BAND = { ...BAND, background: KG_CSS.flowBand }
 
 // only what the graph has (its node types, seeds, shared nodes), drawn as the view
 // draws it. Inter-concept links aren't listed: hovering one names it.
@@ -86,11 +84,11 @@ export function Legend({ types, seeds, shared, mode, bundled }: LegendProps) {
         <LegendItem
           tip={
             shared
-              ? 'What the question asked about. A smaller halo marks what links two or more of them: shared'
+              ? 'What the question asked about; a smaller halo indicates a shared concept that links two or more of them'
               : 'What the question asked about'
           }
         >
-          <span className="text-foreground rounded-sm px-1 font-bold" style={{ background: HALO }}>
+          <span className="text-foreground rounded-sm px-1 font-bold" style={{ background: KG_CSS.halo }}>
             Queried
           </span>
         </LegendItem>
