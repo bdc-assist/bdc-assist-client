@@ -14,10 +14,12 @@ import { edgeId, NO_STUDY, NO_STUDY_NODE, type KgGraph } from '../model/types'
  * `bundled`: no variables; instead one edge per concept and study (class `bundle`,
  * id "bundle:concept->study", data `concept`, `study`, its `variables` and their `count`), and the "No study
  * provided" placeholder (id NO_STUDY, class `placeholder`, last in its ring) for
- * variables without a study.
+ * variables without a study. A bundle's `weight` is its count over `largest` (0..1): its
+ * width, in proportion. `largest` defaults to the graph's own largest bundle; pass
+ * another graph's (largestBundle) to keep widths when a filter hides some.
  */
-export function toElements(graph: KgGraph, bundled = false): ElementDefinition[] {
-  if (bundled) return bundledElements(graph)
+export function toElements(graph: KgGraph, bundled = false, largest?: number): ElementDefinition[] {
+  if (bundled) return bundledElements(graph, largest ?? largestBundle(graph))
   const { studyOf } = lookup(graph)
   const related = new Set(relations(graph))
   const order = (id: string, type: string) => (type === 'variable' ? `${studyOf.get(id) ?? ''} ${id}` : id)
@@ -46,7 +48,12 @@ export function toElements(graph: KgGraph, bundled = false): ElementDefinition[]
   ]
 }
 
-function bundledElements(graph: KgGraph): ElementDefinition[] {
+/** The most variables in one bundle (concept × study) of `graph`; 0 without variables. */
+export function largestBundle(graph: KgGraph): number {
+  return bundles(graph).reduce((most, b) => Math.max(most, b.variables.length), 0)
+}
+
+function bundledElements(graph: KgGraph, largest: number): ElementDefinition[] {
   const all = bundles(graph)
   const variables = new Set(graph.nodes.filter((n) => n.type === 'variable').map((n) => n.id))
   const rest: KgGraph = {
@@ -75,6 +82,7 @@ function bundledElements(graph: KgGraph): ElementDefinition[] {
         study: b.study,
         variables: b.variables,
         count: b.variables.length,
+        weight: largest > 0 ? Math.min(1, b.variables.length / largest) : 1,
       },
       classes: 'bundle',
     })),

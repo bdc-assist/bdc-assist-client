@@ -1,6 +1,7 @@
 import { makeAssistantDataUI, useAui, useAuiState } from '@assistant-ui/react'
 import { lazy, Suspense, useState } from 'react'
 import {
+  BadgeCheckIcon,
   BookOpenIcon,
   CalendarDaysIcon,
   CircleHelpIcon,
@@ -76,7 +77,8 @@ const StatusUI = makeAssistantDataUI<StatusPartData>({
 })
 
 // doc_type values come from bdc-doc-mcp's ingest (SOURCE_DOC_TYPES); dbgap-study from
-// Dug (the studies behind a graph). `many`: the popover title for several.
+// Dug (the studies behind a graph); predefined from bdc-assist itself (a canned answer or
+// disclaimer it showed, from predefined_responses.yaml). `many`: the popover title for several.
 type SourceType = { label: string; many: string; Icon: LucideIcon }
 const SOURCE_TYPES: Record<string, SourceType> = {
   page: { label: 'BDC website', many: 'BDC website pages', Icon: GlobeIcon },
@@ -87,26 +89,39 @@ const SOURCE_TYPES: Record<string, SourceType> = {
   update: { label: 'Update', many: 'Updates', Icon: NewspaperIcon },
   fellow: { label: 'Fellow', many: 'Fellows', Icon: UserRoundIcon },
   'dbgap-study': { label: 'dbGaP study', many: 'dbGaP studies', Icon: DatabaseIcon },
+  // approved wording, not a document: a badge, not a plain check (the copy button turns into one)
+  predefined: { label: 'Predefined response', many: 'Predefined responses', Icon: BadgeCheckIcon },
 }
+// shown last, at the right end of the row, whatever order the server lists them in
+const LAST_TYPES = ['dbgap-study']
 const OTHER_SOURCE: SourceType = { label: 'Source', many: 'Sources', Icon: FileTextIcon }
 
 const iconClass =
   'text-muted-foreground hover:text-foreground hover:bg-muted flex items-center rounded-md transition-colors'
 
-/** One source: its type's icon, linking to it, with its title as the tooltip. */
+/** One source: its type's icon, linking to it, with its title as the tooltip. Without a
+ * link (a predefined response may have none), the icon and tooltip only. */
 function SourceLink({ source, type }: { source: Source; type: SourceType }) {
+  const label = `${source.title} (${type.label})`
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <a
-          href={source.link}
-          target="_blank"
-          rel="noreferrer"
-          aria-label={`${source.title} (${type.label})`}
-          className={`${iconClass} size-6 justify-center p-1`}
-        >
-          <type.Icon className="size-4" />
-        </a>
+        {source.link ? (
+          <a
+            href={source.link}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={label}
+            className={`${iconClass} size-6 justify-center p-1`}
+          >
+            <type.Icon className="size-4" />
+          </a>
+        ) : (
+          // focusable, so the tooltip shows from the keyboard too
+          <span tabIndex={0} role="img" aria-label={label} className={`${iconClass} size-6 cursor-default justify-center p-1`}>
+            <type.Icon className="size-4" />
+          </span>
+        )}
       </TooltipTrigger>
       <TooltipContent side="bottom" className="flex-col items-start gap-0">
         <span className="font-medium">{source.title}</span>
@@ -143,17 +158,22 @@ function SourceGroup({ sources, type, open, onOpenChange }: SourceGroupProps) {
           </PopoverTitle>
         </PopoverHeader>
         <ul className="max-h-72 overflow-y-auto p-1 text-sm">
-          {sources.map((s) => (
-            <li key={s.link}>
-              <a
-                href={s.link}
-                target="_blank"
-                rel="noreferrer"
-                className="hover:bg-muted flex items-start gap-2 rounded-md px-2 py-1.5"
-              >
-                <span className="flex-1">{s.title}</span>
-                <ExternalLinkIcon className="text-muted-foreground mt-1 size-3 shrink-0" />
-              </a>
+          {sources.map((s, i) => (
+            // by position: links can be empty, so they aren't unique
+            <li key={i}>
+              {s.link ? (
+                <a
+                  href={s.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:bg-muted flex items-start gap-2 rounded-md px-2 py-1.5"
+                >
+                  <span className="flex-1">{s.title}</span>
+                  <ExternalLinkIcon className="text-muted-foreground mt-1 size-3 shrink-0" />
+                </a>
+              ) : (
+                <span className="flex px-2 py-1.5">{s.title}</span>
+              )}
             </li>
           ))}
         </ul>
@@ -173,8 +193,8 @@ function SourceGroup({ sources, type, open, onOpenChange }: SourceGroupProps) {
 const useToolbarVisible = () =>
   useAuiState((s) => !s.thread.isRunning && (s.message.isLast || s.message.isHovering))
 
-// Sources by type, each type where its first source is: one of a type is its own
-// icon, two or more share one (SourceGroup).
+// Sources by type, each type where its first source is (dbGaP studies last): one of a
+// type is its own icon, two or more share one (SourceGroup).
 const SourcesUI = makeAssistantDataUI<Sources>({
   name: SOURCES_PART,
   render: function SourcesRow({ data }) {
@@ -185,13 +205,14 @@ const SourcesUI = makeAssistantDataUI<Sources>({
     if (!visible && openType === null) return null
     const byType = new Map<string, Source[]>()
     for (const s of Object.values(data as Sources).flat()) byType.set(s.type, [...(byType.get(s.type) ?? []), s])
+    const types = [...byType].sort(([a], [b]) => Number(LAST_TYPES.includes(a)) - Number(LAST_TYPES.includes(b)))
     return (
       <ul
         data-slot="bdc-sources"
         aria-label="Sources"
         className="absolute right-2 bottom-7.5 flex min-h-7.5 items-center gap-1 pt-1.5"
       >
-        {[...byType].map(([key, sources]) => {
+        {types.map(([key, sources]) => {
           const type = SOURCE_TYPES[key] ?? OTHER_SOURCE
           return sources.length === 1 ? (
             <li key={key}>
