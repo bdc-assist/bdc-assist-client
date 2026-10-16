@@ -1,9 +1,17 @@
 // The public API: what a host imports (from this folder, never its files). model/ is the
-// graph as data (plain TypeScript, no DOM); views/ draws it. See README.md.
+// graph as data (plain TypeScript, no DOM); views/ draws it. See README.md. Everything
+// else is internal: exported from its own file for the views and tests, not for hosts.
 
-// the graph, and the API's `kg` it's made from
+// the data: the API's `kg`, and the graph it's made into
 export {
-  edgeId,
+  fromKgList,
+  kgParts,
+  type KgPart,
+  type KgWireEdge,
+  type KgWireEntry,
+  type KgWireNode,
+} from './model/wire'
+export {
   isConceptOrTerm,
   NO_STUDY,
   NO_STUDY_LABEL,
@@ -12,63 +20,30 @@ export {
   type KgNode,
   type KgNodeType,
 } from './model/types'
-export {
-  fromKgList,
-  kgLabel,
-  kgParts,
-  type KgPart,
-  type KgWireEdge,
-  type KgWireEntry,
-  type KgWireNode,
-} from './model/wire'
 
-// reshaping it, as the views do
-export { drawnGraph, type DrawOptions } from './model/drawn'
-export { baseId, collapseVersions } from './model/collapse'
-export { groupSynonyms } from './model/group'
-export { bridges, sharedOnly } from './model/bridges'
+// the views
+export type { KgView, KgViewOptions } from './views/view'
+export { mountGraph, type GraphOptions, type GraphView } from './views/graph'
+export { mountFlow, type FlowOptions, type FlowView } from './views/flow'
+export { KG_CSS } from './views/marks' // their colours as CSS, for your legend or list
 
-// what's in it
-export { bundles, type Bundle } from './model/bundle'
-export { relations, variableWeights } from './model/query'
-export {
-  graphShape,
-  KG_LAYOUTS,
-  KG_VIEWS,
-  shapeOf,
-  type KgLayout,
-  type KgShape,
-  type KgViewChoice,
-  type KgViewName,
-} from './model/shape'
+// which views suit a graph
+export { graphShape, KG_VIEWS, type KgLayout, type KgViewChoice, type KgViewName } from './model/shape'
 
-// what's picked
+// what's picked, the same in every view
 export {
-  carryFocus,
-  connections,
   focusConnections,
   isPair,
   pairVariables,
   sameFocus,
-  studylessVariables,
   type Connections,
   type KgFocus,
 } from './model/focus'
+export { edgeId } from './model/types' // the ids of focusConnections' edges
 
-// for your own UI
+// for your own UI: give these drawnGraph's graph, so ids match what the views draw
+export { drawnGraph, type DrawOptions } from './model/drawn'
 export { studyList, type ListConceptGroup, type ListStudy, type ListVariable } from './model/list'
-export { conceptLink, nodeLinks, NO_VARIABLE_ACCESSION, type KgLink } from './model/links'
-
-// the views
-export type { KgView, KgViewOptions } from './views/view'
-export { KG_CSS } from './views/marks' // their colours as CSS, for your legend or list
-export { mountGraph, type GraphOptions, type GraphView } from './views/graph'
-export {
-  flowData,
-  mountFlow,
-  type FlowData,
-  type FlowLink,
-  type FlowNode,
-  type FlowOptions,
-  type FlowView,
-} from './views/flow'
+export { nodeLinks, NO_VARIABLE_ACCESSION, type KgLink } from './model/links'
+export { bridges } from './model/bridges'
+export { bundles, type Bundle } from './model/bundle'
