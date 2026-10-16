@@ -1,6 +1,7 @@
 import { makeAssistantDataUI, useAui, useAuiState } from '@assistant-ui/react'
 import { lazy, Suspense, useState } from 'react'
 import {
+  BadgeCheckIcon,
   BookOpenIcon,
   CalendarDaysIcon,
   CircleHelpIcon,
@@ -11,7 +12,6 @@ import {
   ExternalLinkIcon,
   FileTextIcon,
   GlobeIcon,
-  InfoIcon,
   LoaderCircleIcon,
   NewspaperIcon,
   RotateCcwIcon,
@@ -89,7 +89,8 @@ const SOURCE_TYPES: Record<string, SourceType> = {
   update: { label: 'Update', many: 'Updates', Icon: NewspaperIcon },
   fellow: { label: 'Fellow', many: 'Fellows', Icon: UserRoundIcon },
   'dbgap-study': { label: 'dbGaP study', many: 'dbGaP studies', Icon: DatabaseIcon },
-  predefined: { label: 'Predefined response', many: 'Predefined responses', Icon: InfoIcon },
+  // approved wording, not a document: a badge, not a plain check (the copy button turns into one)
+  predefined: { label: 'Predefined response', many: 'Predefined responses', Icon: BadgeCheckIcon },
 }
 // shown last, at the right end of the row, whatever order the server lists them in
 const LAST_TYPES = ['dbgap-study']
