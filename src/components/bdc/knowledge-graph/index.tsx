@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import {
   bridges,
   drawnGraph,
-  graphShape,
+  viewChoices,
   type KgFocus,
   type KgGraph,
   type KgNode,
@@ -70,8 +70,8 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
   const merged = grouped ? all : raw
   // what this graph can show, worked out before Shared only so the filter never changes
   // it; the pick where it's available (so it comes back on switching Show back), else Force
-  const views = useMemo(() => graphShape(merged), [merged])
-  const choice = views.available[picked] === true ? picked : views.default
+  const choices = useMemo(() => viewChoices(merged), [merged])
+  const choice = choices.views[picked] === true ? picked : choices.default
   // offered only when it changes something
   const canGroup = all.nodes.length !== raw.nodes.length
   const sharedStudies = useMemo(() => {
@@ -135,7 +135,7 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
           canvasClass="h-72"
           choice={choice}
           onChoice={setPicked}
-          available={views.available}
+          views={choices.views}
           {...filter}
           forcePositions={forcePositions}
           covered={maximized}
@@ -155,7 +155,7 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
               canvasClass="min-h-0 flex-1"
               choice={choice}
               onChoice={setPicked}
-              available={views.available}
+              views={choices.views}
               {...filter}
               forcePositions={forcePositions}
               zoomGestures

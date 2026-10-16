@@ -28,7 +28,7 @@ export { mountFlow, type FlowOptions, type FlowView } from './views/flow'
 export { KG_CSS } from './views/marks' // their colours as CSS, for your legend or list
 
 // which views suit a graph
-export { graphShape, KG_VIEWS, type KgLayout, type KgViewChoice, type KgViewName } from './model/shape'
+export { KG_VIEWS, viewChoices, type KgLayout, type KgViewChoices, type KgViewName } from './views/view'
 
 // what's picked, the same in every view
 export {

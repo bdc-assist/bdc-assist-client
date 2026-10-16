@@ -12,7 +12,7 @@ const VIEW_LABELS: Record<KgViewName, string> = {
 /** One dropdown for the graph's layouts, the flow (Sankey) and the list: a layout is a
  * mountGraph option, flow is mountFlow, the list is this wrapper's own, but to the
  * user they're all ways to view it. */
-export function ViewPicker({ choice, available, onChoice }: Pick<GraphBodyProps, 'choice' | 'available' | 'onChoice'>) {
+export function ViewPicker({ choice, views, onChoice }: Pick<GraphBodyProps, 'choice' | 'views' | 'onChoice'>) {
   return (
     <label className="flex items-center gap-1.5">
       View
@@ -24,7 +24,7 @@ export function ViewPicker({ choice, available, onChoice }: Pick<GraphBodyProps,
         {/* one the graph can't show stays listed, greyed out; why is its native tooltip
             (shown by some browsers only: an <option> can't hold a styled one) */}
         {KG_VIEWS.map((v) => (
-          <option key={v} value={v} disabled={available[v] !== true} title={available[v] === true ? undefined : available[v]}>
+          <option key={v} value={v} disabled={views[v] !== true} title={views[v] === true ? undefined : views[v]}>
             {VIEW_LABELS[v]}
           </option>
         ))}

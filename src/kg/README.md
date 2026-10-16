@@ -77,7 +77,6 @@ import { fromKgList, mountGraph } from './kg'
 const graph = fromKgList(doneEvent.kg)
 if (graph) {
   const view = mountGraph(document.querySelector('#kg')!, graph, {
-    layout: 'radial',
     onFocus: (focus) => showDetails(focus),  // your UI
   })
   // later: view.update(otherGraph), view.destroy()
@@ -139,7 +138,7 @@ Extra options:
 
 | Option | |
 |---|---|
-| `layout` | `'radial'` (default: the seeds in the middle, or the concepts when there are none; variables around, studies outside; separate pieces side by side, each round its own centre), `'force'` (force-directed, turned wide). Both are a `KgLayout` |
+| `layout` | `'force'` (default: force-directed, turned wide; separate pieces packed side by side), `'radial'` (the seeds in the middle, or the concepts when there are none; variables around, studies outside; separate pieces side by side, each round its own centre). Both are a `KgLayout` |
 | `variables` | `false` (default): one link per concept and study, as wide as its variables (√count), flat mid-blue; variables without a study link to a grey "No study provided" placeholder. Clicking a link focuses its concept × study pair. Without any studies, every link goes to the placeholder. `true`: each variable |
 | `zoomGestures` | `false` (default: the wheel scrolls the page), `'modifier'` (Ctrl/⌘ + wheel zooms; trackpad pinch counts), `true` (the wheel always zooms). Use `'modifier'` where a page scrolls around the graph |
 | `onZoomHint` | `'modifier'` mode: called when the wheel turns over the graph without Ctrl/⌘, so you can say how to zoom |
@@ -201,7 +200,7 @@ the views draw.
 | `edgeId(source, target)` | `model/types.ts` | an edge's id as the views and `focusConnections` give it (`"source->target"`) |
 | `bridges(graph)` | `model/bridges.ts` | the nodes connecting two or more seeds (other concepts, e.g. synonyms, don't count): "shared" |
 | `bundles(graph)` | `model/bundle.ts` | one `{ concept, study, variables }` per concept and study (the study can be `NO_STUDY`): what Flow's bands and node-link's links draw, for your own chart |
-| `graphShape(graph)` | `model/shape.ts` | which views suit the graph (`available`: `true` or why not, for each of `KG_VIEWS`) and the `default` (Force); work it out before `sharedOnly` |
+| `viewChoices(graph)` | `views/view.ts` | which views suit the graph (`views`: `true` or why not, for each of `KG_VIEWS`) and the `default` (Force so far); work it out before `sharedOnly` |
 | `NO_STUDY`, `NO_STUDY_LABEL` | `model/types.ts` | the "No study provided" placeholder for variables whose study isn't provided: never a node in the graph, but views draw it and it focuses like a study (`{ node: NO_STUDY }`, `{ concept, study: NO_STUDY }`) |
 | `isConceptOrTerm(type)` | `model/types.ts` | concepts and search terms play the same part (what variables are about); most views treat them alike, but a term has no link or category |
 | `KG_CSS` | `views/marks.ts` | the views' colours as CSS (see Colours) |

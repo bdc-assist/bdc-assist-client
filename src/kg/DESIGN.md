@@ -55,8 +55,10 @@ Computed on the graph being shown (the source picked, grouped or not), **before*
 | Concept star | concept_connections | 1 | | | ✓ |
 | Mixed | several calls in "All results" | any | any | any | any |
 
-`graphShape(graph) → { available: Record<View, true | reason>, default: View }`
-(model/shape.ts) turns a shape into the views on offer.
+`viewChoices(graph) → { views: Record<View, true | reason>, default: View }`
+(views/view.ts, from `shapeOf` in model/shape.ts) turns a shape into the views on offer.
+`default` stays in the result, though it's Force for every shape so far: a new shape
+may want another.
 
 ## 3. Views
 
@@ -356,7 +358,7 @@ type KgFocus = { node: string } | { concept: string; study: string }
 3. ~~Stable Force~~ (done): start from the Radial positions, a fixed seed, turned
    wide; positions kept when every node has one (maximize, drags, Shared only on).
 4. ~~Collapsed links in node-link~~ (done): the default, with the Variables toggle.
-5. ~~`graphShape`~~ (done): availability, the Force default, greyed-out views, the
+5. ~~`graphShape`, now `viewChoices`~~ (done): availability, the Force default, greyed-out views, the
    pick carried over. List without variables (a star): the concepts, seeds first.
 6. ~~Removing the Columns layout~~ (done). The star's list became a plain list of its
    concepts in step 5; grouping it by predicate is parked.

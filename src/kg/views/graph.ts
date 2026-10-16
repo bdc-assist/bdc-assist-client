@@ -7,13 +7,12 @@ import { carryFocus, focusConnections, isPair, sameFocus, type KgFocus } from '.
 import { arrangeForce as settleForce } from './force'
 import { arrangeRadial, type Box } from './radial'
 import { styleFor } from './style'
-import type { KgLayout } from '../model/shape'
 import type { KgGraph } from '../model/types'
-import type { KgView, KgViewOptions } from './view'
+import type { KgLayout, KgView, KgViewOptions } from './view'
 
 /** mountGraph's options: the common view options (KgViewOptions), plus: */
 export type GraphOptions = KgViewOptions & {
-  /** How to arrange the nodes (default 'radial'). */
+  /** How to arrange the nodes (default 'force'). */
   layout?: KgLayout
   /** Draw each variable (true), or one bundle per concept and study (false, the
    * default): a link as wide as its variables, with variables whose study isn't
@@ -67,7 +66,7 @@ const FORCE_START: Box = { x1: 0, y1: 0, w: 800, h: 500 }
  * No framework required; React, Vue or plain HTML hosts all call this the same way.
  */
 export function mountGraph(container: HTMLElement, graph: KgGraph, options: GraphOptions = {}): GraphView {
-  let opts: GraphOptions = { ...DRAW_DEFAULTS, layout: 'radial', ...options }
+  let opts: GraphOptions = { ...DRAW_DEFAULTS, layout: 'force', ...options }
   let current = graph
 
   const cy = cytoscape({

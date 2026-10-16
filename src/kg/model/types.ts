@@ -31,6 +31,21 @@ export const edgeId = (source: string, target: string) => `${source}->${target}`
 
 export type KgGraph = { nodes: KgNode[]; edges: KgEdge[] }
 
+/** Edges with their ends renamed (`idOf`: old id → new id; others stay), one per
+ * pair, keeping every predicate of the edges merged into it. For merging nodes. */
+export function repointEdges(edges: KgEdge[], idOf: Map<string, string>): KgEdge[] {
+  const out = new Map<string, KgEdge>()
+  for (const e of edges) {
+    const source = idOf.get(e.source) ?? e.source
+    const target = idOf.get(e.target) ?? e.target
+    const key = JSON.stringify([source, target])
+    const seen = out.get(key)
+    const predicates = [...new Set([...(seen?.predicates ?? []), ...(e.predicates ?? [])])]
+    out.set(key, { source, target, ...(predicates.length && { predicates }) })
+  }
+  return [...out.values()]
+}
+
 /** The "No study provided" placeholder: views gather the variables whose study Dug didn't
  * provide under it. It's never a node in a KgGraph (nothing is inferred), so this id can't
  * clash with one; it's left out of study counts and "shared". Focus it like a study:

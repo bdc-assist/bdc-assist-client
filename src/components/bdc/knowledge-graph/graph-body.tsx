@@ -12,7 +12,7 @@ import {
   type KgFocus,
   type KgGraph,
   type KgLayout,
-  type KgViewChoice,
+  type KgViewChoices,
   type KgViewName,
 } from '@/kg'
 
@@ -31,7 +31,7 @@ export type GraphBodyProps = {
   canvasClass: string
   choice: KgViewName // the view shown: the user's pick where this graph has it
   onChoice: (v: KgViewName) => void
-  available: KgViewChoice['available'] // what the graph can show (graphShape)
+  views: KgViewChoices['views'] // what the graph can show, and why not (viewChoices)
   grouped: boolean // versions and synonyms merged (the views' collapseVersions and groupSynonyms)
   onGrouped: (on: boolean) => void
   canGroup: boolean // merging changes something: offer the toggle
@@ -55,7 +55,7 @@ const ZOOM_STEP = 1.3
 const ZOOM_KEY = /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl'
 
 export function GraphBody(props: GraphBodyProps) {
-  const { json, shown, canvasClass, choice, onChoice, available, sharedOnly, onSharedOnly, canShare, zoomGestures } = props
+  const { json, shown, canvasClass, choice, onChoice, views, sharedOnly, onSharedOnly, canShare, zoomGestures } = props
   const { sources, source, onSource, grouped, onGrouped, canGroup, forcePositions, covered, detailsBeside } = props
   const { focus, onFocus } = props
   const { variables, onVariables } = props
@@ -208,7 +208,7 @@ export function GraphBody(props: GraphBodyProps) {
               <TooltipContent side="bottom">Only the studies with variables on two or more of the concepts asked about</TooltipContent>
             </Tooltip>
           )}
-          <ViewPicker choice={choice} available={available} onChoice={onChoice} />
+          <ViewPicker choice={choice} views={views} onChoice={onChoice} />
         </div>
       </div>
       {/* beside: the views in a column, the details next to it; below: no wrappers */}

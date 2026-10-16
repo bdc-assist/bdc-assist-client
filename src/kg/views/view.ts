@@ -1,6 +1,46 @@
 import type { DrawOptions } from '../model/drawn'
 import type { KgFocus } from '../model/focus'
+import { shapeOf } from '../model/shape'
 import type { KgGraph } from '../model/types'
+
+/**
+ * mountGraph's layouts:
+ * - radial: the seeds (what was asked about) in the middle, or without seeds the concepts;
+ *   their variables around them, studies outside. Separate pieces (e.g. from unrelated
+ *   calls) each get their own centre, side by side (see arrangeRadial in radial.ts)
+ * - force: a force-directed layout (d3-force); clusters form on their own. Separate
+ *   pieces are packed side by side (see arrangeForce in force.ts)
+ */
+export const KG_LAYOUTS = ['radial', 'force'] as const
+export type KgLayout = (typeof KG_LAYOUTS)[number]
+
+/** Every view of a graph: mountGraph's layouts, the flow (mountFlow) and the list
+ * (studyList), in the order a picker lists them: Force first. */
+export const KG_VIEWS = ['force', 'radial', 'flow', 'list'] as const
+export type KgViewName = KgLayout | 'flow' | 'list'
+
+/** Every view, and whether it can show a graph: `true`, or why not (for a tooltip);
+ * and the one to start with. */
+export type KgViewChoices = { views: Record<KgViewName, true | string>; default: KgViewName }
+
+/**
+ * Which views suit `graph`, from what it contains (shapeOf): Radial needs a seed to
+ * centre on, Flow studies; Force and List always work. The default is Force, for every
+ * shape so far. Work it out before "Shared only", so the filter never changes which
+ * views are offered.
+ */
+export function viewChoices(graph: KgGraph): KgViewChoices {
+  const shape = shapeOf(graph)
+  return {
+    views: {
+      radial: shape.seeds > 0 || 'Needs a concept that was asked about',
+      force: true,
+      flow: shape.studies || 'Needs studies',
+      list: true,
+    },
+    default: 'force',
+  }
+}
 
 /** Options every view of a graph takes (mountGraph, mountFlow): how it's drawn (see
  * drawnGraph), plus: */

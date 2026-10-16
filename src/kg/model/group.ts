@@ -1,6 +1,5 @@
-import { repointEdges } from './collapse'
 import { lookup } from './query'
-import type { KgGraph, KgNode } from './types'
+import { repointEdges, type KgGraph, type KgNode } from './types'
 
 /**
  * Merge concepts that have exactly the same neighbours, at least one of them a
