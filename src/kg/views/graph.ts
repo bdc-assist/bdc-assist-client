@@ -2,7 +2,7 @@ import cytoscape from 'cytoscape'
 
 import { bridges } from '../model/bridges'
 import { DRAW_DEFAULTS, DRAW_OPTIONS, drawnGraph } from '../model/drawn'
-import { toElements } from './elements'
+import { largestBundle, toElements } from './elements'
 import { carryFocus, focusConnections, isPair, sameFocus, type KgFocus } from '../model/focus'
 import { arrangeForce as settleForce } from './force'
 import { arrangeRadial, type Box } from './radial'
@@ -141,11 +141,14 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
   let placed = opts.forcePositions ?? new Map<string, { x: number; y: number }>()
   function draw() {
     drawn = drawnGraph(current, opts)
+    // bundles are as wide as their share of the largest one before Shared only, so the
+    // filter hides some without making the rest wider
+    const unfiltered = opts.sharedOnly ? drawnGraph(current, { ...opts, sharedOnly: false }) : drawn
     const shared = bridges(drawn)
     bundled = wantBundles()
     cy.batch(() => {
       cy.elements().remove()
-      cy.add(toElements(drawn, bundled))
+      cy.add(toElements(drawn, bundled, bundled ? largestBundle(unfiltered) : undefined))
       // nodes that connect two or more seeds get a halo (`bridge`)
       cy.nodes().forEach((n) => void n.toggleClass('bridge', shared.has(n.id())))
     })

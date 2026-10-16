@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { toElements } from './elements'
+import { largestBundle, toElements } from './elements'
 import { CHD } from '../test-fixtures'
 import { NO_STUDY, type KgGraph } from '../model/types'
 
@@ -102,6 +102,18 @@ describe('toElements', () => {
       expect(placeholder?.data.order > 'phs999999').toBe(true)
       const withStudies = toElements({ ...graph, edges: graph.edges.filter((e) => e.source !== 'loose') }, true)
       expect(withStudies.some((e) => e.data.id === NO_STUDY)).toBe(false)
+    })
+
+    it('weights bundles in proportion: their variables over the largest bundle', () => {
+      const weight = (es: typeof els, id: string) => es.find((e) => e.data.id === id)?.data.weight
+      expect(largestBundle(graph)).toBe(2)
+      expect(weight(els, 'bundle:C->S')).toBe(1) // 2 variables: the largest
+      expect(weight(els, `bundle:C->${NO_STUDY}`)).toBe(0.5) // 1 variable: half
+      // another graph's largest (before a filter): this graph's bundles scale to it
+      expect(weight(toElements(graph, true, 8), 'bundle:C->S')).toBe(0.25)
+      // every bundle one variable: all the largest
+      const single = toElements({ ...graph, edges: graph.edges.filter((e) => e.source !== 'w') }, true)
+      expect(single.filter((e) => e.classes === 'bundle').map((e) => e.data.weight)).toEqual([1, 1])
     })
   })
 })

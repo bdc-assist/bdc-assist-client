@@ -2,6 +2,13 @@ import type { EdgeSingular, StylesheetJson } from 'cytoscape'
 
 import { AMOUNTS, HALO_PAD, resolvedColors } from './marks'
 
+// node sizes (px across): a bundle's width is scaled from them
+const SIZE = { concept: 24, study: 16, variable: 12 } as const
+// a bundle (toElements' `weight`, 0..1): in proportion to its variables, the graph's largest at
+// 1.5 × a study's radius (bundles end at studies, the smaller of their two nodes); never below
+// `min`, so a thin one is still visible, clickable, and wider than a plain edge
+const BUNDLE_WIDTH = { min: 1.5, max: (SIZE.study / 2) * 1.5 } as const
+
 /** mountGraph's Cytoscape style, with the --kg-* colours read from `el` (see marks.ts).
  * Exported for pages that draw toElements' elements their own way (e.g.
  * design/force-layouts.html). */
@@ -21,16 +28,16 @@ export function styleFor(el: HTMLElement): StylesheetJson {
         'text-margin-y': 3,
         'text-wrap': 'ellipsis',
         'text-max-width': '110px',
-        width: 12,
-        height: 12,
+        width: SIZE.variable,
+        height: SIZE.variable,
       },
     },
     {
       selector: 'node[type = "concept"], node[type = "term"]',
       style: {
         'background-color': c.concept,
-        width: 24,
-        height: 24,
+        width: SIZE.concept,
+        height: SIZE.concept,
         'font-size': 12,
         'font-weight': 'bold',
         'text-max-width': '200px',
@@ -47,7 +54,7 @@ export function styleFor(el: HTMLElement): StylesheetJson {
     },
     {
       selector: 'node[type = "study"]',
-      style: { 'background-color': c.study, shape: 'round-rectangle', width: 16, height: 16 },
+      style: { 'background-color': c.study, shape: 'round-rectangle', width: SIZE.study, height: SIZE.study },
     },
     {
       // "No study provided": a stand-in, not a study: outlined in grey, never study green.
@@ -68,11 +75,11 @@ export function styleFor(el: HTMLElement): StylesheetJson {
     },
     {
       // a concept's variables in one study: flat mid-blue (a summary of variables, as
-      // Flow's bands), as wide as there are (area-like: 1 + 2.2·√count)
+      // Flow's bands), as wide as there are, in proportion, as Flow's bands
       selector: 'edge.bundle',
       style: {
         'line-color': c.band,
-        width: (e: EdgeSingular) => 1 + 2.2 * Math.sqrt(e.data('count') as number),
+        width: (e: EdgeSingular) => Math.max(BUNDLE_WIDTH.min, BUNDLE_WIDTH.max * ((e.data('weight') as number) ?? 1)),
       },
     },
     {

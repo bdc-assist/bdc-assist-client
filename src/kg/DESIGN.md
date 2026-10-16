@@ -222,7 +222,7 @@ Each meaning gets one encoding, and each encoding means one thing in every view.
 | Category | Solid grey line | a stated variable edge | node-link |
 | Category | Solid light-amber line (amber mixed towards the background) | an inter-concept link: concept → concept, with Dug's predicates | node-link |
 | Amount | Blue ramp `--kg-variable-low → -high` | one variable; more contrast = links more concepts (`related_concepts_count`) | node-link with Variables on |
-| Amount | Size / width | variable count (bundles only) | Flow band width, node-link bundle width (`1 + 2.2·√count`) |
+| Amount | Size / width | variable count (bundles only) | Flow band width, node-link bundle width (in proportion: the graph's largest bundle before Shared only at 1.5 × a study's radius, 12px; never below 1.5px) |
 | Query | Wide halo `--kg-halo` | seed: what a call asked about, of any type | all |
 | Query | Highlighted label: `--kg-halo` behind the label text | seed | node-link, Flow, List |
 | Query | Narrow halo `--kg-halo` | shared: connects two or more seeds | node-link, Flow, List (on the swatch) |
