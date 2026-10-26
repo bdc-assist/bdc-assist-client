@@ -109,8 +109,8 @@ export function kgLabel(entry: KgWireEntry): string {
         return `${words(args.concepts)} cohort variables`
       case 'search_concepts':
         return `${words(args.search_term)} concept search`
-      case 'picsure_search':
-        return `${words(Object.values(args).find((v) => typeof v === 'string'))} PIC-SURE variables`
+      case 'find_variables':
+        return `${words(args.keyword)} variables`
       default:
         return entry.tool?.replace(/_/g, ' ') ?? 'graph'
     }
