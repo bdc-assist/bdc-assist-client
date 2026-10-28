@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Inline tool links</title>
+<!-- Design scratch page, not part of the app build. Open via the dev server:
+     npm run dev, then /design/inline-tool-links.html. A mock-up of BDC links inside the answer text,
+     replacing the separate tools part (tools-layout.html). Front-end only: the model writes ordinary
+     markdown links (URLs from the retrieved documents), and the renderer matches each URL against a
+     config of base URLs (longest prefix wins) to style it. Tools and base URLs are placeholders; the
+     accent is #ac3041. Every link out of the app ends in the external-link icon, BDC or not; no icon
+     before a tool's name until we have official logos. -->
+<style>
+  :root { --bg: #ffffff; --fg: #0a0a0a; --muted: #737373; --hover: #f5f5f5; --line: #e5e5e5;
+    --accent: #ac3041; --accent-bg: #f8e9eb; --accent-bg-faint: #fcf4f5; --accent-line: #dca3ab;
+    --link-line: #b5b5b5; }
+  /* #ac3041 is too dark on the dark background (about 3:1), so dark mode uses a lighter tint of it */
+  :root[data-theme="dark"] { --bg: #0a0a0a; --fg: #fafafa; --muted: #a1a1a1; --hover: #262626; --line: #262626;
+    --accent: #e0717f; --accent-bg: #2a1418; --accent-bg-faint: #1a0f11; --accent-line: #7a3540;
+    --link-line: #5c5c5c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px 24px 48px; background: var(--bg); color: var(--fg);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 28px 0 4px; }
+  h3 { font-size: 13px; margin: 18px 0 6px; color: var(--muted); font-weight: 500; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .controls { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 20px; align-items: center;
+    padding: 10px 0; background: var(--bg); border-bottom: 1px solid var(--line); margin-bottom: 8px; font-size: 13px; }
+  .controls label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .controls select { font: inherit; }
+  .widths { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+  .frame h3 { margin-top: 0; }
+
+  /* a message as the app draws its markdown: paragraphs (leading-relaxed, my-3) and a list */
+  .msg { border: 1px dashed var(--line); border-radius: 8px; padding: 12px; background: var(--bg); }
+  .msg p { margin: 12px 0; line-height: 1.625; }
+  .msg p:first-child { margin-top: 0; }
+  .msg ul { margin: 12px 0; padding-left: 24px; line-height: 1.625; }
+  .msg li { margin: 4px 0; }
+  .msg > :last-child { margin-bottom: 0; }
+
+  /* every link out of the app: the app's markdown link, then the external-link icon */
+  a { color: var(--fg); text-decoration: underline; text-decoration-color: var(--link-line); text-underline-offset: 2px;
+    cursor: pointer; }
+  a:hover { opacity: 0.8; }
+  a .out { display: inline; vertical-align: -1px; margin-left: 2px; color: var(--muted); }
+
+  /* BDC links, by variant */
+  a.bdc.accent { color: var(--accent); text-decoration-color: var(--accent-line); }
+  a.bdc.accent .out { color: var(--accent); }
+  a.bdc.tint { background: var(--accent-bg); color: var(--accent); text-decoration: none; padding: 1px 4px;
+    border-radius: 4px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  a.bdc.tint .out { color: var(--accent); }
+  /* doc-only variants: a fainter tint of the accent, or a neutral one */
+  a.bdc.faint { background: var(--accent-bg-faint); color: var(--accent); text-decoration: none; padding: 1px 4px;
+    border-radius: 4px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  a.bdc.faint .out { color: var(--accent); }
+  a.bdc.grey { background: var(--hover); color: var(--fg); text-decoration: none; padding: 1px 4px;
+    border-radius: 4px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  /* underline scheme: red text and underline; tools add the tint */
+  a.bdc.redline { color: var(--accent); text-decoration-color: var(--accent); }
+  a.bdc.redline .out { color: var(--accent); }
+  a.bdc.tintline .out { color: var(--accent); }
+  a.bdc.tintline { background: var(--accent-bg); color: var(--accent); text-decoration-color: var(--accent); padding: 1px 4px;
+    border-radius: 4px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  .dark-line a { text-decoration-color: var(--muted); }
+  .dark-line a.bdc.redline, .dark-line a.bdc.tintline { text-decoration-color: var(--accent); }
+  /* the source row's type icon in front (book: documentation, globe: the BDC website) */
+  a .lead { display: inline; vertical-align: -1px; margin-right: 3px; }
+  /* a tool icon after a tool link's text */
+  a .trail { display: inline; vertical-align: -1px; margin-left: 3px; }
+  .tag-label { display: inline-block; margin-left: 4px; padding: 0 4px; border: 1px solid var(--line); border-radius: 4px;
+    font-size: 11px; line-height: 16px; color: var(--muted); text-decoration: none; vertical-align: 1px; white-space: nowrap; }
+</style>
+</head>
+<body>
+<h1>Inline tool links</h1>
+<p class="muted">BDC links inside the answer text, matched in the front end against a config of base URLs. Hover a
+  link for its tooltip. The samples mix tool links, BDC documentation and outside links; the documentation
+  toggle decides whether docs count as BDC.</p>
+<div id="root"></div>
+
+<script type="module">
+import { createElement as h, Fragment, useEffect, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import {
+  AppWindowIcon, BlocksIcon, BookOpenIcon, ExternalLinkIcon, GlobeIcon, MousePointerClickIcon, WrenchIcon,
+} from 'lucide-react'
+
+// a generic "tool" icon after a tool link's text, to try out (no per-platform guesses)
+const TOOL_ICONS = { wrench: WrenchIcon, window: AppWindowIcon, blocks: BlocksIcon, click: MousePointerClickIcon }
+
+// the front end's config (placeholders): a name, its type (tool or doc) and the base URLs it covers
+const TOOLS = [
+  { name: 'PIC-SURE', type: 'tool', urls: ['https://picsure.biodatacatalyst.nhlbi.nih.gov/'] },
+  { name: 'Terra', type: 'tool', urls: ['https://terra.biodatacatalyst.nhlbi.nih.gov/'] },
+  { name: 'Seven Bridges', type: 'tool', urls: ['https://platform.sb.biodatacatalyst.nhlbi.nih.gov/'] },
+  { name: 'Dockstore', type: 'tool', urls: ['https://dockstore.org/'] },
+  // docs: the page_url bases of bdc-doc-mcp's ingest (2026-10-27); videos are single YouTube URLs, left out
+  { name: 'BDC website', type: 'doc', icon: GlobeIcon, urls: ['https://biodatacatalyst.nhlbi.nih.gov/'] },
+  { name: 'BDC docs', type: 'doc', urls: ['https://bdcatalyst.gitbook.io/biodata-catalyst-documentation/'] },
+  { name: 'Seven Bridges docs', type: 'doc', urls: ['https://sb-biodatacatalyst.readme.io/docs/'] },
+  { name: 'Terra help', type: 'doc', urls: ['https://support.terra.bio/hc/'] },
+]
+
+// a URL as "host/path/", for prefix matching: host lowercased, no www., path ends in /
+function key(href) {
+  try {
+    const u = new URL(href)
+    const path = u.pathname.endsWith('/') ? u.pathname : `${u.pathname}/`
+    return `${u.protocol}//${u.hostname.toLowerCase().replace(/^www\./, '')}${path}`
+  } catch { return null }
+}
+
+// the tool whose base URL is the longest prefix of the link; docs only when they count
+function match(href, withDocs) {
+  const k = key(href)
+  if (!k) return null
+  let best = null, bestLength = 0
+  for (const tool of TOOLS) {
+    if (tool.type === 'doc' && !withDocs) continue
+    for (const base of tool.urls) {
+      const b = key(base)
+      if (k.startsWith(b) && b.length > bestLength) { best = tool; bestLength = b.length }
+    }
+  }
+  return best
+}
+
+// answers as markdown would parse them: blocks of text runs and { href, text } links
+const ANSWERS = [
+  {
+    title: 'Links in running text',
+    blocks: [
+      ['p', 'BDC has several cohorts with asthma and COPD variables, including Framingham, ARIC and COPDGene. ',
+        'To see which variables they share, ', { href: 'https://picsure.biodatacatalyst.nhlbi.nih.gov/login', text: 'log in to PIC-SURE' },
+        ' and filter them by study; it shows counts before you request access.'],
+      ['p', 'The ', { href: 'https://biodatacatalyst.nhlbi.nih.gov/resources/data', text: 'BDC data page' },
+        ' lists every study, and ', { href: 'https://bdcatalyst.gitbook.io/biodata-catalyst-documentation/', text: 'the documentation' },
+        ' explains how access works.'],
+    ],
+  },
+  {
+    title: 'Links as steps',
+    blocks: [
+      ['p', 'To run a GWAS on lung function:'],
+      ['ul',
+        ['Build your cohort and export it from ', { href: 'https://picsure.biodatacatalyst.nhlbi.nih.gov/', text: 'PIC-SURE' },
+          ' (see ', { href: 'https://bdcatalyst.gitbook.io/biodata-catalyst-documentation/explore-available-data/building-a-cohort', text: 'Building a Cohort in Discover' }, ').'],
+        ['Find a GWAS workflow on ', { href: 'https://dockstore.org/search?search=gwas', text: 'Dockstore' }, ' and import it into your workspace.'],
+        ['Run it in ', { href: 'https://terra.biodatacatalyst.nhlbi.nih.gov/', text: 'Terra' }, ' against the exported cohort.'],
+      ],
+    ],
+  },
+  {
+    title: 'Mixed: BDC and outside links',
+    blocks: [
+      ['p', 'Data use follows ', { href: 'https://grants.nih.gov/grants/guide/notice-files/NOT-OD-24-157.html', text: 'NIH\'s update to the Genomic Data Sharing Policy' },
+        '. Once approved, the data shows up in your ', { href: 'https://platform.sb.biodatacatalyst.nhlbi.nih.gov/', text: 'Seven Bridges projects' },
+        '. For help, ', { href: 'https://bdcatalyst.freshdesk.com/support/home', text: 'contact BDC support' },
+        ', or see ', { href: 'https://support.terra.bio/hc/en-us/articles/360036804031', text: 'Terra\'s help on workspaces' },
+        ' and the examples on ', { href: 'https://github.com/DataBiosphere/terra-examples', text: 'GitHub' }, '.'],
+    ],
+  },
+]
+
+const stop = (e) => e.preventDefault()
+const out = (opts) => opts.outIcon && h(ExternalLinkIcon, { size: 12, className: 'out', 'aria-hidden': true })
+
+function Link({ link, opts }) {
+  const tool = match(link.href, opts.withDocs)
+  if (!tool) return h('a', { href: link.href, onClick: stop, title: link.href }, link.text, out(opts))
+  const { tagText } = opts
+  // docs take their own style unless it's "same as tools"; the icon-* styles add the type icon in front
+  const docStyle = opts.docStyle === 'same' ? opts.style : opts.docStyle
+  const [style, lead] = tool.type === 'doc' && docStyle.startsWith('icon-')
+    ? [docStyle.slice(5), tool.icon || BookOpenIcon]
+    : [tool.type === 'doc' ? docStyle : opts.style, null]
+  return h('a', { className: `bdc ${style}`, href: link.href, onClick: stop, title: `${tool.name}: ${link.href}` },
+    lead && h(lead, { size: 12, className: 'lead', 'aria-hidden': true }),
+    link.text,
+    style === 'tag' && h('span', { className: 'tag-label' }, tagText === 'bdc' ? 'BDC' : tool.name),
+    tool.type === 'tool' && TOOL_ICONS[opts.toolIcon] &&
+      h(TOOL_ICONS[opts.toolIcon], { size: 12, className: 'trail', 'aria-hidden': true }),
+    out(opts),
+  )
+}
+
+const runs = (list, opts) => list.map((r, i) => typeof r === 'string' ? r : h(Link, { key: i, link: r, opts }))
+
+function Message({ answer, opts }) {
+  return h('div', { className: `msg${opts.darkLine ? ' dark-line' : ''}` }, answer.blocks.map(([tag, ...rest], i) =>
+    tag === 'ul'
+      ? h('ul', { key: i }, rest.map((li, j) => h('li', { key: j }, runs(li, opts))))
+      : h('p', { key: i }, runs(rest, opts))))
+}
+
+function Page() {
+  const [style, setStyle] = useState('tint')
+  const [docStyle, setDocStyle] = useState('accent')
+  const [tagText, setTagText] = useState('bdc')
+  const [withDocs, setWithDocs] = useState(true)
+  const [outIcon, setOutIcon] = useState(true)
+  const [darkLine, setDarkLine] = useState(false)
+  const [toolIcon, setToolIcon] = useState('none')
+  const [dark, setDark] = useState(false)
+  useEffect(() => { document.documentElement.dataset.theme = dark ? 'dark' : 'light' }, [dark])
+  const opts = { style, docStyle, tagText, withDocs, outIcon, darkLine, toolIcon }
+  // dark grey underline for ordinary links, red underline for docs, red underline + tint for tools
+  const underlineScheme = () => { setStyle('tintline'); setDocStyle('redline'); setDarkLine(true); setWithDocs(true) }
+  const check = (text, value, set) =>
+    h('label', null, h('input', { type: 'checkbox', checked: value, onChange: (e) => set(e.target.checked) }), text)
+  const tagShown = style === 'tag' || (withDocs && (docStyle === 'tag' || (docStyle === 'same' && style === 'tag')))
+  return h(Fragment, null,
+    h('div', { className: 'controls' },
+      h('label', null, 'Tools as ',
+        h('select', { value: style, onChange: (e) => setStyle(e.target.value) },
+          h('option', { value: 'plain' }, 'plain (tooltip only)'),
+          h('option', { value: 'accent' }, 'accent colour'),
+          h('option', { value: 'tint' }, 'tinted background'),
+          h('option', { value: 'tintline' }, 'red underline + tint'),
+          h('option', { value: 'tag' }, 'tag after the text'))),
+      h('label', null, 'Docs as ',
+        h('select', { value: docStyle, disabled: !withDocs, onChange: (e) => setDocStyle(e.target.value) },
+          h('option', { value: 'same' }, 'same as tools'),
+          h('option', { value: 'plain' }, 'plain (tooltip only)'),
+          h('option', { value: 'accent' }, 'accent colour'),
+          h('option', { value: 'redline' }, 'red underline'),
+          h('option', { value: 'faint' }, 'fainter tint'),
+          h('option', { value: 'grey' }, 'grey tint'),
+          h('option', { value: 'icon-accent' }, 'type icon + accent colour'),
+          h('option', { value: 'icon-tint' }, 'type icon + tint'),
+          h('option', { value: 'tag' }, 'tag after the text'))),
+      tagShown && h('label', null, 'Tag says ',
+        h('select', { value: tagText, onChange: (e) => setTagText(e.target.value) },
+          h('option', { value: 'bdc' }, '"BDC"'),
+          h('option', { value: 'name' }, 'the tool\'s name'))),
+      check('documentation counts as BDC', withDocs, setWithDocs),
+      h('label', null, 'Tool icon ',
+        h('select', { value: toolIcon, onChange: (e) => setToolIcon(e.target.value) },
+          h('option', { value: 'none' }, 'none'),
+          h('option', { value: 'wrench' }, 'wrench'),
+          h('option', { value: 'window' }, 'app window'),
+          h('option', { value: 'blocks' }, 'blocks'),
+          h('option', { value: 'click' }, 'pointer click'))),
+      check('link-out icon', outIcon, setOutIcon),
+      check('dark grey underline on ordinary links', darkLine, setDarkLine),
+      h('button', { type: 'button', onClick: underlineScheme }, 'Underline scheme'),
+      check('dark', dark, setDark),
+    ),
+    [760, 520, 360].map((w) =>
+      h(Fragment, { key: w },
+        h('h2', null, `${w}px message`),
+        h('div', { className: 'widths' }, ANSWERS.map((answer) =>
+          h('div', { key: answer.title, className: 'frame', style: { width: w } },
+            h('h3', null, answer.title),
+            h(Message, { answer, opts }),
+          ))),
+      )),
+  )
+}
+
+createRoot(document.getElementById('root')).render(h(Page))
+</script>
+</body>
+</html>

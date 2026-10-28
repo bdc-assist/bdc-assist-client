@@ -1,0 +1,18 @@
+{
+  "$comment": "BDC links in answer text: a link whose URL starts with one of an entry's urls gets that entry's look (type: tool or doc); the longest matching url wins. Tools are the BDC platforms on https://biodatacatalyst.nhlbi.nih.gov/about/bdc (Dug's page is under the website, and wins over it by being longer). Doc urls are the page_url bases of bdc-doc-mcp's ingest (2026-10-27).",
+  "links": [
+    { "name": "PIC-SURE", "type": "tool", "urls": ["https://picsure.biodatacatalyst.nhlbi.nih.gov/"] },
+    { "name": "Terra", "type": "tool", "urls": ["https://terra.biodatacatalyst.nhlbi.nih.gov/"] },
+    {
+      "name": "Seven Bridges",
+      "type": "tool",
+      "urls": ["https://platform.sb.biodatacatalyst.nhlbi.nih.gov/", "https://accounts.sb.biodatacatalyst.nhlbi.nih.gov/"]
+    },
+    { "name": "Gen3", "type": "tool", "urls": ["https://gen3.biodatacatalyst.nhlbi.nih.gov/"] },
+    { "name": "Dug", "type": "tool", "urls": ["https://biodatacatalyst.nhlbi.nih.gov/use-bdc/explore-data/dug/"] },
+    { "name": "BDC website", "type": "doc", "urls": ["https://biodatacatalyst.nhlbi.nih.gov/"] },
+    { "name": "BDC documentation", "type": "doc", "urls": ["https://bdcatalyst.gitbook.io/biodata-catalyst-documentation/"] },
+    { "name": "Seven Bridges documentation", "type": "doc", "urls": ["https://sb-biodatacatalyst.readme.io/docs/"] },
+    { "name": "Terra help", "type": "doc", "urls": ["https://support.terra.bio/hc/"] }
+  ]
+}
