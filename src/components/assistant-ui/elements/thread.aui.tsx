@@ -9,6 +9,7 @@ import { File } from "@/components/assistant-ui/elements/file";
 import { ThreadFollowupSuggestions } from "@/components/assistant-ui/elements/follow-up-suggestions.aui";
 import { Image } from "@/components/assistant-ui/elements/image";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
+import { MarkdownLink } from "@/components/bdc/markdown-link"; // bdc-assist local edit, see "text" below
 import {
   Reasoning,
   ReasoningContent,
@@ -130,6 +131,8 @@ export type ThreadProps = {
 };
 
 const EMPTY_COMPONENTS: ThreadComponents = {};
+// bdc-assist local edit, see "text" below: module-level so the markdown components stay stable
+const MARKDOWN_COMPONENTS = { a: MarkdownLink };
 
 const ThreadComponentsContext =
   createContext<ThreadComponents>(EMPTY_COMPONENTS);
@@ -604,7 +607,9 @@ const AssistantMessage: FC = () => {
                 );
               }
               case "text":
-                return <MarkdownText />;
+                // bdc-assist local edit (registry default: no components): BDC links get
+                // their own look (components/bdc/markdown-link.tsx). Redo after re-pulling.
+                return <MarkdownText components={MARKDOWN_COMPONENTS} />;
               case "reasoning":
                 return <Reasoning {...part} />;
               case "tool-call":

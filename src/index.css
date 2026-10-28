@@ -193,3 +193,15 @@
   --kg-halo: #facc15;
   --kg-halo-opacity: 0.25;
 }
+
+/* BDC links in answer text (src/components/bdc/markdown-link.tsx): docs in this red, tools
+   also on its tint. #ac3041 is about 3:1 on the dark background, so dark mode lightens it. */
+:root {
+  --bdc-link: #ac3041;
+  --bdc-link-bg: #f8e9eb;
+}
+
+.dark {
+  --bdc-link: #e0717f;
+  --bdc-link-bg: #2a1418;
+}
