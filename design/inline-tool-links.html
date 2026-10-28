@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Inline tool links</title>
 <!-- Design scratch page, not part of the app build. Open via the dev server:
-     npm run dev, then /design/inline-tool-links.html. A mock-up of BDC links inside the answer text,
+     npm run dev, then /design/inline-tool-links.html. Opens on the look the app uses
+     (components/bdc/markdown-link.tsx); the controls try the alternatives. A mock-up of BDC links inside the answer text,
      replacing the separate tools part (tools-layout.html). Front-end only: the model writes ordinary
      markdown links (URLs from the retrieved documents), and the renderer matches each URL against a
      config of base URLs (longest prefix wins) to style it. Tools and base URLs are placeholders; the
@@ -198,13 +199,14 @@ function Message({ answer, opts }) {
 }
 
 function Page() {
+  // defaults: the look built into the app (2026-10-28)
   const [style, setStyle] = useState('tint')
-  const [docStyle, setDocStyle] = useState('accent')
+  const [docStyle, setDocStyle] = useState('redline')
   const [tagText, setTagText] = useState('bdc')
   const [withDocs, setWithDocs] = useState(true)
-  const [outIcon, setOutIcon] = useState(true)
-  const [darkLine, setDarkLine] = useState(false)
-  const [toolIcon, setToolIcon] = useState('none')
+  const [outIcon, setOutIcon] = useState(false)
+  const [darkLine, setDarkLine] = useState(true)
+  const [toolIcon, setToolIcon] = useState('wrench')
   const [dark, setDark] = useState(false)
   useEffect(() => { document.documentElement.dataset.theme = dark ? 'dark' : 'light' }, [dark])
   const opts = { style, docStyle, tagText, withDocs, outIcon, darkLine, toolIcon }
