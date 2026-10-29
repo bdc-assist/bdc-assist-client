@@ -12,7 +12,6 @@ import {
   STATUS_PART,
   toRequest,
   UNAVAILABLE_PART,
-  type BdcMessageMeta,
   type Reveal,
 } from '@/lib/bdc-adapter'
 import { streamOf } from '@/lib/test-utils'
@@ -54,7 +53,11 @@ async function run(
 }
 
 const textOf = (y: ChatModelRunResult) => (y.content![0] as { text: string }).text
-const metaOf = (y: ChatModelRunResult) => y.metadata?.custom as BdcMessageMeta
+/** The data parts after the text, as { name, data }. */
+const dataParts = (y: ChatModelRunResult) =>
+  (y.content ?? []).slice(1).map((p) => p as { name: string; data: unknown })
+/** One data part's data, or undefined when the message has none. */
+const dataOf = (y: ChatModelRunResult, name: string) => dataParts(y).find((p) => p.name === name)?.data
 
 describe('toRequest', () => {
   it('sends the last user message as input and earlier turns as history', () => {
@@ -93,21 +96,14 @@ describe('createBdcAdapter', () => {
       ),
     )
     expect(yields.map(textOf)).toEqual(['', '', 'BDC ', 'BDC is', 'BDC is.'])
-    expect(metaOf(yields[0])).toMatchObject({ node: 'agent', status: null })
-    expect(metaOf(yields[1]).status).toBe('calling search_docs')
-    expect(metaOf(yields[2]).status).toBe('calling search_docs') // tokens don't clear it
-    expect(metaOf(yields.at(-1)!)).toEqual({
-      node: null,
-      status: null,
-      sources: { 'bdc-doc': [{ title: 'Overview', link: 'https://x/overview', type: 'page' }] },
-      graph: null,
-      graphParts: [],
-      unavailable: [],
-      followups: ['What is dbGaP?'],
-      blocked: false,
-      rejected: false,
-      done: true,
-    })
+    expect(dataOf(yields[0], STATUS_PART)).toEqual({ node: 'agent', status: null })
+    expect(dataOf(yields[1], STATUS_PART)).toEqual({ node: 'agent', status: 'calling search_docs' })
+    // tokens don't clear it
+    expect(dataOf(yields[2], STATUS_PART)).toEqual({ node: 'agent', status: 'calling search_docs' })
+    expect(dataParts(yields.at(-1)!)).toEqual([
+      { type: 'data', name: SOURCES_PART, data: { 'bdc-doc': [{ title: 'Overview', link: 'https://x/overview', type: 'page' }] } },
+      { type: 'data', name: FOLLOWUPS_PART, data: ['What is dbGaP?'] },
+    ])
   })
 
   it('discards streamed text and the tool status on reset', async () => {
@@ -121,14 +117,15 @@ describe('createBdcAdapter', () => {
       ),
     )
     expect(yields.map(textOf).slice(1, 4)).toEqual(['Let me look that up.', '', 'BDC'])
-    expect(metaOf(yields[1]).status).toBe('calling search_docs')
-    expect(metaOf(yields[2]).status).toBeNull()
+    expect(dataOf(yields[1], STATUS_PART)).toEqual({ node: null, status: 'calling search_docs' })
+    expect(dataOf(yields[2], STATUS_PART)).toBeUndefined()
   })
 
   it('shows sources as soon as the agent reports them', async () => {
     const sources = { 'bdc-doc': [{ title: 'A', link: 'https://a', type: 'faq' }] }
     const { yields } = await run(sse({ type: 'sources', sources, sources_md: '- A' }, done()))
-    expect(metaOf(yields[0])).toMatchObject({ sources, done: false })
+    expect(dataOf(yields[0], SOURCES_PART)).toEqual(sources)
+    expect(dataOf(yields[0], FOLLOWUPS_PART)).toBeUndefined() // not done yet
   })
 
   it('lets done override streamed text and sources (rejected answer)', async () => {
@@ -141,8 +138,8 @@ describe('createBdcAdapter', () => {
     )
     const last = yields.at(-1)!
     expect(textOf(last)).toBe('Sorry, I can only help with BDC.')
-    expect(metaOf(last).sources).toEqual({})
-    expect(metaOf(last).rejected).toBe(true)
+    expect(dataOf(last, SOURCES_PART)).toBeUndefined()
+    expect(dataOf(last, REJECTED_PART)).toEqual({})
   })
 
   // the API's kg: one graph per tool call (merged by fromKgList)
@@ -167,16 +164,16 @@ describe('createBdcAdapter', () => {
   it('keeps the graph from the sources event, and lets done override it', async () => {
     const sources = { type: 'sources', sources: {}, sources_md: '', kg }
     const kept = await run(sse(sources, done({ kg })))
-    expect(metaOf(kept.yields[0])).toMatchObject({ graph, done: false })
-    expect(metaOf(kept.yields.at(-1)!).graph).toEqual(graph)
+    expect(dataOf(kept.yields[0], GRAPH_PART)).toEqual({ graph, parts: [] })
+    expect(dataOf(kept.yields.at(-1)!, GRAPH_PART)).toEqual({ graph, parts: [] })
     // rejected answer: done sends [] — the streamed graph goes too
     const rejected = await run(sse(sources, done({ kg: [] })))
-    expect(metaOf(rejected.yields.at(-1)!).graph).toBeNull()
+    expect(dataOf(rejected.yields.at(-1)!, GRAPH_PART)).toBeUndefined()
   })
 
   it('has no graph without one', async () => {
     const { yields } = await run(sse(done()))
-    expect(metaOf(yields[0]).graph).toBeNull()
+    expect(dataOf(yields[0], GRAPH_PART)).toBeUndefined()
   })
 
   it('reports a failed run as an error, not a lost connection', async () => {
@@ -187,14 +184,12 @@ describe('createBdcAdapter', () => {
 
   it('keeps the names of unavailable MCP servers, and notes them', async () => {
     const { yields } = await run(sse(done({ mcp_errors: ["dug_mcp: HTTPStatusError: Client error '403 Forbidden'"] })))
-    expect(metaOf(yields[0]).unavailable).toEqual(['dug_mcp'])
-    const part = (yields[0].content ?? []).find((p) => (p as { name?: string }).name === UNAVAILABLE_PART)
-    expect((part as { data?: unknown } | undefined)?.data).toEqual(['dug_mcp'])
+    expect(dataOf(yields[0], UNAVAILABLE_PART)).toEqual(['dug_mcp'])
   })
 
   it('marks blocked replies', async () => {
     const { yields } = await run(sse(done({ blocked: 'input' })))
-    expect(metaOf(yields[0]).blocked).toBe(true)
+    expect(dataOf(yields[0], BLOCKED_PART)).toEqual({})
   })
 
   it('never keeps tool_results', async () => {
@@ -336,23 +331,29 @@ describe('data parts', () => {
 })
 
 describe('rejection', () => {
-  const finalMeta = async (...events: object[]) => metaOf((await run(sse(...events))).yields.at(-1)!)
+  // the notes the final message carries: the rejected one shows in stream mode
+  const finalNotes = async (...events: object[]) =>
+    dataParts((await run(sse(...events))).yields.at(-1)!)
+      .map((p) => p.name)
+      .filter((n) => n === BLOCKED_PART || n === REJECTED_PART)
 
   it('is the output guardrail blocking the streamed draft', async () => {
-    const meta = await finalMeta({ type: 'token', text: 'a dubious answer' }, done({ answer: 'Sorry.', blocked: 'output' }))
-    expect(meta).toMatchObject({ blocked: false, rejected: true })
+    expect(await finalNotes({ type: 'token', text: 'a dubious answer' }, done({ answer: 'Sorry.', blocked: 'output' }))).toEqual([
+      REJECTED_PART,
+    ])
     // after-check mode can reject before any draft was shown: still a reject
-    expect(await finalMeta(done({ answer: 'Sorry.', blocked: 'output' }))).toMatchObject({ rejected: true })
+    expect(await finalNotes(done({ answer: 'Sorry.', blocked: 'output' }))).toEqual([REJECTED_PART])
   })
 
   it('is not the input guardrail refusing the question', async () => {
-    expect(await finalMeta(done({ answer: 'Refusal.', blocked: 'input' }))).toMatchObject({ blocked: true, rejected: false })
+    expect(await finalNotes(done({ answer: 'Refusal.', blocked: 'input' }))).toEqual([BLOCKED_PART])
   })
 
   it('is neither for an unblocked answer, even one that differs from the draft', async () => {
     // a disclaimer appended, or a canned reply: done replaces the text, but nothing was blocked
-    const meta = await finalMeta({ type: 'token', text: 'BDC is a platform.' }, done({ answer: 'BDC is a platform.\n\nDisclaimer.' }))
-    expect(meta).toMatchObject({ blocked: false, rejected: false })
+    expect(
+      await finalNotes({ type: 'token', text: 'BDC is a platform.' }, done({ answer: 'BDC is a platform.\n\nDisclaimer.' })),
+    ).toEqual([])
   })
 
   it('adds a note in stream mode only', async () => {

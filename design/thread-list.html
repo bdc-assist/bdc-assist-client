@@ -10,7 +10,10 @@
      Yesterday / Earlier groups, items with a ⋯ menu: Rename, Archive, Delete) and `threadlist-sidebar`
      (shadcn's Sidebar hosting it; on narrow screens shadcn's Sidebar becomes a sheet). The alternative keeps
      the chat full width and opens the same list from a History button next to "New conversation".
-     Colours are the app's (index.css, shadcn neutral). Conversations live in the browser only. -->
+     Colours are the app's (index.css, shadcn neutral). Conversations live in the browser only.
+     Built 2026-10-29 as the sidebar version (no Archive, no date groups; App.tsx, thread-list.aui.tsx,
+     threadlist-sidebar.aui.tsx) and the storage-full dialog (components/bdc/storage-full-dialog.tsx,
+     oldest first). Real sizes are far smaller than here: about 20–100 KB per graph answer. -->
 <style>
   :root { --bg: #ffffff; --fg: #0a0a0a; --muted: #737373; --muted-bg: #f5f5f5; --line: #e5e5e5;
     --sidebar: #fafafa; --popover: #ffffff; --destructive: #e7000b; --destructive-bg: #fdecec;

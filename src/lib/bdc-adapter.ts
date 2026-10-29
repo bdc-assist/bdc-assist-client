@@ -26,8 +26,8 @@ type StreamEvent =
     }
   | { type: 'error' } // the run failed; last event, no done
 
-/** What we keep on each assistant message as metadata.custom. Plain JSON,
- * so a thread can be persisted later as-is. */
+/** An answer's state while it streams; toContent turns it into the message's parts.
+ * Not stored on the message: the parts carry everything that's drawn or saved. */
 export type BdcMessageMeta = {
   node: string | null // graph node currently running; null once done
   status: string | null // latest tool-call status; cleared by reset and new nodes
@@ -151,10 +151,7 @@ export function createBdcAdapter(
       const { meta } = state
       let failed = false // the server sent {"type": "error"}
       // the runtime replaces the message with each yield, so always send it all
-      const snapshot = () => ({
-        content: toContent(state, reveal),
-        metadata: { custom: { ...meta } },
-      })
+      const snapshot = () => ({ content: toContent(state, reveal) })
 
       let resp: Response
       try {

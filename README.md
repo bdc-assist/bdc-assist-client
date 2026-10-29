@@ -3,8 +3,8 @@
 A web chat client for [BDC Assist](https://github.com/bdc-assist/bdc-assist): a React app
 (Vite + [assistant-ui](https://www.assistant-ui.com)) for the server's `POST /chat/stream`. It
 streams answers with progress updates, shows sources, follow-up suggestions and guardrail notes,
-keeps the conversation across reloads, and draws the knowledge graphs that come with an answer
-(graph, flow and list views).
+keeps conversations in the browser (listed in a sidebar), and draws the knowledge graphs that come
+with an answer (graph, flow and list views).
 
 The API it talks to is documented in bdc-assist's README (section *API*); that's the reference
 for the stream events and the `kg`, `sources` and `blocked` fields.
@@ -35,6 +35,22 @@ guardrail refuses), `reject` (output guardrail replaces the draft), `canned` (pr
 (asthma's related concepts), `cohort_variables` (asthma + COPD search words), `search_concepts` (a BMI
 search); several combine, e.g. `concept_graph_2 concept_connections`. Anything else gets a docs answer
 with a small graph.
+
+## Saved conversations
+
+Conversations are kept in the browser's localStorage only (keys `bdc-assist:*`), through
+assistant-ui's localStorage thread-list adapter: `bdc-assist:threads` lists them and
+`bdc-assist:messages:<id>` holds each one; `bdc-assist:open` is the one to reopen on load. Titles are
+the first question. localStorage holds about 5 MB per site; when a save fails because it's full, a
+dialog lists the conversations to delete and saves the answer once there's room
+(`src/lib/conversation-storage.ts`, `src/components/bdc/storage-full-dialog.tsx`).
+
+## assistant-ui components
+
+`src/components/assistant-ui/elements/` holds assistant-ui's registry components, added with
+`npx shadcn add @assistant-ui/<name>`. A few carry local edits, marked `bdc-assist local edit`:
+redo them after re-pulling a component (`thread.aui.tsx`, `thread-list.aui.tsx`,
+`threadlist-sidebar.aui.tsx`).
 
 ## Knowledge graph code
 
