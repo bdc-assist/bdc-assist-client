@@ -15,6 +15,7 @@ import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { ThreadListSidebar } from '@/components/assistant-ui/elements/threadlist-sidebar.aui'
 import { BdcMessageParts } from '@/components/bdc/message-parts'
 import { ChatHeader } from '@/components/bdc/chat-header'
+import { ConversationSwitch } from '@/components/bdc/conversation-switch'
 import { useSidebarOpen } from '@/components/bdc/sidebar-toggle'
 import { StorageFullDialog } from '@/components/bdc/storage-full-dialog'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
@@ -88,6 +89,7 @@ export default function App() {
         <TooltipProvider>
           <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
             <ThreadListSidebar />
+            <ConversationSwitch />
             <SidebarInset className="h-dvh">
               <ChatHeader />
               <div className="min-h-0 flex-1">
