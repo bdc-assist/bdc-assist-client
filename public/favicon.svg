@@ -1,74 +1,12 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<svg
-   width="24"
-   height="24"
-   viewBox="0 0 24 24"
-   fill="none"
-   stroke="currentColor"
-   stroke-width="2"
-   stroke-linecap="round"
-   stroke-linejoin="round"
-   class="lucide lucide-notebook-pen preview-icon"
-   version="1.1"
-   id="svg6"
-   sodipodi:docname="notebook-pen.svg"
-   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:svg="http://www.w3.org/2000/svg">
-  <defs
-     id="defs6">
-    <linearGradient
-       id="swatch11"
-       inkscape:swatch="solid">
-      <stop
-         style="stop-color:#000000;stop-opacity:1;"
-         offset="0"
-         id="stop12" />
-    </linearGradient>
-  </defs>
-  <sodipodi:namedview
-     id="namedview6"
-     pagecolor="#ffffff"
-     bordercolor="#000000"
-     borderopacity="0.25"
-     inkscape:showpageshadow="2"
-     inkscape:pageopacity="0.0"
-     inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1"
-     showgrid="false"
-     inkscape:zoom="18.666667"
-     inkscape:cx="11.919643"
-     inkscape:cy="12"
-     inkscape:window-width="1280"
-     inkscape:window-height="650"
-     inkscape:window-x="-6"
-     inkscape:window-y="-6"
-     inkscape:window-maximized="1"
-     inkscape:current-layer="svg6" />
-  <path
-     d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"
-     id="path1"
-     style="stroke:#666676;stroke-opacity:1" />
-  <path
-     d="M2 6h4"
-     id="path2"
-     style="stroke:#d6e8f2;stroke-opacity:1" />
-  <path
-     d="M2 10h4"
-     id="path3"
-     style="stroke:#d6e8f2;stroke-opacity:1" />
-  <path
-     d="M2 14h4"
-     id="path4"
-     style="stroke:#d6e8f2;stroke-opacity:1" />
-  <path
-     d="M2 18h4"
-     id="path5"
-     style="stroke:#d6e8f2;stroke-opacity:1" />
-  <path
-     d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"
-     id="path6"
-     style="stroke:#008ca8;stroke-opacity:1;fill:none;opacity:1" />
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- lucide notebook-pen on a RENCI Slate circle: Stone notebook and lines, RENCI Blue pen -->
+  <circle cx="12" cy="12" r="12" fill="#F3F3F8"/>
+  <g transform="translate(3.6 3.6) scale(0.7)">
+    <path stroke="#666676" d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"/>
+    <path stroke="#666676" d="M2 6h4"/>
+    <path stroke="#666676" d="M2 10h4"/>
+    <path stroke="#666676" d="M2 14h4"/>
+    <path stroke="#666676" d="M2 18h4"/>
+    <path stroke="#00758D" d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/>
+  </g>
 </svg>
