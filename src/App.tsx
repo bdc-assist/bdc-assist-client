@@ -12,9 +12,12 @@ import {
 import { useState, type ReactNode } from 'react'
 
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
+import { ThreadListSidebar } from '@/components/assistant-ui/elements/threadlist-sidebar.aui'
 import { BdcMessageParts } from '@/components/bdc/message-parts'
 import { NewConversation } from '@/components/bdc/new-conversation'
+import { SidebarToggle, useSidebarOpen } from '@/components/bdc/sidebar-toggle'
 import { ThemeToggle } from '@/components/bdc/theme-toggle'
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { createBdcAdapter, type Reveal } from '@/lib/bdc-adapter'
 import {
@@ -76,16 +79,21 @@ export default function App() {
       saveOpenConversation(storage, id)
     },
   })
+  const [sidebarOpen, setSidebarOpen] = useSidebarOpen()
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <BdcMessageParts />
       <Starters>
         <TooltipProvider>
-          <div className="relative h-dvh">
-            <Thread />
-            <NewConversation />
-            <ThemeToggle />
-          </div>
+          <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
+            <ThreadListSidebar />
+            <SidebarInset className="h-dvh">
+              <Thread />
+              <SidebarToggle />
+              <NewConversation />
+              <ThemeToggle />
+            </SidebarInset>
+          </SidebarProvider>
         </TooltipProvider>
       </Starters>
     </AssistantRuntimeProvider>
