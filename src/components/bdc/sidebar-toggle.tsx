@@ -37,9 +37,9 @@ export function SidebarToggle() {
   return (
     <TooltipIconButton
       tooltip={shown ? 'Hide conversations' : 'Show conversations'}
-      side="right"
-      variant="outline"
-      className="absolute top-3 left-4 z-20 size-8 rounded-full p-2"
+      side="bottom"
+      variant="ghost"
+      className="size-8 p-2"
       onClick={toggleSidebar}
     >
       <PanelLeftIcon />

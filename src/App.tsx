@@ -14,10 +14,9 @@ import { useState, type ReactNode } from 'react'
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { ThreadListSidebar } from '@/components/assistant-ui/elements/threadlist-sidebar.aui'
 import { BdcMessageParts } from '@/components/bdc/message-parts'
-import { NewConversation } from '@/components/bdc/new-conversation'
-import { SidebarToggle, useSidebarOpen } from '@/components/bdc/sidebar-toggle'
+import { ChatHeader } from '@/components/bdc/chat-header'
+import { useSidebarOpen } from '@/components/bdc/sidebar-toggle'
 import { StorageFullDialog } from '@/components/bdc/storage-full-dialog'
-import { ThemeToggle } from '@/components/bdc/theme-toggle'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { createBdcAdapter, type Reveal } from '@/lib/bdc-adapter'
@@ -90,10 +89,10 @@ export default function App() {
           <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
             <ThreadListSidebar />
             <SidebarInset className="h-dvh">
-              <Thread />
-              <SidebarToggle />
-              <NewConversation />
-              <ThemeToggle />
+              <ChatHeader />
+              <div className="min-h-0 flex-1">
+                <Thread />
+              </div>
             </SidebarInset>
             <StorageFullDialog storage={conversationStorage} />
           </SidebarProvider>
