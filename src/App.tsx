@@ -16,6 +16,7 @@ import { ThreadListSidebar } from '@/components/assistant-ui/elements/threadlist
 import { BdcMessageParts } from '@/components/bdc/message-parts'
 import { NewConversation } from '@/components/bdc/new-conversation'
 import { SidebarToggle, useSidebarOpen } from '@/components/bdc/sidebar-toggle'
+import { StorageFullDialog } from '@/components/bdc/storage-full-dialog'
 import { ThemeToggle } from '@/components/bdc/theme-toggle'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -39,8 +40,9 @@ const REVEAL: Reveal =
 const adapter = createBdcAdapter(API_URL, { reveal: REVEAL })
 // several conversations, saved in this browser; each is titled with its first question
 const storage = browserStorage()
+const conversationStorage = createConversationStorage(storage)
 const conversations = createLocalStorageAdapter({
-  storage: createConversationStorage(storage),
+  storage: conversationStorage,
   prefix: STORAGE_PREFIX,
   titleGenerator: createSimpleTitleAdapter(),
 })
@@ -93,6 +95,7 @@ export default function App() {
               <NewConversation />
               <ThemeToggle />
             </SidebarInset>
+            <StorageFullDialog storage={conversationStorage} />
           </SidebarProvider>
         </TooltipProvider>
       </Starters>
