@@ -12,6 +12,7 @@
     "fixtures": "node scripts/fixtures.ts"
   },
   "dependencies": {
+    "@assistant-ui/core": "^0.3.22",
     "@assistant-ui/react": "^0.15.23",
     "@assistant-ui/react-markdown": "^0.14.18",
     "@fontsource-variable/geist": "^5.3.0",

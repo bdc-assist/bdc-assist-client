@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Thread list</title>
+<!-- Design scratch page, not part of the app build. Open via the dev server:
+     npm run dev, then /design/thread-list.html. A mock-up of keeping several conversations, using
+     assistant-ui's registry components as they come: `thread-list` (New Thread button, search, Today /
+     Yesterday / Earlier groups, items with a ⋯ menu: Rename, Archive, Delete) and `threadlist-sidebar`
+     (shadcn's Sidebar hosting it; on narrow screens shadcn's Sidebar becomes a sheet). The alternative keeps
+     the chat full width and opens the same list from a History button next to "New conversation".
+     Colours are the app's (index.css, shadcn neutral). Conversations live in the browser only. -->
+<style>
+  :root { --bg: #ffffff; --fg: #0a0a0a; --muted: #737373; --muted-bg: #f5f5f5; --line: #e5e5e5;
+    --sidebar: #fafafa; --popover: #ffffff; --destructive: #e7000b; --destructive-bg: #fdecec;
+    --composer-bg: #ffffff; --user-bubble: #f5f5f5; --overlay: rgb(0 0 0 / 0.5); }
+  :root[data-theme="dark"] { --bg: #0a0a0a; --fg: #fafafa; --muted: #a1a1a1; --muted-bg: #262626;
+    --line: rgb(255 255 255 / 0.1); --sidebar: #171717; --popover: #171717; --destructive: #ff6467;
+    --destructive-bg: #3a1617; --composer-bg: #171717; --user-bubble: #262626; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px 24px 48px; background: var(--bg); color: var(--fg);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 28px 0 4px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .note { color: var(--muted); font-size: 13px; margin: 2px 0 10px; max-width: 760px; }
+  .controls { position: sticky; top: 0; z-index: 30; display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center;
+    padding: 10px 0; background: var(--bg); border-bottom: 1px solid var(--line); margin-bottom: 8px; font-size: 13px; }
+  .controls label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .controls select, .controls button { font: inherit; }
+  .controls button { cursor: pointer; }
+  button { font: inherit; color: inherit; }
+  svg { flex-shrink: 0; }
+
+  /* one app window */
+  .app { position: relative; display: flex; height: 520px; border: 1px solid var(--line); border-radius: 10px;
+    overflow: hidden; background: var(--bg); }
+  .main { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+  /* the app's round outline buttons, top right (New conversation, theme), plus the sidebar trigger top left */
+  .round { position: absolute; top: 12px; z-index: 5; display: flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg);
+    cursor: pointer; }
+  .round:hover, .round.open { background: var(--muted-bg); }
+  .ghost-icon { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0;
+    border-radius: 6px; background: transparent; cursor: pointer; color: var(--fg); }
+  .ghost-icon:hover { background: var(--muted-bg); }
+  .main .trigger { position: absolute; top: 14px; left: 12px; z-index: 5; }
+
+  /* a thread, much simplified */
+  .thread { flex: 1; overflow: hidden; padding: 56px 16px 0; }
+  .thread-inner { max-width: 44rem; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  .user { align-self: flex-end; max-width: 85%; background: var(--user-bubble); border-radius: 18px; padding: 8px 14px; }
+  .answer p { margin: 0 0 8px; line-height: 1.6; }
+  .answer .faint { height: 10px; border-radius: 4px; background: var(--muted-bg); margin: 8px 0; }
+  .welcome { margin: 80px auto 0; text-align: center; }
+  .welcome h3 { font-size: 22px; margin: 0 0 4px; font-weight: 600; }
+  .composer { max-width: 44rem; width: calc(100% - 32px); margin: 0 auto 16px; border: 1px solid var(--line);
+    border-radius: 20px; background: var(--composer-bg); padding: 10px 14px; color: var(--muted); display: flex;
+    justify-content: space-between; align-items: center; }
+  .composer .send { width: 28px; height: 28px; border-radius: 999px; background: var(--fg); color: var(--bg);
+    display: flex; align-items: center; justify-content: center; }
+
+  /* shadcn Sidebar hosting the thread list */
+  .sidebar { width: 256px; flex-shrink: 0; display: flex; flex-direction: column; background: var(--sidebar);
+    border-right: 1px solid var(--line); }
+  .sidebar-header { display: flex; align-items: center; gap: 8px; padding: 10px 8px 10px 12px;
+    border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .brand { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px;
+    background: var(--fg); color: var(--bg); }
+  .brand-name { flex: 1; font-weight: 600; }
+  .sidebar-content { flex: 1; overflow-y: auto; padding: 0 8px 8px; }
+  .sidebar-footer { border-top: 1px solid var(--line); padding: 10px 12px; font-size: 12px; color: var(--muted); }
+  /* on narrow screens shadcn's Sidebar is a sheet over the page */
+  .sheet-backdrop { position: absolute; inset: 0; z-index: 10; background: var(--overlay); }
+  .sheet { position: absolute; top: 0; bottom: 0; left: 0; z-index: 11; width: min(288px, 85%); border-right: 0;
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.2); }
+
+  /* the registry's thread-list.aui.tsx */
+  .tl { display: flex; flex-direction: column; gap: 2px; }
+  .tl-new { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: 0; border-radius: 6px;
+    background: transparent; text-align: left; cursor: pointer; }
+  .tl-new:hover { background: var(--muted-bg); }
+  .tl-search { position: relative; padding: 4px 2px; }
+  .tl-search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted);
+    pointer-events: none; }
+  .tl-search input, .tl-rename { width: 100%; height: 32px; padding: 0 8px 0 32px; border: 1px solid var(--line);
+    border-radius: 6px; background: transparent; color: var(--fg); font: inherit; font-size: 14px; outline: none; }
+  .tl-search input:focus, .tl-rename:focus { border-color: var(--muted); box-shadow: 0 0 0 3px rgb(115 115 115 / 0.2); }
+  .tl-group { padding: 12px 10px 4px; font-size: 12px; font-weight: 500; color: var(--muted); }
+  .tl-empty { padding: 16px 10px; font-size: 14px; color: var(--muted); }
+  .tl-item { position: relative; display: flex; align-items: center; height: 32px; border-radius: 6px; }
+  .tl-item:hover, .tl-item.active, .tl-item.menu-open { background: var(--muted-bg); }
+  .tl-trigger { flex: 1; min-width: 0; display: flex; align-items: center; height: 100%; padding: 0 10px; border: 0;
+    background: transparent; text-align: left; cursor: pointer; }
+  .tl-item:hover .tl-trigger, .tl-item.active .tl-trigger, .tl-item.menu-open .tl-trigger { padding-right: 36px; }
+  .tl-title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .tl-running { margin-right: 6px; color: var(--muted); animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .tl-rename { height: 28px; padding: 0 36px 0 10px; }
+  .tl-more { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center; border: 0; border-radius: 6px; background: transparent;
+    cursor: pointer; opacity: 0; }
+  .tl-item:hover .tl-more, .tl-item.active .tl-more, .tl-item.menu-open .tl-more { opacity: 1; }
+  .tl-more:hover, .tl-item.menu-open .tl-more { background: var(--line); }
+  .tl-skeleton { display: flex; align-items: center; height: 32px; padding: 0 10px; }
+  .tl-skeleton div { height: 14px; width: 100%; border-radius: 4px; background: var(--muted-bg);
+    animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.5; } }
+
+  /* the ⋯ menu (opens to the right in the registry; drawn under the button here so the frame doesn't clip it) */
+  .menu { position: absolute; z-index: 20; right: 0; top: calc(100% + 4px); min-width: 128px; padding: 6px;
+    border: 1px solid var(--line); border-radius: 12px; background: var(--popover);
+    box-shadow: 0 6px 20px rgb(0 0 0 / 0.12); }
+  .menu button { display: flex; width: 100%; align-items: center; gap: 8px; padding: 6px 10px; border: 0;
+    border-radius: 8px; background: transparent; font-size: 14px; text-align: left; cursor: pointer; }
+  .menu button:hover { background: var(--muted-bg); }
+  .menu button.danger { color: var(--destructive); }
+  .menu button.danger:hover { background: var(--destructive-bg); }
+
+  /* the storage-full dialog (shadcn Dialog look), inside each frame */
+  .dialog-backdrop { position: absolute; inset: 0; z-index: 40; background: var(--overlay); }
+  .dialog { position: absolute; z-index: 41; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: min(440px, calc(100% - 32px)); max-height: calc(100% - 32px); display: flex; flex-direction: column;
+    gap: 10px; padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.2); }
+  .dialog-close { position: absolute; top: 10px; right: 10px; }
+  .dialog-title { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; padding-right: 24px; }
+  .dialog-title .ok { color: #16a34a; }
+  .dialog-text { margin: 0; color: var(--muted); font-size: 14px; }
+  .dialog-text b { color: var(--fg); font-weight: 500; }
+  .meter { height: 6px; border-radius: 999px; background: var(--muted-bg); overflow: hidden; }
+  .meter div { height: 100%; background: var(--fg); transition: width 0.2s; }
+  .meter-label { margin-top: -4px; font-size: 12px; color: var(--muted); }
+  .dialog-list { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; border: 1px solid var(--line);
+    border-radius: 8px; }
+  .dialog-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
+  .dialog-row + .dialog-row { border-top: 1px solid var(--line); }
+  .dialog-row-text { flex: 1; min-width: 0; font-size: 14px; }
+  .dialog-row-meta { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+  .kg-tag { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; padding: 0 5px; border: 1px solid var(--line);
+    border-radius: 4px; line-height: 16px; }
+  .dialog-footer { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+  .dialog-hint { flex: 1; font-size: 12px; color: var(--muted); }
+  .btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 1px solid var(--line);
+    border-radius: 6px; background: var(--bg); font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .btn:hover { background: var(--muted-bg); }
+  .btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .btn.danger-outline { color: var(--destructive); height: 28px; padding: 0 10px; }
+  .btn.danger-outline:hover { background: var(--destructive-bg); }
+
+  /* the History popover alternative */
+  .popover { position: absolute; z-index: 20; top: 50px; right: 16px; width: min(320px, calc(100% - 32px));
+    max-height: calc(100% - 66px); display: flex; flex-direction: column; border: 1px solid var(--line);
+    border-radius: 12px; background: var(--popover); box-shadow: 0 10px 30px rgb(0 0 0 / 0.15); }
+  .popover-header { padding: 8px 12px; border-bottom: 1px solid var(--line); font-weight: 500; font-size: 14px; }
+  .popover-body { overflow-y: auto; padding: 4px 6px 6px; }
+</style>
+</head>
+<body>
+<h1>Thread list</h1>
+<p class="muted">Several saved conversations, kept in the browser, using assistant-ui's registry
+  <code>thread-list</code> as it ships, in its <code>threadlist-sidebar</code> or in a History popover.
+  Click conversations, hover one for its ⋯ menu, rename, delete, search, start a new one: the three frames
+  share one list.</p>
+<div id="root"></div>
+
+<script type="module">
+import { createElement as h, Fragment, useEffect, useRef, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import {
+  ArchiveIcon, ArrowUpIcon, CheckIcon, HardDriveIcon, HistoryIcon, ListRestartIcon, Loader2Icon,
+  MessagesSquareIcon, MoonIcon, MoreHorizontalIcon, NetworkIcon, PanelLeftIcon, PencilIcon, PlusIcon, SearchIcon,
+  TrashIcon, XIcon,
+} from 'lucide-react'
+
+const DAY = 86400000
+const now = Date.now()
+// titles: the first question, as the adapter would set them without a model call
+// kb: stored size (made up; answers with a knowledge graph are the big ones)
+const SAMPLE = [
+  { title: 'What studies have kidney disease variables?', at: now - 20 * 60000, kb: 380, kg: true },
+  { title: 'How do I get started with Terra on BDC?', at: now - 3 * 3600000, kb: 120 },
+  { title: 'What is PIC-SURE and how do I access it?', at: now - DAY - 3600000, kb: 90 },
+  { title: 'Asthma and COPD variables across cohorts', at: now - DAY - 5 * 3600000, kb: 1720, kg: true },
+  { title: 'Can I upload my own data to BDC?', at: now - 4 * DAY, kb: 160 },
+  { title: 'What are the latest BDC events?', at: now - 9 * DAY, kb: 1450, kg: true },
+  { title: 'Does BDC have COVID data?', at: now - 15 * DAY, kb: 1080, kg: true },
+].map((t, i) => ({ ...t, id: `t${i}` }))
+// localStorage is about 5 MB per site; the answer that didn't fit needs this much more
+const QUOTA_KB = 5120
+const PENDING_KB = 450
+
+const WORDS = {
+  registry: { new: 'New Thread', fallback: 'New Chat', search: 'Search threads', none: 'No threads found', history: 'Threads',
+    item: 'thread', items: 'threads' },
+  bdc: { new: 'New conversation', fallback: 'New conversation', search: 'Search conversations', none: 'No conversations found', history: 'Conversations',
+    item: 'conversation', items: 'conversations' },
+}
+
+function groupLabel(at) {
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  if (at >= today.getTime()) return 'Today'
+  if (at >= today.getTime() - DAY) return 'Yesterday'
+  return 'Earlier'
+}
+
+// the registry's ThreadList: New, Search (once there are threads), then the items by date group
+function ThreadList({ s, act, words }) {
+  const [search, setSearch] = useState('')
+  const [menu, setMenu] = useState(null)
+  const [renaming, setRenaming] = useState(null)
+  useEffect(() => {
+    if (!menu) return
+    const close = () => setMenu(null)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [menu])
+  const q = search.trim().toLowerCase()
+  const shown = s.threads.filter((t) => !q || (t.title || words.fallback).toLowerCase().includes(q))
+    .sort((a, b) => b.at - a.at)
+  const groups = []
+  for (const t of shown) {
+    const label = s.groups ? groupLabel(t.at) : null
+    const last = groups[groups.length - 1]
+    if (last && last.label === label) last.items.push(t)
+    else groups.push({ label, items: [t] })
+  }
+  const item = (t) => h('div', {
+    key: t.id,
+    className: `tl-item${t.id === s.activeId ? ' active' : ''}${menu === t.id ? ' menu-open' : ''}`,
+  },
+    renaming === t.id
+      ? h(Rename, { title: t.title, onDone: (title) => { if (title) act.rename(t.id, title); setRenaming(null) } })
+      : h('button', { className: 'tl-trigger', onClick: () => act.open(t.id) },
+          s.running && t.id === s.threads[0]?.id && h(Loader2Icon, { size: 14, className: 'tl-running' }),
+          h('span', { className: 'tl-title' }, t.title || words.fallback)),
+    h('button', {
+      className: 'tl-more', 'aria-label': 'More options',
+      onClick: (e) => { e.stopPropagation(); setMenu(menu === t.id ? null : t.id) },
+    }, h(MoreHorizontalIcon, { size: 14 })),
+    menu === t.id && h('div', { className: 'menu', onClick: (e) => e.stopPropagation() },
+      h('button', { onClick: () => { setMenu(null); setRenaming(t.id) } }, h(PencilIcon, { size: 16 }), 'Rename'),
+      s.archive && h('button', { onClick: () => { setMenu(null); act.remove(t.id) } }, h(ArchiveIcon, { size: 16 }), 'Archive'),
+      h('button', { className: 'danger', onClick: () => { setMenu(null); act.remove(t.id) } }, h(TrashIcon, { size: 16 }), 'Delete'),
+    ),
+  )
+  return h('div', { className: 'tl' },
+    h('button', { className: 'tl-new', onClick: act.new }, h(PlusIcon, { size: 16 }), words.new),
+    s.threads.length > 0 && !s.loading && h('div', { className: 'tl-search' },
+      h(SearchIcon, { size: 16 }),
+      h('input', { type: 'search', value: search, placeholder: words.search, onChange: (e) => setSearch(e.target.value) })),
+    s.loading
+      ? [0, 1, 2, 3, 4].map((i) => h('div', { key: i, className: 'tl-skeleton' }, h('div')))
+      : q && shown.length === 0
+        ? h('div', { className: 'tl-empty' }, words.none)
+        : groups.map((g, i) => h(Fragment, { key: g.label ?? i },
+            g.label && h('div', { className: 'tl-group' }, g.label),
+            g.items.map(item))),
+  )
+}
+
+function Rename({ title, onDone }) {
+  const [value, setValue] = useState(title)
+  const ref = useRef(null)
+  useEffect(() => { ref.current?.select() }, [])
+  return h('input', {
+    ref, className: 'tl-rename', value, autoFocus: true, 'aria-label': 'Rename',
+    onChange: (e) => setValue(e.target.value),
+    onBlur: () => onDone(value.trim()),
+    onKeyDown: (e) => {
+      if (e.key === 'Enter') onDone(value.trim())
+      else if (e.key === 'Escape') onDone(null)
+    },
+  })
+}
+
+// the chat side: the open conversation, or the welcome screen for a new one
+function Chat({ s }) {
+  const t = s.threads.find((x) => x.id === s.activeId)
+  return h(Fragment, null,
+    h('div', { className: 'thread' },
+      t
+        ? h('div', { className: 'thread-inner' },
+            h('div', { className: 'user' }, t.title),
+            h('div', { className: 'answer' },
+              h('p', null, 'An answer from BDC Assist, with its sources and the knowledge graph when Dug was asked.'),
+              h('div', { className: 'faint', style: { width: '92%' } }),
+              h('div', { className: 'faint', style: { width: '78%' } }),
+              h('div', { className: 'faint', style: { width: '60%' } })))
+        : h('div', { className: 'welcome' }, h('h3', null, 'Hello there!'),
+            h('div', { className: 'muted' }, 'How can I help you today?'))),
+    h('div', { className: 'composer' }, 'Send a message...',
+      h('span', { className: 'send' }, h(ArrowUpIcon, { size: 16 }))),
+  )
+}
+
+const size = (kb) => (kb >= 1000 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} KB`)
+function ago(at) {
+  const m = Math.round((now - at) / 60000)
+  if (m < 60) return `${m} min ago`
+  if (m < 1440) return `${Math.round(m / 60)} h ago`
+  const d = Math.round(m / 1440)
+  return d === 1 ? 'yesterday' : `${d} days ago`
+}
+
+// shown when saving fails because localStorage is full: the failed write is kept and retried once
+// deletions free enough room. The conversation being saved (the open one) isn't offered for deletion.
+function StorageDialog({ s, act, words }) {
+  const used = s.threads.reduce((n, t) => n + t.kb, 0)
+  const saved = used + PENDING_KB <= QUOTA_KB
+  const short = used + PENDING_KB - QUOTA_KB
+  const others = s.threads.filter((t) => t.id !== s.activeId)
+    .sort(s.fullSort === 'largest' ? (a, b) => b.kb - a.kb : (a, b) => a.at - b.at)
+  return h(Fragment, null,
+    h('div', { className: 'dialog-backdrop' }),
+    h('div', { className: 'dialog', role: 'dialog', 'aria-label': 'Storage full' },
+      h('button', { className: 'ghost-icon dialog-close', title: 'Close', onClick: act.closeFull }, h(XIcon, { size: 16 })),
+      saved
+        ? h(Fragment, null,
+            h('div', { className: 'dialog-title' }, h(CheckIcon, { size: 18, className: 'ok' }), 'Saved'),
+            h('p', { className: 'dialog-text' }, `There's room again, and this ${words.item} is saved in your browser.`),
+            h('div', { className: 'dialog-footer' }, h('button', { className: 'btn primary', onClick: act.closeFull }, 'Done')))
+        : h(Fragment, null,
+            h('div', { className: 'dialog-title' }, h(HardDriveIcon, { size: 18 }), 'Browser storage is full'),
+            h('p', { className: 'dialog-text' },
+              `The latest answer couldn't be saved. Delete ${words.items} to make room `,
+              h('b', null, `(about ${size(short)} more)`), ' and it\'s saved straight away.'),
+            h('div', { className: 'meter', title: `${size(used)} of about ${size(QUOTA_KB)}` },
+              h('div', { style: { width: `${Math.min(100, (used / QUOTA_KB) * 100)}%` } })),
+            h('div', { className: 'meter-label' }, `${size(used)} of about ${size(QUOTA_KB)} used`),
+            h('div', { className: 'dialog-list' }, others.map((t) => h('div', { key: t.id, className: 'dialog-row' },
+              h('div', { className: 'dialog-row-text' },
+                h('div', { className: 'tl-title' }, t.title),
+                h('div', { className: 'dialog-row-meta' }, ago(t.at), ' · ', size(t.kb),
+                  s.fullKg && t.kg && h('span', { className: 'kg-tag', title: 'Includes a knowledge graph' },
+                    h(NetworkIcon, { size: 12 }), 'graph'))),
+              h('button', { className: 'btn danger-outline', onClick: () => act.remove(t.id) },
+                h(TrashIcon, { size: 14 }), 'Delete')))),
+            h('div', { className: 'dialog-footer' },
+              h('span', { className: 'dialog-hint' }, `Without it, this ${words.item} won't be kept after a reload.`),
+              h('button', { className: 'btn', onClick: act.closeFull }, 'Not now'))),
+    ),
+  )
+}
+
+function SidebarPanel({ s, act, words, sheet }) {
+  return h('aside', { className: `sidebar${sheet ? ' sheet' : ''}` },
+    h('div', { className: 'sidebar-header' },
+      h('span', { className: 'brand' }, h(MessagesSquareIcon, { size: 16 })),
+      h('span', { className: 'brand-name' }, 'BDC Assist'),
+      h('button', { className: 'ghost-icon', title: 'Close sidebar', onClick: act.toggleSidebar }, h(PanelLeftIcon, { size: 16 }))),
+    h('div', { className: 'sidebar-content' }, h(ThreadList, { s, act, words })),
+    s.footer && h('div', { className: 'sidebar-footer' }, 'Saved in this browser only'),
+  )
+}
+
+// one app window at a given width. Sidebar layout: a column at ≥768px (shadcn's breakpoint), a sheet below it.
+function AppFrame({ width, s, act }) {
+  const words = WORDS[s.words]
+  const [historyOpen, setHistoryOpen] = useState(s.layout === 'popover')
+  useEffect(() => setHistoryOpen(s.layout === 'popover'), [s.layout])
+  const narrow = width < 768
+  const sidebar = s.layout === 'sidebar'
+  const sidebarShown = sidebar && s.sidebarOpen
+  const roundRight = (i) => ({ right: 24 + i * 40 })
+  const empty = !s.activeId
+  // the floating New conversation button: kept in the popover layout; the sidebar has its own New button
+  const buttons = []
+  buttons.push(h('button', { key: 'theme', className: 'round', style: roundRight(0), title: 'Dark mode' }, h(MoonIcon, { size: 16 })))
+  if (s.layout === 'popover') {
+    buttons.push(h('button', {
+      key: 'history', className: `round${historyOpen ? ' open' : ''}`, style: roundRight(1), title: words.history,
+      onClick: () => setHistoryOpen(!historyOpen),
+    }, h(HistoryIcon, { size: 16 })))
+    if (!empty) buttons.push(h('button', { key: 'new', className: 'round', style: roundRight(2), title: words.new, onClick: act.new },
+      h(ListRestartIcon, { size: 16 })))
+  }
+  return h('div', { className: 'app', style: { width } },
+    sidebarShown && !narrow && h(SidebarPanel, { s, act, words }),
+    h('div', { className: 'main' },
+      sidebar && (!s.sidebarOpen || narrow) &&
+        h('button', { className: 'ghost-icon trigger', title: 'Open sidebar', onClick: act.toggleSidebar }, h(PanelLeftIcon, { size: 16 })),
+      buttons,
+      h(Chat, { s }),
+      historyOpen && h('div', { className: 'popover' },
+        h('div', { className: 'popover-header' }, words.history),
+        h('div', { className: 'popover-body' }, h(ThreadList, { s, act: { ...act, open: (id) => { act.open(id); setHistoryOpen(false) } }, words }))),
+    ),
+    sidebarShown && narrow && h(Fragment, null,
+      h('div', { className: 'sheet-backdrop', onClick: act.toggleSidebar }),
+      h(SidebarPanel, { s, act, words, sheet: true })),
+    s.full && h(StorageDialog, { s, act, words }),
+  )
+}
+
+const NOTES = {
+  sidebar: 'threadlist-sidebar: the list in a left column, closed with the panel button (shadcn Sidebar, "offcanvas"). ' +
+    'Its New button replaces the floating New conversation button. The registry header is assistant-ui\'s logo and the ' +
+    'footer a GitHub link: shown here as BDC Assist and an optional note. Below 768px the sidebar is a sheet over the chat.',
+  popover: 'The chat stays full width: a History button next to New conversation and the theme toggle opens the same ' +
+    'ThreadList in a popover. Nothing changes on narrow screens.',
+}
+
+function Page() {
+  const [threads, setThreads] = useState(SAMPLE)
+  const [activeId, setActiveId] = useState(SAMPLE[0].id)
+  const [layout, setLayout] = useState('sidebar')
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [words, setWords] = useState('bdc')
+  const [data, setData] = useState('many')
+  const [groups, setGroups] = useState(true)
+  const [archive, setArchive] = useState(false)
+  const [running, setRunning] = useState(false)
+  const [footer, setFooter] = useState(false)
+  const [full, setFull] = useState(false)
+  const [fullSort, setFullSort] = useState('oldest')
+  const [fullKg, setFullKg] = useState(true)
+  const [dark, setDark] = useState(false)
+  useEffect(() => { document.documentElement.dataset.theme = dark ? 'dark' : 'light' }, [dark])
+  // the dialog only makes sense with the full sample list, the first conversation open
+  const showFull = (on) => {
+    if (on) { setThreads(SAMPLE); setData('many'); setActiveId(SAMPLE[0].id) }
+    setFull(on)
+  }
+  const setDataset = (v) => {
+    setData(v)
+    const list = v === 'none' ? [] : v === 'one' ? SAMPLE.slice(0, 1) : SAMPLE
+    setThreads(list)
+    setActiveId(list[0]?.id ?? null)
+  }
+  // a new conversation only joins the list once its first question is sent (as with the runtime's new thread)
+  const act = {
+    open: setActiveId,
+    new: () => setActiveId(null),
+    rename: (id, title) => setThreads((ts) => ts.map((t) => (t.id === id ? { ...t, title } : t))),
+    remove: (id) => {
+      setThreads((ts) => ts.filter((t) => t.id !== id))
+      if (id === activeId) setActiveId(null)
+    },
+    toggleSidebar: () => setSidebarOpen((o) => !o),
+    closeFull: () => setFull(false),
+  }
+  const s = { threads, activeId, layout, sidebarOpen, words, groups, archive, running, footer, loading: data === 'loading',
+    full, fullSort, fullKg }
+  const check = (text, value, set) =>
+    h('label', null, h('input', { type: 'checkbox', checked: value, onChange: (e) => set(e.target.checked) }), text)
+  return h(Fragment, null,
+    h('div', { className: 'controls' },
+      h('label', null, 'Layout ',
+        h('select', { value: layout, onChange: (e) => setLayout(e.target.value) },
+          h('option', { value: 'sidebar' }, 'sidebar (threadlist-sidebar)'),
+          h('option', { value: 'popover' }, 'History popover'))),
+      layout === 'sidebar' && check('sidebar open', sidebarOpen, setSidebarOpen),
+      h('label', null, 'Conversations ',
+        h('select', { value: data, onChange: (e) => setDataset(e.target.value) },
+          h('option', { value: 'many' }, 'several'),
+          h('option', { value: 'one' }, 'one'),
+          h('option', { value: 'none' }, 'none yet'),
+          h('option', { value: 'loading' }, 'loading'))),
+      h('label', null, 'Wording ',
+        h('select', { value: words, onChange: (e) => setWords(e.target.value) },
+          h('option', { value: 'bdc' }, 'conversation (app\'s)'),
+          h('option', { value: 'registry' }, 'thread (registry default)'))),
+      check('date groups', groups, setGroups),
+      check('Archive in menu', archive, setArchive),
+      check('answer running', running, setRunning),
+      layout === 'sidebar' && check('"browser only" footer', footer, setFooter),
+      h('button', { type: 'button', onClick: () => setDataset(data) }, 'Reset list'),
+      check('storage full dialog', full, showFull),
+      full && h('label', null, 'Order ',
+        h('select', { value: fullSort, onChange: (e) => setFullSort(e.target.value) },
+          h('option', { value: 'oldest' }, 'oldest first'),
+          h('option', { value: 'largest' }, 'largest first'))),
+      full && check('graph tag', fullKg, setFullKg),
+      check('dark', dark, setDark),
+    ),
+    h('p', { className: 'note' }, NOTES[layout]),
+    full && h('p', { className: 'note' }, 'Storage full: shown when saving an answer fails because localStorage (about ' +
+      '5 MB) is full. The failed save is kept and retried once deletions free enough room; the dialog then says Saved. ' +
+      'The open conversation isn\'t listed. Sizes are made up; answers with a knowledge graph are the big ones.'),
+    archive && h('p', { className: 'note' }, 'Archive: the registry component has no archived view, so an archived ' +
+      'conversation just disappears, like Delete. We\'d need our own "Archived" list or drop the item.'),
+    [1100, 760, 390].map((w) => h(Fragment, { key: w },
+      h('h2', null, `${w}px window`),
+      h(AppFrame, { width: w, s, act }))),
+  )
+}
+
+createRoot(document.getElementById('root')).render(h(Page))
+</script>
+</body>
+</html>

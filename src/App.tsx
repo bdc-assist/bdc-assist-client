@@ -1,12 +1,15 @@
+import { createLocalStorageAdapter } from '@assistant-ui/core/react'
 import {
   AssistantRuntimeProvider,
   AuiConfig,
   AuiProvider,
+  createSimpleTitleAdapter,
   Suggestions,
   useAui,
   useLocalRuntime,
+  useRemoteThreadListRuntime,
 } from '@assistant-ui/react'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import { Thread } from '@/components/assistant-ui/elements/thread.aui'
 import { BdcMessageParts } from '@/components/bdc/message-parts'
@@ -14,7 +17,13 @@ import { NewConversation } from '@/components/bdc/new-conversation'
 import { ThemeToggle } from '@/components/bdc/theme-toggle'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { createBdcAdapter, type Reveal } from '@/lib/bdc-adapter'
-import { browserStorage, createThreadStorage } from '@/lib/thread-storage'
+import {
+  browserStorage,
+  createConversationStorage,
+  readOpenConversation,
+  saveOpenConversation,
+  STORAGE_PREFIX,
+} from '@/lib/conversation-storage'
 
 // demo_services.sh runs bdc-assist on :8010; the stub server is on :8011
 const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8010'
@@ -25,8 +34,18 @@ const REVEAL: Reveal =
     ? 'after-check'
     : 'stream'
 const adapter = createBdcAdapter(API_URL, { reveal: REVEAL })
-// the current conversation survives a reload; "New conversation" clears it
-const threadStorage = createThreadStorage(browserStorage())
+// several conversations, saved in this browser; each is titled with its first question
+const storage = browserStorage()
+const conversations = createLocalStorageAdapter({
+  storage: createConversationStorage(storage),
+  prefix: STORAGE_PREFIX,
+  titleGenerator: createSimpleTitleAdapter(),
+})
+
+// the runtime for one conversation; the thread list supplies its history adapter
+function useConversationRuntime() {
+  return useLocalRuntime(adapter)
+}
 
 // shown on the empty thread; clicking one sends it
 const STARTERS = [
@@ -46,8 +65,16 @@ function Starters({ children }: { children: ReactNode }) {
 }
 
 export default function App() {
-  const runtime = useLocalRuntime(adapter, {
-    adapters: { history: threadStorage },
+  // a reload reopens the conversation that was open
+  const [threadId, setThreadId] = useState(() => readOpenConversation(storage))
+  const runtime = useRemoteThreadListRuntime({
+    runtimeHook: useConversationRuntime,
+    adapter: conversations,
+    threadId,
+    onThreadIdChange: (id) => {
+      setThreadId(id)
+      saveOpenConversation(storage, id)
+    },
   })
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -56,7 +83,7 @@ export default function App() {
         <TooltipProvider>
           <div className="relative h-dvh">
             <Thread />
-            <NewConversation storage={threadStorage} />
+            <NewConversation />
             <ThemeToggle />
           </div>
         </TooltipProvider>
