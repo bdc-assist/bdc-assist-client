@@ -1,15 +1,18 @@
 // bdc-assist local edits (redo after re-pulling): the header shows the app's favicon and
-// names BDC Assist instead of linking to assistant-ui, and the GitHub footer (and its icon file) is gone.
+// names BDC Assist instead of linking to assistant-ui, and the footer has Delete all conversations
+// instead of a GitHub link (its icon file is gone).
 import type * as React from "react";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
+import { DeleteAllConversations } from "@/components/bdc/delete-all-conversations";
 
 export function ThreadListSidebar({
   ...props
@@ -36,6 +39,9 @@ export function ThreadListSidebar({
         <ThreadList />
       </SidebarContent>
       {props.collapsible !== "none" && <SidebarRail />}
+      <SidebarFooter className="aui-sidebar-footer border-t empty:hidden">
+        <DeleteAllConversations />
+      </SidebarFooter>
     </Sidebar>
   );
 }
