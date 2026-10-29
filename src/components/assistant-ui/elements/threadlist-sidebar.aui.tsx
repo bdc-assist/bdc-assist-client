@@ -1,6 +1,6 @@
 // bdc-assist local edits (redo after re-pulling): the header shows the app's favicon and
 // names BDC Assist instead of linking to assistant-ui, and the footer has Delete all conversations
-// instead of a GitHub link (its icon file is gone).
+// and a "saved in this browser only" note instead of a GitHub link (its icon file is gone).
 import type * as React from "react";
 import {
   Sidebar,
@@ -39,8 +39,11 @@ export function ThreadListSidebar({
         <ThreadList />
       </SidebarContent>
       {props.collapsible !== "none" && <SidebarRail />}
-      <SidebarFooter className="aui-sidebar-footer border-t empty:hidden">
+      <SidebarFooter className="aui-sidebar-footer border-t">
         <DeleteAllConversations />
+        <p className="text-muted-foreground px-2 text-xs">
+          Conversations saved only in browser
+        </p>
       </SidebarFooter>
     </Sidebar>
   );

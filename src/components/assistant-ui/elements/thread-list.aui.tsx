@@ -1,11 +1,17 @@
 "use client";
 
 // bdc-assist local edits (redo after re-pulling): "conversation" wording instead of
-// "thread"/"chat" in labels, and no Archive item (no archived view to get one back).
+// "thread"/"chat" in labels, no Archive item (no archived view to get one back), and a
+// tooltip with the full title on items whose title is cut off.
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
   AuiIf,
@@ -325,6 +331,10 @@ const ThreadListSkeleton: FC = () => {
 export const ThreadListItem: FC = () => {
   const isRunning = useAuiState((s) => s.threadListItem.isRunning);
   const [isRenaming, setIsRenaming] = useState(false);
+  // bdc-assist local edit: the full title in a tooltip, only when it's cut off
+  const title = useAuiState((s) => s.threadListItem.title);
+  const titleRef = useRef<HTMLSpanElement>(null);
+  const [showTitle, setShowTitle] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const restoreFocusRef = useRef(false);
 
@@ -347,26 +357,40 @@ export const ThreadListItem: FC = () => {
           }}
         />
       ) : (
-        <ThreadListItemPrimitive.Trigger
-          ref={triggerRef}
-          data-slot="aui_thread-list-item-trigger"
-          className="focus-visible:ring-ring/50 flex h-full min-w-0 flex-1 items-center rounded-md px-2.5 text-start text-sm outline-none group-hover:pe-9 group-has-focus-visible:pe-9 group-has-data-[state=open]:pe-9 group-data-active:pe-9 focus-visible:ring-1"
+        <Tooltip
+          open={showTitle}
+          onOpenChange={(open) => {
+            const el = titleRef.current;
+            setShowTitle(open && !!el && el.scrollWidth > el.clientWidth);
+          }}
         >
-          {isRunning && (
-            <Loader2Icon
-              aria-hidden
-              data-slot="aui_thread-list-item-running"
-              className="text-muted-foreground me-1.5 size-3.5 shrink-0 animate-spin"
-            />
-          )}
-          <span
-            data-slot="aui_thread-list-item-title"
-            className="min-w-0 flex-1 truncate"
-          >
-            <ThreadListItemPrimitive.Title fallback="New conversation" />
-          </span>
-          {isRunning && <span className="sr-only">Running</span>}
-        </ThreadListItemPrimitive.Trigger>
+          <TooltipTrigger asChild>
+            <ThreadListItemPrimitive.Trigger
+              ref={triggerRef}
+              data-slot="aui_thread-list-item-trigger"
+              className="focus-visible:ring-ring/50 flex h-full min-w-0 flex-1 items-center rounded-md px-2.5 text-start text-sm outline-none group-hover:pe-9 group-has-focus-visible:pe-9 group-has-data-[state=open]:pe-9 group-data-active:pe-9 focus-visible:ring-1"
+            >
+              {isRunning && (
+                <Loader2Icon
+                  aria-hidden
+                  data-slot="aui_thread-list-item-running"
+                  className="text-muted-foreground me-1.5 size-3.5 shrink-0 animate-spin"
+                />
+              )}
+              <span
+                ref={titleRef}
+                data-slot="aui_thread-list-item-title"
+                className="min-w-0 flex-1 truncate"
+              >
+                <ThreadListItemPrimitive.Title fallback="New conversation" />
+              </span>
+              {isRunning && <span className="sr-only">Running</span>}
+            </ThreadListItemPrimitive.Trigger>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="max-w-xs">
+            {title}
+          </TooltipContent>
+        </Tooltip>
       )}
       <ThreadListItemMore onRename={() => setIsRenaming(true)} />
     </ThreadListItemPrimitive.Root>
