@@ -16,6 +16,7 @@ import { ThreadListSidebar } from '@/components/assistant-ui/elements/threadlist
 import { BdcMessageParts } from '@/components/bdc/message-parts'
 import { ChatHeader } from '@/components/bdc/chat-header'
 import { ConversationSwitch } from '@/components/bdc/conversation-switch'
+import { EmailDialog } from '@/components/bdc/email-conversation'
 import { useSidebarOpen } from '@/components/bdc/sidebar-toggle'
 import { StorageFullDialog } from '@/components/bdc/storage-full-dialog'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
@@ -98,6 +99,7 @@ export default function App() {
               </div>
             </SidebarInset>
             <StorageFullDialog storage={conversationStorage} />
+            <EmailDialog />
           </SidebarProvider>
         </TooltipProvider>
         <Toaster />

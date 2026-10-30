@@ -10,6 +10,7 @@ import { ThreadFollowupSuggestions } from "@/components/assistant-ui/elements/fo
 import { Image } from "@/components/assistant-ui/elements/image";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import { MarkdownLink } from "@/components/bdc/markdown-link"; // bdc-assist local edit, see "text" below
+import { EmailButton } from "@/components/bdc/email-conversation"; // bdc-assist local edit, see AssistantActionBar
 import {
   Reasoning,
   ReasoningContent,
@@ -674,6 +675,8 @@ const AssistantActionBar: FC = () => {
           </AuiIf>
         </TooltipIconButton>
       </ActionBarPrimitive.Copy>
+      {/* bdc-assist local edit: email this answer or the conversation. Redo after re-pulling. */}
+      <EmailButton />
       <AuiIf condition={(s) => s.thread.capabilities.feedback}>
         <ActionBarPrimitive.FeedbackPositive asChild>
           <TooltipIconButton
