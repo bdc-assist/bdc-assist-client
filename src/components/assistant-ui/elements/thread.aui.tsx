@@ -10,7 +10,7 @@ import { ThreadFollowupSuggestions } from "@/components/assistant-ui/elements/fo
 import { Image } from "@/components/assistant-ui/elements/image";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import { MarkdownLink } from "@/components/bdc/markdown-link"; // bdc-assist local edit, see "text" below
-import { EmailButton } from "@/components/bdc/email-conversation"; // bdc-assist local edit, see AssistantActionBar
+import { useOpenEmail } from "@/components/bdc/email-conversation"; // bdc-assist local edit, see AssistantActionBar
 import {
   Reasoning,
   ReasoningContent,
@@ -55,6 +55,7 @@ import {
   ChevronRightIcon,
   CopyIcon,
   DownloadIcon,
+  MailIcon, // bdc-assist local edit, see "Email…"
   MicIcon,
   MoreHorizontalIcon,
   PencilIcon,
@@ -659,6 +660,7 @@ const AssistantMessage: FC = () => {
 };
 
 const AssistantActionBar: FC = () => {
+  const openEmail = useOpenEmail(); // bdc-assist local edit, see "Email…" below
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
@@ -675,8 +677,6 @@ const AssistantActionBar: FC = () => {
           </AuiIf>
         </TooltipIconButton>
       </ActionBarPrimitive.Copy>
-      {/* bdc-assist local edit: email this answer or the conversation. Redo after re-pulling. */}
-      <EmailButton />
       <AuiIf condition={(s) => s.thread.capabilities.feedback}>
         <ActionBarPrimitive.FeedbackPositive asChild>
           <TooltipIconButton
@@ -718,9 +718,20 @@ const AssistantActionBar: FC = () => {
           <ActionBarPrimitive.ExportMarkdown asChild>
             <ActionBarMorePrimitive.Item className="aui-action-bar-more-item hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none">
               <DownloadIcon className="size-4" />
-              Export as Markdown
+              {/* bdc-assist local edit (registry: "Export as Markdown"): says what it exports,
+                  next to Email conversation. Redo after re-pulling. */}
+              Export answer as Markdown
             </ActionBarMorePrimitive.Item>
           </ActionBarPrimitive.ExportMarkdown>
+          {/* bdc-assist local edit: email this answer or the conversation, next to the other
+              way out of the app. Redo after re-pulling. */}
+          <ActionBarMorePrimitive.Item
+            onSelect={openEmail}
+            className="aui-action-bar-more-item hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none"
+          >
+            <MailIcon className="size-4" />
+            Email conversation
+          </ActionBarMorePrimitive.Item>
         </ActionBarMorePrimitive.Content>
       </ActionBarMorePrimitive.Root>
     </ActionBarPrimitive.Root>
