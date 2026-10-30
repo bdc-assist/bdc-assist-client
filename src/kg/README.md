@@ -106,9 +106,21 @@ type KgView = {
   focus(focus | null)      // show a focus picked elsewhere (another view, your list); doesn't call onFocus
   resize()                 // after the container changed size, e.g. was hidden and shown
   refreshStyle()           // re-read the --kg-* colours, e.g. after a theme change
+  image({ background? })   // Promise<KgImage>: the whole drawing as a PNG (default on white)
   destroy()
 }
+
+type KgImage = { src: string; width: number; height: number } // a data: URL; size in CSS pixels, drawn at 2x
 ```
+
+**Images.** `image()` draws the whole graph, not just what's zoomed into view, with a
+margin. For a graph that isn't on screen, or in other colours than the page's (e.g. light
+for an email while the page is dark), `renderImage(graph, view, options)` (`views/image.ts`)
+draws it as `'force'`, `'radial'` or `'flow'` into a container of its own off screen, takes
+the image, and removes it. It takes the views' options plus `width` and `height` (the box
+it lays out in, default 800 × 500) and `background`. Its colours are the `--kg-*`
+properties set on `document.body` or above, else the defaults (light). Force lays out as it
+would on screen; pass a copy of the on-screen view's `forcePositions` to keep its layout.
 
 **Focus.** What the user picked, the same in every view:
 
