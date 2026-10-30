@@ -57,9 +57,12 @@ export function turnsOf(messages: readonly EmailMessage[], scope: 'single' | 'fu
   return turns
 }
 
+/** The graphs `turns` hold (each graph part's merged graph), in order. */
+export const graphsOf = (turns: readonly EmailTurn[]): KgGraph[] =>
+  turns.flatMap((t) => dataOf(t.answer, GRAPH_PART).map((p) => graphData(p.data).graph))
+
 /** How many graphs `turns` hold. */
-export const graphCount = (turns: readonly EmailTurn[]) =>
-  turns.reduce((n, t) => n + dataOf(t.answer, GRAPH_PART).length, 0)
+export const graphCount = (turns: readonly EmailTurn[]) => graphsOf(turns).length
 
 const GREY = '#8a8a8a'
 const IMAGE_WIDTH = 640 // at most: the image itself is drawn at 2x for sharpness
@@ -119,7 +122,7 @@ const viewName = (view: string) => view.charAt(0).toUpperCase() + view.slice(1)
 
 function StudyTable({ graph }: { graph: KgGraph }) {
   return (
-    <table style={S.table}>
+    <table style={{ ...S.table, margin: '4px 0 6px' }}>
       <thead>
         <tr>
           <th style={S.cell}>Study</th>
@@ -147,10 +150,11 @@ function Graph({ data, embed }: { data: GraphPartData; embed: EmailGraph | null 
   const summary = graphSummary(data.graph)
   if (!embed) return <p style={S.note}>A knowledge graph of {summary} was shown here in BDC Assist.</p>
   if ('table' in embed) {
+    // the caption under it, as under an image
     return (
       <>
-        <p style={S.note}>Knowledge graph: {summary}</p>
         <StudyTable graph={data.graph} />
+        <p style={S.note}>Knowledge graph (List view): {summary}</p>
       </>
     )
   }

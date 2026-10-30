@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { drawnGraph, studyList } from '@/kg'
-import { asthmaCopd } from '@/kg/test-fixtures'
+import { asthmaCopd, related } from '@/kg/test-fixtures'
 import {
   BLOCKED_PART,
   FOLLOWUPS_PART,
@@ -13,6 +13,7 @@ import {
 } from '@/lib/bdc-adapter'
 import {
   graphCount,
+  graphsOf,
   graphSummary,
   toEmail,
   turnsOf,
@@ -179,6 +180,12 @@ describe('turnsOf', () => {
 
   it('marks stopped and failed answers', () => {
     expect(turnsOf(messages, 'full', 'a1').map((t) => t.ended)).toEqual([undefined, 'stopped', 'failed'])
+  })
+
+  it('lists the graphs, by the answer graph objects the panels are keyed by', () => {
+    const old = data(GRAPH_PART, related) // saved before per-call graphs: just the graph
+    expect(graphsOf([turn('A?', graphPart), turn('B?', old)])).toEqual([asthmaCopd, related])
+    expect(graphsOf([turn('A?', graphPart)])[0]).toBe(asthmaCopd)
   })
 
   it('counts the graphs', () => {

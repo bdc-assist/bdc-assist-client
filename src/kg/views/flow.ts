@@ -3,6 +3,7 @@ import { sankey, sankeyLinkHorizontal, type SankeyLink, type SankeyNode } from '
 import { bridges } from '../model/bridges'
 import { bundles } from '../model/bundle'
 import { AMOUNTS, haloOf, HALO_PAD, KG_CSS } from './marks'
+import { rasterize } from './raster'
 import { DRAW_DEFAULTS, DRAW_OPTIONS, drawnGraph } from '../model/drawn'
 import { carryFocus, focusConnections, isPair, sameFocus, type KgFocus } from '../model/focus'
 import { isConceptOrTerm, NO_STUDY, NO_STUDY_NODE, type KgGraph, type KgNode } from '../model/types'
@@ -226,10 +227,35 @@ export function mountFlow(container: HTMLElement, graph: KgGraph, options: FlowO
     // colours are CSS variables, so they follow on their own; but a seed label's text
     // (black or white) is worked out from the background
     refreshStyle: render,
+    image({ background = '#ffffff' } = {}) {
+      const url = URL.createObjectURL(new Blob([standalone(svg)], { type: 'image/svg+xml' }))
+      const size = { width: Number(svg.getAttribute('width')), height: Number(svg.getAttribute('height')) }
+      return rasterize(url, background, size).finally(() => URL.revokeObjectURL(url))
+    },
     destroy() {
       svg.remove()
     },
   }
+}
+
+// what an SVG drawn on its own (as an image) needs from the page: the marks are styled with
+// var() and color-mix(), and the text takes the page's font
+const PAINT = ['fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'opacity', 'font-family',
+  'font-size', 'font-weight', 'paint-order', 'stroke-linejoin', 'display', 'visibility']
+
+/** `svg` as standalone SVG markup: a copy with every element's computed paint written into
+ * its style, without tooltips. */
+function standalone(svg: SVGSVGElement): string {
+  const copy = svg.cloneNode(true) as SVGSVGElement
+  const from = [svg, ...svg.querySelectorAll('*')]
+  const to = [copy, ...copy.querySelectorAll('*')]
+  from.forEach((el, i) => {
+    const css = getComputedStyle(el)
+    to[i].setAttribute('style', PAINT.map((p) => `${p}:${css.getPropertyValue(p)}`).join(';'))
+  })
+  copy.querySelectorAll('title').forEach((t) => t.remove())
+  copy.setAttribute('xmlns', SVG)
+  return new XMLSerializer().serializeToString(copy)
 }
 
 /** Move node `id` to the bottom of its column, which d3-sankey orders to reduce

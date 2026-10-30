@@ -68,5 +68,13 @@ export type KgView<O extends KgViewOptions = KgViewOptions> = {
   resize(): void
   /** Re-read the --kg-* colours (e.g. after a theme change). */
   refreshStyle(): void
+  /** The whole drawing (not just what's scrolled or zoomed into view), as a PNG on
+   * `background` (default white) with a margin, drawn at 2x for sharpness. To draw a graph
+   * that isn't on screen, see renderImage. */
+  image(options?: { background?: string }): Promise<KgImage>
   destroy(): void
 }
+
+/** A view drawn as a picture: `src` a data: URL of a PNG; width and height in CSS pixels
+ * (the PNG itself has twice as many). */
+export type KgImage = { src: string; width: number; height: number }

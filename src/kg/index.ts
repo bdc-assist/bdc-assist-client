@@ -23,7 +23,8 @@ export {
 } from './model/types'
 
 // the views
-export type { KgView, KgViewOptions } from './views/view'
+export type { KgImage, KgView, KgViewOptions } from './views/view'
+export { renderImage, type RenderImageOptions } from './views/image' // a graph as a PNG, drawn off screen
 export { mountGraph, type GraphOptions, type GraphView } from './views/graph'
 export { mountFlow, type FlowOptions, type FlowView } from './views/flow'
 export { KG_CSS } from './views/marks' // their colours as CSS, for your legend or list
