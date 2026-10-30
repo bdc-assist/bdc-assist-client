@@ -19,6 +19,7 @@ import { ConversationSwitch } from '@/components/bdc/conversation-switch'
 import { useSidebarOpen } from '@/components/bdc/sidebar-toggle'
 import { StorageFullDialog } from '@/components/bdc/storage-full-dialog'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { createBdcAdapter, type Reveal } from '@/lib/bdc-adapter'
 import {
@@ -99,6 +100,7 @@ export default function App() {
             <StorageFullDialog storage={conversationStorage} />
           </SidebarProvider>
         </TooltipProvider>
+        <Toaster />
       </Starters>
     </AssistantRuntimeProvider>
   )

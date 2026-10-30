@@ -50,7 +50,8 @@ dialog lists the conversations to delete and saves the answer once there's room
 `src/components/assistant-ui/elements/` holds assistant-ui's registry components, added with
 `npx shadcn add @assistant-ui/<name>`. A few carry local edits, marked `bdc-assist local edit`:
 redo them after re-pulling a component (`thread.aui.tsx`, `thread-list.aui.tsx`,
-`threadlist-sidebar.aui.tsx`).
+`threadlist-sidebar.aui.tsx`). Of the shadcn components in `src/components/ui/`, `sonner.tsx`
+(toasts) has one too: it follows our `dark` class instead of `next-themes`.
 
 ## Knowledge graph code
 
