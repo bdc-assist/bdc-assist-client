@@ -49,7 +49,8 @@ const NODE_LABELS: Record<string, string> = {
   input_guardrail: 'Screening the question…',
   contextualize: 'Reading the conversation…',
   classify: 'Checking known topics…',
-  agent: 'Thinking…',
+  main_agent: 'Thinking…',
+  agent: 'Thinking…', // bdc-assist before its agent step became main_agent
   output_guardrail: 'Reviewing the answer…',
   output_reject: 'Answer rejected…',
   append_disclaimer: 'Adding disclaimers…',
