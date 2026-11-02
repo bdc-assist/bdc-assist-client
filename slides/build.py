@@ -594,6 +594,269 @@ No screenshot. This slide bridges into the web client walkthrough.
 """)
 
 
+# ---- the web client walkthrough: screenshots ----------------------------------------------------------------
+
+STUB = ("Stub server: in ../bdc-assist run `uv run python tests/_stub_stream_server.py`, then here "
+        "`VITE_API_URL=http://127.0.0.1:8011 npm run dev`. A keyword in the question picks the case.")
+
+
+def shot(s, x, y, w, h, name, hint):
+    """slides/shots/<name> fitted into the box, or a placeholder naming the file until it's there."""
+    file = SHOTS / name
+    if file.exists():
+        s.picture(file, x, y, w, h)
+        return
+    s.label_box(x, y, w, h, [[b(f"shots/{name}", size=13, color=STONE)], [r(hint, size=11, color=STONE,
+                                                                               space_before=4)]],
+                align="c", anchor="m", fill=SLATE, line=STONE, width=1, dashed=True, radius=0.1, pad=0.25)
+
+
+def points(s, x, y, w, h, items, size=14):
+    """Short points: a bold lead and the rest, a paragraph each."""
+    paras = []
+    for i, it in enumerate(items):
+        lead, rest = it if isinstance(it, tuple) else ("", it)
+        p = [b(lead, size=size, color=TWILIGHT, space_before=0 if i == 0 else 12)] if lead else []
+        p.append(r(rest, size=size, **({} if lead or i == 0 else {"space_before": 12})))
+        paras.append(p)
+    s.text(x, y, w, h, paras)
+
+
+def capture(s, shots, how, talk=""):
+    """Speaker notes: what to capture for each screenshot, then talking points."""
+    lines = ["CAPTURE (save as slides/shots/<name>, any size; PNG):"]
+    lines += [f"- {name}: {what}" for name, what in shots]
+    lines += ["", how]
+    if talk:
+        lines += ["", "TALKING POINTS:", talk.strip()]
+    s.notes("\n".join(lines))
+
+
+def shot_right(d, title, lede, items, name, hint, how, talk=""):
+    """Points on the left, one screenshot on the right."""
+    s = d.content(title, lede)
+    points(s, 0.6, 1.95, 3.9, 4.8, items)
+    shot(s, 4.85, 1.85, 7.9, 4.95, name, hint)
+    capture(s, [(name, hint)], how, talk)
+
+
+def shot_wide(d, title, lede, items, name, hint, how, talk=""):
+    """One big screenshot, with up to three short points under it."""
+    s = d.content(title, lede)
+    shot(s, 0.6, 1.75, W - 1.2, 4.0, name, hint)
+    cw = (W - 1.2 - 0.3 * (len(items) - 1)) / len(items)
+    for i, (lead, rest) in enumerate(items):
+        s.text(0.6 + i * (cw + 0.3), 5.95, cw, 0.9, [[b(lead + " ", size=13, color=TWILIGHT), r(rest, size=13)]])
+    capture(s, [(name, hint)], how, talk)
+
+
+def shot_row(d, title, lede, shots, how, talk=""):
+    """Two or three screenshots side by side, a caption under each: (name, caption, hint)."""
+    s = d.content(title, lede)
+    n = len(shots)
+    cw = (W - 1.2 - 0.35 * (n - 1)) / n
+    for i, (name, caption, hint) in enumerate(shots):
+        x = 0.6 + i * (cw + 0.35)
+        shot(s, x, 1.85, cw, 3.85, name, hint)
+        s.text(x, 5.85, cw, 0.95, caption, size=13)
+    capture(s, [(name, hint) for name, _, hint in shots], how, talk)
+
+
+def chat_section(d):
+    s = d.divider(2, "The web client", "Chat, saved conversations and sharing.")
+    s.notes("Section divider. No screenshot.")
+
+    shot_wide(d, "One window: conversations, chat and the answer's graph", None, [
+        ("Sidebar:", "saved conversations, kept in this browser."),
+        ("Chat:", "streamed answers with sources and follow-ups."),
+        ("Graph:", "the knowledge graph behind the answer, in the answer."),
+    ], "01-overview.png", "Whole window, light theme: sidebar open with a few conversations, an answer with a "
+       "graph in view.",
+       STUB + " Ask a question containing `concept_graph_2` (asthma and COPD). Have 3-4 other conversations in the "
+       "sidebar.",
+       "The tour starts with the chat itself, then the knowledge graphs.")
+
+    shot_right(d, "A first question", "New conversations open with a welcome and starter questions.", [
+        ("Starters ", "ask a common question in one click: what BDC is, uploading data, COVID data, latest events."),
+        ("The composer ", "takes any question; follow-ups keep the conversation's context."),
+    ], "02-welcome.png", "A new, empty conversation: welcome line, the four starters, the composer.",
+       "Click New conversation. Any server (or none) will do.")
+
+    shot_right(d, "Progress while it works", "Answers stream in; a status line says what's happening.", [
+        ("Status line ", "follows the workflow: checking the question, searching the docs, calling Dug."),
+        ("Streaming: ", "the answer appears as it's written."),
+        ("Stop ", "ends it early; what's written so far is kept."),
+    ], "03-streaming.png", "An answer mid-stream: status line showing, part of the text written.",
+       STUB + " The stub is slow on purpose; ask anything and take the screenshot while the status line shows.")
+
+    shot_right(d, "Sources and follow-ups", "Where an answer came from, and where to go next.", [
+        ("Sources ", "as icons, grouped by type (docs, website, FAQ, videos, Dug studies); each opens a list of "
+                     "links."),
+        ("Scripted answers ", "cite their source too."),
+        ("Follow-ups ", "are buttons: one click asks the question."),
+    ], "04-sources.png", "A finished answer: source icons with one group's popover open, follow-up buttons below.",
+       STUB + " Ask a docs question (e.g. “How do I get access to data?”); open a source group.")
+
+    shot_right(d, "Links to BDC, marked", "Links in answers say where they go.", [
+        ("BDC docs ", "in BDC red."),
+        ("BDC tools ", "(PIC-SURE, Seven Bridges, Terra, Gen3, Imputation Server) as red tags with a tool icon."),
+        ("Other links ", "underlined, in the text colour. All open in a new tab."),
+    ], "05-links.png", "An answer with an ordinary link, a BDC docs link and a BDC tool link (crop to the text).",
+       "Real API works best: ask e.g. “How do I search for variables in PIC-SURE?”. The styles come from "
+       "src/config/bdc-links.json.")
+
+    shot_row(d, "Guardrails, visible", "When a check stops or holds an answer, the user is told.", [
+        ("06a-blocked.png", "Off-topic or unsafe questions get a short refusal and a note.",
+         "A refused question with its note."),
+        ("06b-rejected.png", "A draft that fails the answer check is replaced, and the answer says so.",
+         "An answer whose draft was replaced."),
+        ("06c-held.png", "Optional: hold the draft behind placeholder bars until it passes the check.",
+         "Placeholder bars while an answer is held."),
+    ], STUB + " 06a: a question containing `block`. 06b: a question containing `reject`. 06c: add "
+              "`?reveal=after-check` to the URL and ask anything; capture during the wait.")
+
+    shot_row(d, "When something goes wrong", "Failures are explained, not hidden.", [
+        ("07a-failed.png", "A failed run discards the half-written draft and says the answer failed; Refresh "
+                           "tries again.", "A failed answer."),
+        ("07b-unavailable.png", "When a data service such as Dug is down, the answer says it may be incomplete.",
+         "An answer with the “Some data services are unavailable” note."),
+    ], STUB + " 07a: a question containing `crash`. 07b: the real API with Dug unreachable (e.g. off VPN), "
+              "or any time Dug's MCP is down.")
+
+    shot_right(d, "Saved conversations", "Every conversation is kept in the browser and listed in the sidebar.", [
+        ("Titles ", "are the first question; long ones show in full on hover."),
+        ("Search ", "filters by title."),
+        ("Reload ", "reopens the last conversation."),
+        ("Stored only here: ", "nothing leaves the browser; the sidebar says so."),
+    ], "08-sidebar.png", "The sidebar with 6-8 conversations, the search box, one truncated title's tooltip.",
+       "Ask a handful of questions in separate conversations first; hover a long title.")
+
+    shot_row(d, "Header and themes", "A title bar for the conversation; light and dark themes.", [
+        ("09a-light.png", "Light: sidebar toggle, New conversation, the title, theme toggle.",
+         "The app in light theme."),
+        ("09b-dark.png", "Dark: every part follows, the graphs included.", "The same view in dark theme."),
+    ], "Use the same conversation (one with a graph) for both, toggled with the theme button.")
+
+    shot_row(d, "Housekeeping", "Browser storage is limited (about 5 MB), so the app helps clear it.", [
+        ("10a-delete-all.png", "Delete all conversations, after a confirm.", "The Delete all confirm dialog."),
+        ("10b-storage-full.png", "When storage is full, a dialog lists conversations to delete, then saves the "
+                                 "answer.", "The storage-full dialog."),
+    ], "10a: sidebar footer → Delete all conversations. 10b: fill localStorage from the dev tools console, e.g. "
+       "`localStorage.setItem('filler', 'x'.repeat(4.5e6))`, then ask a question; remove `filler` afterwards.")
+
+    shot_row(d, "Sharing an answer", "Export as Markdown, or email one answer or the whole conversation.", [
+        ("11a-menu.png", "The answer's menu: Export answer as Markdown, Email conversation.", "The answer's More (three dots) menu open."),
+        ("11b-email.png", "Pick one answer or all, with or without graphs; copy, and open the mail client.",
+         "The email dialog."),
+        ("11c-email-client.png", "Pasted into an email: graphs as pictures, or a table for List view.",
+         "The pasted email in Outlook."),
+    ], STUB + " Use a conversation with a graph (`concept_graph_2`). 11c: Copy and open email, paste into a new "
+              "Outlook message.",
+       "Outlook and Yahoo checked, in light and dark mode; Gmail not yet tested.")
+
+
+def kg_section(d):
+    s = d.divider(3, "Knowledge graphs", "Dug's concepts, studies and variables, drawn with each answer.")
+    s.notes("Section divider. No screenshot.")
+
+    shot_wide(d, "The graph panel", "Every answer that used Dug shows its graph under the text.", [
+        ("Toolbar:", "Show (which tool call), View, Group, Shared only."),
+        ("Legend:", "each mark, explained on hover."),
+        ("Zoom and Maximize", "for a closer look."),
+    ], "12-kg-panel.png", "The graph panel for asthma and COPD, Force view, with its toolbar and legend.",
+       STUB + " Ask a question containing `concept_graph_2`.",
+       "Asthma and COPD: two concepts, the studies with variables for them, and the variables linking them.")
+
+    shot_right(d, "Reading the graph", "One visual language in every view.", [
+        ("Type: ", "concepts amber circles, studies green squares, variables blue; searched words tinted amber."),
+        ("Weight: ", "a stronger blue links more concepts; a thicker bundle holds more variables."),
+        ("Query: ", "a yellow halo marks what was asked about; a narrow one, what's shared between them."),
+        ("Focus: ", "click to highlight what's connected; the rest fades."),
+    ], "13-encoding.png", "A zoomed crop showing queried concepts with halos, shared studies, the blue ramp, and the "
+       "legend.",
+       STUB + " `concept_graph_2`; zoom in (Ctrl/⌘+wheel) on the area between the two concepts. The spec is "
+              "src/kg/DESIGN.md §4.")
+
+    shot_row(d, "Radial and Flow views", "The same graph, laid out for different questions.", [
+        ("14a-radial.png", "Radial: centred on what was asked about, with everything else in rings by distance.",
+         "Radial view."),
+        ("14b-flow.png", "Flow: concepts to studies, band width = number of variables. Views a graph can't show "
+                         "are greyed out, with the reason.", "Flow view."),
+    ], STUB + " `concept_graph_2`, then switch View.")
+
+    shot_right(d, "List view", "The graph as a table, for reading and for screen readers.", [
+        ("Studies ", "with their concepts and variables, linked to dbGaP."),
+        ("Missing data, said plainly: ", "“No study provided”, “No dbGaP variable accession "
+                                          "available”."),
+    ], "15-list.png", "List view with one study row expanded or selected.",
+       STUB + " `concept_graph_2`, View → List.")
+
+    shot_right(d, "Click for details", "Select anything to see what it's connected to, and links out.", [
+        ("Highlight: ", "the selection and its neighbours stay; the rest fades."),
+        ("Details: ", "name, type, Dug's category and description, links to dbGaP or the ontology."),
+    ], "16-details.png", "A selected study with the rest faded and its details showing.",
+       STUB + " `concept_graph_2`, Force view; click a study shared by both concepts.")
+
+    shot_row(d, "Less clutter: grouping and Shared only", "Releases and synonyms merge; filter to the overlap.", [
+        ("17a-grouped.png", "Group on (default): study releases merged, synonym concepts as one.",
+         "A search graph with Group on."),
+        ("17b-ungrouped.png", "Group off: every release and synonym on its own.", "The same graph, Group off."),
+        ("17c-shared.png", "Shared only: just what links two or more of the asked-about concepts.",
+         "Asthma and COPD with Shared only on."),
+    ], STUB + " 17a/b: a question containing `search_concepts` (BMI), toggle Group. 17c: `concept_graph_2`, tick "
+              "Shared only.")
+
+    shot_right(d, "Several tool calls, one graph", "An answer often calls Dug more than once.", [
+        ("All results ", "merges them; Show picks one call, named in plain words (“asthma concept graph”)."),
+        ("Inter-concept links ", "(related concepts) draw as light amber lines, named on hover."),
+    ], "18-show.png", "The Show dropdown open on an answer with two tool calls.",
+       STUB + " A question containing `concept_graph_2 concept_connections`; open Show.")
+
+    shot_right(d, "Zoom and maximize", "Room to explore a big graph.", [
+        ("Inline: ", "Ctrl/Cmd + scroll zooms, so the page still scrolls; plain scroll shows a hint."),
+        ("Maximize ", "opens the graph full-window, details beside it, free zoom."),
+    ], "19-maximized.png", "The maximized graph dialog with a selection and its details.",
+       STUB + " `concept_graph_2`; click Maximize, select a concept.")
+
+
+def next_steps(d):
+    s = Slide(d, bg=TWILIGHT)
+    s.text(0.9, 0.7, W - 1.8, 0.8, "What's next", size=36, color=WHITE, bold=True)
+    cols = [
+        ("With the Dug team", FROST, [
+            "A new MCP backend over the full knowledge graph (in progress)",
+            "Explicit edge direction, study-to-concept edges, relevance scoring",
+            "Data clean-up from the KG field guide: odd variable ids, hub concepts",
+        ]),
+        ("In bdc-assist", FROST, [
+            "Adopt Dug's new fields in the interceptor",
+            "Fresh fixtures from live Dug results",
+        ]),
+        ("In the web client", FROST, [
+            "Directed links; searched words mapped to concepts",
+            "Test email in Gmail",
+            "Feedback from users",
+        ]),
+    ]
+    cw = (W - 1.8 - 0.5 * 2) / 3
+    for i, (head, c, items) in enumerate(cols):
+        x = 0.9 + i * (cw + 0.5)
+        s.box(x, 1.9, cw, 4.6, fill=tint(TWILIGHT, 1), line=c, width=2, radius=0.12)
+        s.text(x + 0.3, 2.1, cw - 0.6, 0.5, head, size=18, color=WHITE, bold=True)
+        s.text(x + 0.3, 2.75, cw - 0.6, 3.6,
+               [[r(t, size=15, color=FROST, space_before=0 if j == 0 else 12)] for j, t in enumerate(items)])
+    s.notes("""
+No screenshot.
+- Dug: the team is swapping the MCP backend to a redis graph of the full KG (it's down while that happens). Their
+  new version makes edge direction explicit, adds study -> concept edges and should rank results rather than cap
+  them at a limit. Their full-KG report flagged fabricated variable ids, hub concepts that bloat results, and NER
+  misfires (often OrganismTaxon).
+- bdc-assist: the Dug interceptor adopts the new fields, then fixtures are regenerated from live captures.
+- Client: directed inter-concept links and term-to-concept mapping once those land; email still to be tried in
+  Gmail. Edit this slide for the services' own plans.
+""")
+
+
 def build():
     d = Deck()
     title_slide(d)
@@ -606,6 +869,9 @@ def build():
     doc_mcp(d)
     client_arch(d)
     life(d)
+    chat_section(d)
+    kg_section(d)
+    next_steps(d)
     d.save()
     print(f"wrote {OUT.relative_to(HERE.parent)} ({len(d.slides)} slides)")
     if "--preview" in sys.argv:
