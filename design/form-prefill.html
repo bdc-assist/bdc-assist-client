@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Form prefill</title>
+<!-- Design scratch page, not part of the app build. Open via the dev server:
+     npm run dev, then /design/form-prefill.html. Issue bdc-assist#64: bdc-assist fills in a BDC site form
+     (Get Help first) through URL parameters. The draft lives in the conversation as a card, so it can be
+     refined by chatting or by editing a value in place: either in the conversation (each refinement a new copy, older
+     ones collapsed) or in a tool view beside it (one draft changed in place, with Undo).
+     Assumes the chat agent drafts the form (a `form` SSE event, like `kg`), not a separate endpoint.
+     Field names, types and choices are illustrative, after Steven's frontmatter sketch on the issue:
+     the live form is injected by script and its real parameter names aren't known yet. -->
+<style>
+  :root { --bg: #ffffff; --fg: #0a0a0a; --muted: #737373; --muted-bg: #f5f5f5; --line: #e5e5e5;
+    --bdc-link: #b91c1c; --warn: #b45309; --warn-bg: #fffbeb; --new: #1d4ed8; --new-bg: #eff6ff; }
+  :root[data-theme="dark"] { --bg: #0a0a0a; --fg: #fafafa; --muted: #a1a1a1; --muted-bg: #262626;
+    --line: rgb(255 255 255 / 0.1); --bdc-link: #f87171; --warn: #fbbf24; --warn-bg: rgb(251 191 36 / 0.1);
+    --new: #93c5fd; --new-bg: rgb(147 197 253 / 0.1); }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; padding: 16px 24px 48px; background: var(--bg); color: var(--fg);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 28px 0 4px; }
+  .note { color: var(--muted); font-size: 13px; margin: 2px 0 10px; max-width: 760px; }
+  .controls { position: sticky; top: 0; z-index: 30; display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center;
+    padding: 10px 0; background: var(--bg); border-bottom: 1px solid var(--line); margin-bottom: 8px; font-size: 13px; }
+  .controls label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .controls select { font: inherit; }
+  .controls .stepper { display: flex; align-items: center; gap: 6px; }
+  .controls .stepper button { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 2px 10px; }
+  .controls .stepper button:disabled { opacity: 0.4; cursor: default; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 2;
+    stroke-linecap: round; stroke-linejoin: round; }
+  code { font-size: 12px; background: var(--muted-bg); padding: 1px 4px; border-radius: 4px; }
+
+  /* the app, roughly: 40px header, thread, composer */
+  .app { max-width: 960px; border: 1px solid var(--line); border-radius: 10px; }
+  .app-head { height: 40px; display: flex; align-items: center; gap: 4px; padding: 0 8px; border-bottom: 1px solid var(--line); }
+  .app-head .title { flex: 1; text-align: center; font-size: 13px; font-weight: 500; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; }
+  .ghost { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border: 0; border-radius: 6px;
+    background: transparent; color: var(--muted); font-size: 13px; }
+  .ghost:hover:enabled { background: var(--muted-bg); color: var(--fg); }
+  .ghost:disabled { opacity: 0.4; cursor: default; }
+  .ghost.square { width: 28px; padding: 0; justify-content: center; }
+  /* shadcn's tooltip, roughly: inverted colours, below the control */
+  .tip-wrap { position: relative; display: flex; }
+  .tip { position: absolute; top: calc(100% + 6px); right: 0; z-index: 20; white-space: nowrap; padding: 6px 12px;
+    border-radius: 6px; background: var(--fg); color: var(--bg); font-size: 12px; pointer-events: none;
+    opacity: 0; transition: opacity 0.1s; }
+  .tip-wrap:hover .tip, .tip-wrap:focus-within .tip { opacity: 1; transition-delay: 0.3s; }
+  .thread { padding: 16px; display: flex; flex-direction: column; gap: 14px; min-height: 320px; }
+  .app-body { display: flex; }
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  /* the app's --thread-max-width (44rem, thread.aui.tsx), padding inside, centred; the composer shares it */
+  .main .thread { flex: 1; width: 100%; max-width: 44rem; margin-inline: auto; }
+  .main .composer { width: calc(100% - 32px); max-width: calc(44rem - 32px); margin-inline: auto; }
+
+  /* the tool view: the object plus a chat scoped to it, split beside the conversation. Each tool sets its starting
+     width (form 40%, graph 70% with the conversation hidden); the divider drags (arrow keys too, double-click resets)
+     and the conversation can be hidden. Full screen on narrow windows. The split has a fixed height like the app's
+     window, and each side scrolls. */
+  .app.panel-mode { max-width: none; }
+  .app.panel-mode .app-body { height: 680px; }
+  .app.panel-mode .main { overflow-y: auto; }
+  .app.panel-mode .main .composer { position: sticky; bottom: 0; margin-bottom: 0; box-shadow: 0 -16px 0 var(--bg),
+    0 16px 0 var(--bg); background: var(--bg); }
+  .app.panel-mode .main::after { content: ''; flex: none; height: 16px; }
+  .panel { position: relative; flex: none; min-width: 320px; }
+  .panel-inner { position: absolute; inset: 0; display: flex; flex-direction: column; }
+  .divider { flex: none; position: relative; z-index: 5; width: 9px; margin: 0 -4px; cursor: col-resize; touch-action: none;
+    outline: 0; }
+  .divider::after { content: ''; position: absolute; top: 0; bottom: 0; left: 4px; width: 1px; background: var(--line); }
+  .divider:hover::after, .divider.dragging::after, .divider:focus-visible::after { left: 3px; width: 3px;
+    background: var(--muted); }
+  .app.collapsed .main, .app.collapsed .divider { display: none; }
+  .app.collapsed .panel { flex: 1; width: auto !important; }
+  .graph-area { flex: 1; min-height: 0; position: relative; }
+  .graph-area svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .graph-area .standin { position: absolute; left: 12px; top: 8px; font-size: 12px; color: var(--muted); }
+  .gchat { flex: none; max-height: 140px; overflow: auto; padding: 8px 12px 0; border-top: 1px solid var(--line);
+    font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
+  .gchat .hint { margin: 0; color: var(--muted); font-size: 12px; }
+  .gchat p { margin: 0; }
+  .gchat .user { padding: 6px 12px; }
+  .panel-inner > .composer { margin: 8px 12px 12px; }
+  .panel-head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 8px 0 12px; flex: none;
+    border-bottom: 1px solid var(--line); font-size: 13px; }
+  .panel-head .name { font-weight: 500; }
+  .panel-head .spacer { flex: 1; }
+  .panel-head select { font: inherit; color: inherit; background: transparent; border: 1px solid var(--line);
+    border-radius: 6px; padding: 2px 4px; }
+  .panel-body { flex: 1; min-height: 0; overflow: auto; padding: 0 12px 12px; }
+  .panel-body > .card:first-child { margin-top: 12px; }
+  .reset { border: 0; background: none; padding: 0; font-size: inherit; color: var(--fg); text-decoration: underline;
+    text-underline-offset: 3px; }
+  .pchat { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; padding-top: 12px;
+    border-top: 1px solid var(--line); font-size: 13px; }
+  .pchat .hint { margin: 0; color: var(--muted); font-size: 12px; }
+  .pchat p { margin: 0; }
+  .pchat .user { padding: 6px 12px; }
+  .panel .composer { flex: none; }
+  .card .summary { padding: 8px 12px; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; }
+  @media (max-width: 900px) {
+    .panel { position: fixed; inset: 0; z-index: 50; width: auto !important; background: var(--bg); }
+    .divider, [data-collapse] { display: none !important; }
+  }
+  .user { align-self: flex-end; max-width: 85%; background: var(--muted-bg); border-radius: 18px; padding: 8px 14px; }
+  .request { align-self: flex-end; display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+  .answer p { margin: 0 0 8px; }
+  .answer ol { margin: 0 0 8px; padding-left: 20px; }
+  .answer :is(p, li) a { color: var(--bdc-link); text-decoration: underline; text-underline-offset: 3px; }
+  /* the answer's toolbar, as in the app: Copy · Refresh · ⋯ left, source icons right (one per type; two or
+     more of a type share one, with a count, opening a list). Shown on the last answer, and on others on hover;
+     hidden while an answer is being written. */
+  .toolbar { display: flex; align-items: center; gap: 4px; min-height: 30px; padding-top: 6px; margin-left: -4px;
+    color: var(--muted); }
+  .answer:not(.last):not(:hover) .toolbar { visibility: hidden; }
+  .toolbar .grow { flex: 1; }
+  .tb { display: flex; align-items: center; justify-content: center; gap: 2px; min-width: 24px; height: 24px; padding: 0 4px;
+    border: 0; border-radius: 6px; background: transparent; color: inherit; font-size: 12px; text-decoration: none !important; }
+  .tb:hover, .tb[aria-expanded="true"] { background: var(--muted-bg); color: var(--fg); }
+  .tb svg.i { width: 16px; height: 16px; }
+  .tb svg.i.small { width: 12px; height: 12px; }
+  .tip.start { left: 0; right: auto; }
+  .tip.two { display: flex; flex-direction: column; }
+  .tip.two span:last-child { opacity: 0.7; }
+  .pop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 25; width: 320px; max-width: calc(100vw - 48px);
+    border: 1px solid var(--line); border-radius: 8px; background: var(--bg); box-shadow: 0 4px 12px rgb(0 0 0 / 0.1);
+    font-size: 14px; }
+  .pop .head { padding: 8px 12px; border-bottom: 1px solid var(--line); font-weight: 500; }
+  .pop ul { list-style: none; margin: 0; padding: 4px; }
+  .pop a { display: flex; align-items: flex-start; gap: 8px; padding: 6px 8px; border-radius: 6px; color: var(--fg) !important;
+    text-decoration: none !important; }
+  .pop a:hover { background: var(--muted-bg); }
+  .pop a span { flex: 1; }
+  .pop a svg.i { width: 12px; height: 12px; margin-top: 4px; color: var(--muted); }
+  .composer { display: flex; gap: 8px; align-items: flex-end; margin: 0 16px 16px; padding: 8px 8px 8px 14px;
+    border: 1px solid var(--line); border-radius: 18px; }
+  .composer textarea { flex: 1; resize: none; border: 0; outline: 0; background: transparent; color: inherit;
+    font: inherit; min-height: 22px; }
+  .send { width: 30px; height: 30px; border-radius: 999px; border: 0; background: var(--fg); color: var(--bg);
+    display: flex; align-items: center; justify-content: center; }
+  .send:disabled { opacity: 0.3; cursor: default; }
+
+  /* the offer under an answer that cites a form page */
+  .offer { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line);
+    border-radius: 10px; font-size: 13px; }
+  .offer .text { flex: 1; color: var(--muted); }
+  .offer .text b { color: var(--fg); font-weight: 500; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 6px;
+    border: 1px solid var(--line); background: var(--bg); font-size: 13px; text-decoration: none; color: inherit; white-space: nowrap; }
+  .btn:hover { background: var(--muted-bg); }
+  .btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .btn.primary:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+
+  /* the draft card */
+  .card { margin-top: 10px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .card-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line);
+    background: var(--muted-bg); font-size: 13px; }
+  .card-head .name { font-weight: 500; }
+  .card-head .ver { color: var(--muted); }
+  .card-head .spacer { flex: 1; }
+  .fields { margin: 0; padding: 4px 12px; display: grid; grid-template-columns: minmax(110px, 30%) 1fr; }
+  .fields dt, .fields dd { margin: 0; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .fields dt { color: var(--muted); padding-right: 12px; }
+  .fields dt .req { color: var(--muted); }
+  .fields > :nth-last-child(-n+2) { border-bottom: 0; }
+  .val { display: flex; align-items: flex-start; gap: 6px; }
+  .val .text { flex: 1; white-space: pre-wrap; border-radius: 4px; outline: 0; }
+  .card.active .val .text { cursor: text; }
+  .card.active .val .text:hover { background: var(--muted-bg); }
+  .card.active .val .text:focus { background: var(--muted-bg); box-shadow: 0 0 0 2px var(--line); }
+  .val .missing { color: var(--warn); }
+  .val select.choice { flex: 1; min-width: 0; font: inherit; color: inherit; background: transparent; border: 0;
+    border-radius: 4px; padding: 0; margin: -1px 0; cursor: pointer; }
+  .val select.choice:hover { background: var(--muted-bg); }
+  .val select.choice option { color: var(--fg); background: var(--bg); font-style: normal; }
+  .val .left { color: var(--muted); font-style: italic; }
+  .tag { flex: none; font-size: 11px; line-height: 18px; padding: 0 6px; border-radius: 999px; }
+  .tag.updated { color: var(--new); background: var(--new-bg); }
+  .tag.edited { color: var(--muted); background: var(--muted-bg); }
+  .tag.needed { color: var(--warn); background: var(--warn-bg); }
+  .card-foot { padding: 8px 12px 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+  .drafting { display: flex; align-items: center; gap: 8px; padding: 14px 12px; color: var(--muted); font-size: 13px; }
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* an older draft, collapsed */
+  .old { margin-top: 10px; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px dashed var(--line);
+    border-radius: 8px; color: var(--muted); font-size: 13px; background: transparent; width: 100%; text-align: left; }
+  .old:hover { color: var(--fg); }
+  .card.superseded { opacity: 0.75; }
+
+  .url { max-width: 760px; font: 12px/1.5 ui-monospace, monospace; word-break: break-all; padding: 10px 12px;
+    background: var(--muted-bg); border-radius: 8px; }
+  .url-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 13px; color: var(--muted); margin: 8px 0; }
+  ol.checks { max-width: 760px; padding-left: 20px; }
+  ol.checks li { margin: 4px 0; }
+  @media (max-width: 600px) {
+    body { padding: 12px 16px 40px; }
+    .fields { grid-template-columns: 1fr; }
+    .fields dt { border-bottom: 0; padding-bottom: 0; }
+    .offer { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+<h1>Form prefill</h1>
+<p class="note">bdc-assist#64. An answer that cites a page with a form offers to fill it in. The draft is a card in the
+  conversation: refine it by chatting ("mention I'm on Terra") or by clicking a value and typing, either in the
+  conversation or in a tool view beside it. <b>Open form</b> is an ordinary link to the BDC page with the values as URL
+  parameters, and the user still reviews and submits there.</p>
+
+<div class="controls">
+  <span class="stepper">
+    <button id="back" aria-label="Previous step">‹</button>
+    <span id="step-label"></span>
+    <button id="next" aria-label="Next step">›</button>
+  </span>
+  <label>Refine in
+    <select id="refine">
+      <option value="panel">A tool view (split)</option>
+      <option value="thread">The conversation</option>
+    </select>
+  </label>
+  <label>Tool view shows
+    <select id="tool">
+      <option value="form">The form draft</option>
+      <option value="graph">A knowledge graph (stand-in)</option>
+    </select>
+  </label>
+  <label>Prefill request (conversation mode)
+    <select id="request">
+      <option value="line">A status line</option>
+      <option value="user">A user message</option>
+    </select>
+  </label>
+  <label>Older drafts
+    <select id="older">
+      <option value="collapsed">Collapsed to one line</option>
+      <option value="full">Kept in full, greyed</option>
+    </select>
+  </label>
+  <label>Help icon
+    <select id="help-icon">
+      <option value="question">MessageCircleQuestion</option>
+      <option value="headset">Headset</option>
+      <option value="lifebuoy">LifeBuoy</option>
+      <option value="circlehelp">CircleHelp (?)</option>
+      <option value="ticket">Ticket</option>
+    </select>
+  </label>
+  <label>Page theme
+    <select id="theme"><option value="light">Light</option><option value="dark">Dark</option></select>
+  </label>
+</div>
+
+<h2>The flow</h2>
+<p class="note">Step through with ‹ ›, or use the page as a user would: <b>Prefill form</b> (or the help icon in the
+  header) starts a draft, the composer holds the next scripted message, and in the latest draft you can click any
+  value to edit it. Your edits go with the next message, so the agent builds on them: in step 5 the subject keeps what
+  you typed. <b>Refine in a tool view</b>: <b>Prefill form</b> opens the tool and drafts there, nothing is added to the conversation, and the offer turns into a small card for the draft (always the draft as it is now),
+  and the draft opens in a split beside it with its own chat, so the scripted messages go in the tool's composer and
+  the conversation doesn't grow. No versions: <b>Undo</b> and <b>Redo</b> in the tool's header step back and forward
+  through changes (an unsent edit first), and a changed graph says "Edited since this answer" with
+  <b>Reset to original</b>. Drag the divider (or focus it and use
+  the arrow keys; double-click resets), and hide or show the conversation with the button at the left of the tool's
+  header. Each tool sets how it opens: the form at 40% beside the conversation, a graph at 70% with the conversation
+  hidden (switch <b>Tool view shows</b> to see it, and send its message to expand it). On a narrow window the tool view
+  is full screen.</p>
+<div class="app" id="app">
+  <div class="app-head">
+    <button class="ghost square" aria-label="Toggle sidebar"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg></button>
+    <span class="title">I can't log in through eRA Commons…</span>
+    <span class="tip-wrap">
+      <button class="ghost square" id="get-help" aria-label="Get help from the BDC help desk"></button>
+      <span class="tip" role="tooltip">Get help from the BDC help desk</span>
+    </span>
+    <button class="ghost square" aria-label="Theme"><svg class="i" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></button>
+  </div>
+  <div class="app-body">
+    <div class="main">
+      <div class="thread" id="thread"></div>
+      <div class="composer">
+        <textarea id="composer" rows="1" placeholder="Ask about BDC…"></textarea>
+        <button class="send" id="send" aria-label="Send"><svg class="i" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+      </div>
+    </div>
+    <div class="divider" id="divider" role="separator" aria-orientation="vertical" aria-label="Resize the tool view"
+      tabindex="0" hidden></div>
+    <aside class="panel" id="panel" aria-label="Tool view" hidden></aside>
+  </div>
+</div>
+
+<h2>The link</h2>
+<p class="note">What <b>Open form</b> in the latest draft opens. Blank fields are left out. Values go in the URL, so they
+  can end up in browser history and the site's logs, which is one reason personal details are optional. Try the link:
+  if the BDC site doesn't read these parameters yet, the form opens empty.</p>
+<div class="url" id="url"></div>
+<div class="url-meta"><span id="url-len"></span><a id="url-open" class="btn" target="_blank" rel="noopener">Open form <svg class="i" viewBox="0 0 24 24"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a></div>
+
+<h2>To check</h2>
+<ol class="checks">
+  <li>Is the offer under the answer noticeable without being pushy? Which header icon, with its tooltip,
+    best says "exit to the help desk"?</li>
+  <li>The card's value states: filled; <span style="color: var(--warn)">needed</span> (a required field the agent
+    couldn't fill; not in this script, clear Subject to see it); <i>left for you</i> (name and email: fill in on the
+    form); <i>optional, left blank</i>; and consent, which is never prefilled. Plus the <b>updated</b> and
+    <b>edited</b> tags. Too many?</li>
+  <li>Research community: the agent can't know it unless the user says. Should it ask, or leave it?</li>
+  <li>Dropdowns edit as dropdowns. Set Type to <b>Publishing Research</b>: the form's extra section (paper title,
+    date, journal, link) appears, with the required title marked needed.</li>
+  <li>The page asks people not to include controlled data, participant information or credentials. The agent
+    should follow that when drafting; should the card also say it?</li>
+  <li>Conversation mode: prefill request as a status line or as a user message? The user message shows what the agent was asked;
+    the line keeps the thread to the user's own words.</li>
+  <li>Older drafts collapsed or kept greyed? (Conversation mode only: the tool view has Undo instead.)</li>
+  <li>Tool view: is it clear that its chat edits the object and is separate from the conversation? Is the small card
+    in the conversation (type · subject, Edit draft, Open form) enough?</li>
+  <li>Tool view: should it open by itself when the draft starts (as here), or only from <b>Edit draft</b>?</li>
+  <li>Split: are the starting widths right (form 40%, graph 70% with the conversation hidden)? Should a width the
+    user drags to be remembered per tool?</li>
+  <li>Graph with the conversation hidden: does it feel like today's maximize dialog, so it can replace it?</li>
+  <li>Editing a value in place: discoverable enough (hover tint, text cursor), or does it need a pencil icon?</li>
+  <li>Phone width: the fields stack under their labels.</li>
+</ol>
+
+<script type="module">
+const FORM = {
+  title: 'Get Help form',
+  url: 'https://biodatacatalyst.nhlbi.nih.gov/help/get-help/',
+  // the live form (its Freshdesk field list, 2026-11-03): input names, choices, and the section shown only for
+  // "Publishing Research". Whether the URL parameters will use these names isn't decided. `personal`: never asked
+  // for, only filled if the user offers. `confirm`: the user does it on the form, never prefilled. The hidden
+  // "website" spam trap is left out.
+  fields: [
+    { name: 'cf_requestors_name', label: 'Full name', required: true, personal: true },
+    { name: 'requester', label: 'Email', required: true, personal: true },
+    { name: 'cf_subject', label: 'Subject', required: true },
+    { name: 'ticket_type', label: 'Type of assistance', required: true, choices: [
+      'Exploring/Accessing BDC-hosted Data', 'Publishing Research', 'Bringing Your Own Data (BYOD)',
+      'Analyzing Data/Using a BDC Workspace', 'Sharing Data/Data Submission', 'Usage Costs/Cloud Credits',
+      'Interest in Collaborating with BDC', 'Privacy Policy/Terms of Use', 'Login Issue', 'Website Issue',
+      'Provide Feedback', 'Other'] },
+    { name: 'cf_paper_title_or_working_title', label: 'Paper title (or working title)', required: true,
+      when: 'Publishing Research' },
+    { name: 'cf_expected_date_of_publication_if_known', label: 'Expected date of publication',
+      when: 'Publishing Research' },
+    { name: 'cf_journal_name', label: 'Journal name', when: 'Publishing Research' },
+    { name: 'cf_link_to_the_manuscript_if_available', label: 'Link to the manuscript', when: 'Publishing Research' },
+    { name: 'cf_submitted_description', label: 'Description', required: true },
+    { name: 'cf_research_community', label: 'Research community', choices: [
+      'Bench to Bassinet', 'BioLINCC', 'C4R', 'CONNECTS', 'Cure Sickle Cell Initiative', 'HeartShare', 'LungMAP',
+      'NSRR', 'Pediatric Heart Network', 'PETAL Network', 'RECOVER', 'RMIP', 'TOPMed', 'Other'] },
+    { name: 'cf_other_research_community', label: 'Research community, if not listed' },
+    { name: 'consent', label: 'Consent', required: true, confirm: true },
+  ],
+}
+
+const Q1 = "I can't log in through eRA Commons. It keeps sending me back to the login page."
+const Q3 = "It's Terra, in Firefox. I already tried clearing cookies. Leave my name and email off."
+const Q5 = 'Make the description shorter.'
+const REQUEST = 'Draft the Get Help form from our conversation.'
+
+const V1 = {
+  cf_requestors_name: '', requester: '',
+  cf_subject: 'eRA Commons login loops back to the login page',
+  ticket_type: 'Login Issue',
+  cf_submitted_description: 'When I log in to BDC through eRA Commons, I am sent back to the login page instead of ' +
+    'being signed in.',
+  cf_research_community: '', cf_other_research_community: '',
+}
+const V2 = {
+  ...V1,
+  cf_submitted_description: 'When I log in to Terra through eRA Commons in Firefox, I am sent back to the login page ' +
+    'instead of being signed in. Clearing cookies did not help.',
+}
+const V3 = { cf_submitted_description: 'eRA Commons login on Terra (Firefox) loops back to the login page. Clearing ' +
+  'cookies did not help.' }
+
+// the conversation after each step; a draft = {values, changed: Set, edited: Set}
+const STEPS = [
+  { label: 'Answer offers the form', composer: '' },
+  { label: 'Drafting', composer: '' },
+  { label: 'First draft: agent asks which platform', composer: Q3 },
+  { label: 'Revised from a chat reply', composer: '' },
+  { label: 'You edit the subject in place', composer: Q5 },
+  { label: 'Revised again, keeping your edit', composer: '' },
+]
+let editedSubject = 'Login loop on Terra via eRA Commons' // what you type in step 3 replaces it
+
+let step = 0
+let edits = {}        // in-place edits to the latest draft, by field name
+let expanded = new Set()
+
+const $ = (id) => document.getElementById(id)
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+const ICON = {
+  form: '<svg class="i" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>',
+  ext: '<svg class="i" viewBox="0 0 24 24"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>',
+  spin: '<svg class="i spin" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>',
+  wand: '<svg class="i" viewBox="0 0 24 24"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72M14 7l3 3M5 6v4M19 14v4M10 2v2M7 8H3M21 16h-4M11 3H9"/></svg>',
+  copy: '<svg class="i" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>',
+  refresh: '<svg class="i" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>',
+  more: '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>',
+  globe: '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>',
+  book: '<svg class="i" viewBox="0 0 24 24"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>',
+  panelClose: '<svg class="i" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/></svg>',
+  panelOpen: '<svg class="i" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m14 9 3 3-3 3"/></svg>',
+  graph: '<svg class="i" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>',
+  undo: '<svg class="i" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>',
+  redo: '<svg class="i" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13"/></svg>',
+  x: '<svg class="i" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  down: '<svg class="i small" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
+  chev: '<svg class="i" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="m9 18 6-6-6-6"/></svg>',
+}
+
+function drafts() {
+  const out = []
+  if (step >= 2) out.push({ v: 1, values: V1, changed: new Set(), edited: new Set() })
+  if (step >= 3) out.push({ v: 2, values: V2, changed: new Set(['cf_submitted_description']), edited: new Set() })
+  if (step >= 5) out.push({ v: 3, values: { ...V2, cf_subject: editedSubject, ...V3 },
+    changed: new Set(['cf_submitted_description']), edited: new Set(['cf_subject']) })
+  return out
+}
+
+// the draft being shown and edited: the latest, or in the tool view an earlier one after Undo
+function current() {
+  const all = drafts()
+  return panelMode() ? all[Math.max(0, all.length - 1 - undos)] : all.at(-1)
+}
+
+function latestValues() {
+  const d = current()
+  return d ? { ...d.values, ...edits } : null
+}
+
+function shownFields(values) {
+  return FORM.fields.filter((f) => !f.when || values.ticket_type === f.when)
+}
+
+function cardHtml(d, active) {
+  const values = active ? { ...d.values, ...edits } : d.values
+  const rows = shownFields(values).map((f) => {
+    const label = `<dt>${esc(f.label)}${f.required ? '<span class="req"> *</span>' : ''}</dt>`
+    if (f.confirm) return `${label}<dd><div class="val"><span class="left">You tick this on the form</span></div></dd>`
+    const v = values[f.name]
+    const edited = d.edited.has(f.name) || (active && f.name in edits)
+    const span = (cls, s) => `<span class="text ${cls}" data-field="${f.name}" ${active ? 'contenteditable="plaintext-only"' : ''}>${s}</span>`
+    let text
+    if (f.choices && active) {
+      const empty = f.required ? 'Not chosen yet' : 'Optional, left blank'
+      text = `<select class="choice${v ? '' : f.required ? ' missing' : ' left'}" data-field="${f.name}">
+        <option value="">${empty}</option>${f.choices.map((c) =>
+          `<option${c === v ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select>`
+    }
+    else if (v) text = span('', esc(v))
+    else if (f.personal) text = span('left', 'Left for you to fill in')
+    else if (!f.required) text = span('left', 'Optional, left blank')
+    else text = span('missing', 'Not filled in yet')
+    const tag = edited ? '<span class="tag edited">edited</span>'
+      : d.changed.has(f.name) ? '<span class="tag updated">updated</span>'
+      : !v && !f.personal && f.required ? '<span class="tag needed">needed</span>' : ''
+    return `${label}<dd><div class="val">${text}${tag}</div></dd>`
+  }).join('')
+  const open = active
+    ? `<a class="btn primary" href="${esc(formUrl(values))}" target="_blank" rel="noopener">Open form ${ICON.ext}</a>`
+    : ''
+  const foot = active
+    ? `Opens the form on the BDC site with these values. You can change anything there before you submit.
+       ${Object.keys(edits).length ? ' Your edits go with your next message.' : ' Click a value to edit it, or ask for changes.'}`
+    : 'Earlier version.'
+  // numbered drafts only where the conversation holds copies; the tool view has one draft, with Undo
+  const ver = panelMode() ? '' : `<span class="ver">· Draft v${d.v}</span>`
+  return `<div class="card ${active ? 'active' : 'superseded'}" data-v="${d.v}">
+    <div class="card-head">${ICON.form}<span class="name">${FORM.title}</span>${ver}
+      <span class="spacer"></span>${open}</div>
+    <dl class="fields">${rows}</dl>
+    <div class="card-foot">${foot}</div></div>`
+}
+
+function draftHtml(d, isLatest) {
+  if (isLatest) return cardHtml(d, true)
+  if ($('older').value === 'collapsed' && !expanded.has(d.v))
+    return `<button class="old" data-expand="${d.v}">${ICON.chev}${FORM.title} · Draft v${d.v} · updated below</button>`
+  return cardHtml(d, false)
+}
+
+function formUrl(values) {
+  const p = new URLSearchParams()
+  for (const f of shownFields(values)) if (!f.confirm && values[f.name]) p.set(f.name, values[f.name])
+  return `${FORM.url}?${p}`
+}
+
+// the first answer's sources, by type as the app groups them (bdc-doc-mcp doc types)
+const DOCS = 'https://bdcatalyst.gitbook.io/biodata-catalyst-documentation'
+const SOURCES = [
+  { type: 'page', label: 'BDC website', many: 'BDC website pages', icon: 'globe',
+    items: [{ title: 'Get Help', link: FORM.url }] },
+  { type: 'docs', label: 'Documentation', many: 'Documentation', icon: 'book',
+    items: [{ title: 'Logging in to BDC', link: DOCS }, { title: 'Linking your eRA Commons account', link: DOCS }] },
+]
+
+function tbButton(icon, tip) {
+  return `<span class="tip-wrap"><button class="tb" aria-label="${tip}">${ICON[icon]}</button>
+    <span class="tip start" role="tooltip">${tip}</span></span>`
+}
+
+function sourceHtml(s) {
+  if (s.items.length === 1) {
+    const [it] = s.items
+    return `<span class="tip-wrap"><a class="tb" href="${it.link}" target="_blank" rel="noopener"
+      aria-label="${esc(it.title)} (${s.label})">${ICON[s.icon]}</a>
+      <span class="tip two" role="tooltip"><span>${esc(it.title)}</span><span>${s.label}</span></span></span>`
+  }
+  const items = s.items.map((it) => `<li><a href="${it.link}" target="_blank" rel="noopener"><span>${esc(it.title)}</span>
+    ${ICON.ext}</a></li>`).join('')
+  return `<span class="tip-wrap"><button class="tb" data-pop aria-expanded="false" aria-label="${s.many} (${s.items.length})">
+      ${ICON[s.icon]}${s.items.length}${ICON.down}</button>
+    <div class="pop" hidden><div class="head">${s.many} (${s.items.length})</div><ul>${items}</ul></div></span>`
+}
+
+function toolbarHtml(sources = []) {
+  return `<div class="toolbar">${tbButton('copy', 'Copy')}${tbButton('refresh', 'Refresh')}${tbButton('more', 'More')}
+    <span class="grow"></span>${sources.map(sourceHtml).join('')}</div>`
+}
+
+const panelMode = () => $('refine').value === 'panel'
+let panelOpen = false
+let undos = 0         // tool view: how many changes back from the latest draft
+
+// in tool-view mode the conversation keeps one small card for the draft, showing its current state
+function compactHtml(d) {
+  const values = { ...d.values, ...edits }
+  const changed = d.v > 1 || Object.keys(edits).length
+  const editing = panelOpen && tool() === 'form'
+  return `<div class="card compact"><div class="card-head">${ICON.form}<span class="name">${FORM.title}</span>
+      ${changed ? '<span class="ver">· Edited</span>' : ''}<span class="spacer"></span>
+      <button class="btn" data-open-panel ${editing ? 'disabled' : ''}>${editing ? 'Editing' : 'Edit draft'}</button>
+      <a class="btn primary" href="${esc(formUrl(values))}" target="_blank" rel="noopener">Open form ${ICON.ext}</a></div>
+    <div class="summary">${esc(values.ticket_type || 'No type chosen')} · ${esc(values.cf_subject || 'No subject')}</div></div>`
+}
+
+const PANEL_CHAT = [
+  { from: 2, agent: "Here's a draft. I left your name and email for you to add on the form, or tell me them here. " +
+    'The form asks for the platform you were using: which one was it?' },
+  { from: 3, user: Q3, agent: "Updated the description: Terra, Firefox, and that clearing cookies didn't help. " +
+    'Name and email stay blank.' },
+  { from: 5, user: Q5, agent: 'Shortened the description. I kept your subject.' },
+]
+
+// each tool's starting layout: share of the width, and whether the conversation starts hidden
+const TOOL_LAYOUT = { form: { pct: 40, collapsed: false }, graph: { pct: 70, collapsed: true } }
+const tool = () => $('tool').value
+let splitPct = TOOL_LAYOUT.form.pct
+let collapsed = TOOL_LAYOUT.form.collapsed
+let graphV = 1        // 1 = the answer's original graph, 2 = after "expand asthma"
+let graphReached = 1  // the furthest the graph has been changed, for Redo
+
+function resetLayout() {
+  ({ pct: splitPct, collapsed } = TOOL_LAYOUT[tool()])
+}
+
+function headButton(attr, icon, tip, enabled = true) {
+  return `<span class="tip-wrap"><button class="ghost square" ${attr} aria-label="${tip}" ${enabled ? '' : 'disabled'}>${icon}</button>
+    <span class="tip" role="tooltip">${tip}</span></span>`
+}
+
+function panelHead(icon, title, canUndo, canRedo) {
+  const tip = collapsed ? 'Show conversation' : 'Hide conversation'
+  return `<div class="panel-head">
+    <span class="tip-wrap"><button class="ghost square" data-collapse aria-label="${tip}">${collapsed ? ICON.panelOpen : ICON.panelClose}</button>
+      <span class="tip start" role="tooltip">${tip}</span></span>
+    ${icon}<span class="name">${title}</span><span class="spacer"></span>
+    ${headButton('data-undo', ICON.undo, 'Undo', canUndo)}${headButton('data-redo', ICON.redo, 'Redo', canRedo)}
+    ${headButton('data-close-panel', ICON.x, 'Close')}</div>`
+}
+
+// a stand-in for the app's graph, to judge the space a graph gets: two concepts, their studies, and in v2 the
+// related concepts that "expand asthma" added
+function graphSvg() {
+  const studies = [[150, 120], [120, 260], [160, 400], [400, 90], [400, 410], [650, 120], [690, 260], [640, 400]]
+  const concepts = [{ x: 300, y: 250, name: 'Asthma' }, { x: 520, y: 250, name: 'COPD' }]
+  const added = graphV > 1 ? [{ x: 230, y: 60, name: 'Wheezing' }, { x: 60, y: 180, name: 'Airway obstruction' },
+    { x: 260, y: 460, name: 'Bronchial hyperreactivity' }] : []
+  const near = (s, c) => Math.hypot(s[0] - c.x, s[1] - c.y) < 300
+  const edges = concepts.flatMap((c) => studies.filter((s) => near(s, c)).map((s) =>
+    `<line x1="${c.x}" y1="${c.y}" x2="${s[0]}" y2="${s[1]}" stroke="var(--line)" stroke-width="2"/>`))
+  const addedEdges = added.map((a) => `<line x1="300" y1="250" x2="${a.x}" y2="${a.y}" stroke="var(--new)"
+    stroke-width="1.5" stroke-dasharray="4 4"/>`)
+  const nodes = studies.map((s) => `<circle cx="${s[0]}" cy="${s[1]}" r="7" fill="var(--muted)"/>`)
+  const label = (n, fill, stroke) => `<circle cx="${n.x}" cy="${n.y}" r="16" fill="${fill}" stroke="${stroke}" stroke-width="2"/>
+    <text x="${n.x}" y="${n.y + 34}" text-anchor="middle" font-size="13" fill="var(--fg)">${n.name}</text>`
+  return `<svg viewBox="0 0 800 500" preserveAspectRatio="xMidYMid meet" aria-label="Knowledge graph (stand-in)">
+    ${edges.join('')}${addedEdges.join('')}${nodes.join('')}
+    ${concepts.map((c) => label(c, 'var(--fg)', 'var(--fg)')).join('')}
+    ${added.map((a) => label(a, 'var(--new-bg)', 'var(--new)')).join('')}</svg>`
+}
+
+function graphPanelHtml() {
+  const next = graphV === 1 ? 'Expand asthma to related concepts' : ''
+  const chat = graphReached > 1 ? `<div class="user">Expand asthma to related concepts</div>
+    <p>Added 3 concepts related to asthma (dashed links).</p>` : ''
+  const edited = graphV > 1
+    ? `<span class="standin">Edited since this answer · <button class="reset" data-graph-reset>Reset to original</button></span>`
+    : `<span class="standin">Stand-in: in the app, the answer's graph with its views and legend</span>`
+  return `<div class="panel-inner">
+    ${panelHead(ICON.graph, 'Knowledge graph · asthma, COPD', graphV > 1, graphV < graphReached)}
+    <div class="graph-area">${edited}${graphSvg()}</div>
+    <div class="gchat"><p class="hint">Messages here change this graph in place. They don't appear in the
+      conversation.</p>${chat}</div>
+    <div class="composer"><textarea rows="1" placeholder="Ask for changes to this graph…">${next}</textarea>
+      <button class="send" data-graph-send aria-label="Send" ${next ? '' : 'disabled'}><svg class="i" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div></div>`
+}
+
+function panelHtml(all, latest) {
+  if (tool() === 'graph') return graphPanelHtml()
+  const d = current()
+  const head = panelHead(ICON.form, FORM.title, Boolean(d && (Object.keys(edits).length || all.indexOf(d) > 0)),
+    undos > 0)
+  const body = d ? cardHtml(d, true)
+    : `<div class="card" style="margin-top:12px"><div class="drafting">${ICON.spin}Drafting the ${FORM.title}…</div></div>`
+  const msgs = PANEL_CHAT.filter((m) => step >= m.from).map((m) =>
+    `${m.user ? `<div class="user">${esc(m.user)}</div>` : ''}<p>${esc(m.agent)}</p>`).join('')
+  const next = STEPS[step].composer
+  return `<div class="panel-inner">${head}
+    <div class="panel-body">${body}
+      <div class="pchat"><p class="hint">Messages here change this draft in place. They don't appear in the
+        conversation.</p>${msgs}</div></div>
+    <div class="composer"><textarea rows="1" placeholder="Ask for changes to this draft…">${esc(next)}</textarea>
+      <button class="send" data-panel-send aria-label="Send" ${next ? '' : 'disabled'}><svg class="i" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div></div>`
+}
+
+// the offer under the answer; in a tool view, once prefilled, it becomes the draft's card in the same place
+function offerHtml() {
+  if (panelMode() && step === 1)
+    return `<div class="card compact"><div class="card-head">${ICON.form}<span class="name">${FORM.title}</span>
+      <span class="ver">· Drafting…</span><span class="spacer"></span>${ICON.spin}</div></div>`
+  if (panelMode() && step >= 2) return compactHtml(current())
+  return `<div class="offer">${ICON.form}<span class="text"><b>${FORM.title}</b>: bdc-assist can fill it in from this
+      conversation for you to check and send.</span>
+    <button class="btn" data-prefill ${step > 0 ? 'disabled' : ''}>Prefill form</button></div>`
+}
+
+function requestHtml() {
+  return $('request').value === 'user'
+    ? `<div class="user">${REQUEST}</div>`
+    : `<div class="request">${ICON.wand}Asked to draft the ${FORM.title}</div>`
+}
+
+function render() {
+  const all = drafts()
+  const latest = all.at(-1)
+  const card = (v) => { const d = all.find((x) => x.v === v); return d ? draftHtml(d, d === latest) : '' }
+  const parts = []
+  parts.push(`<div class="user">${esc(Q1)}</div>`)
+  parts.push(`<div class="answer">
+    <p>Login loops are usually a cookie or account-linking problem. Try these first:</p>
+    <ol><li>Clear cookies for the BDC and platform sites, or try a private window.</li>
+      <li>Check that your eRA Commons account is linked in your platform profile.</li>
+      <li>If it still loops, the <a href="${FORM.url}" target="_blank" rel="noopener">BDC help desk</a> can look at your account.</li></ol>
+    ${offerHtml()}
+    ${toolbarHtml(SOURCES)}</div>`)
+  // in a tool view, Prefill just opens the tool and drafts there: nothing is added to the conversation
+  if (step >= 1 && !panelMode()) {
+    parts.push(requestHtml())
+    parts.push(step === 1
+      ? `<div class="answer"><div class="card"><div class="drafting">${ICON.spin}Drafting the ${FORM.title}…</div></div></div>`
+      : `<div class="answer"><p>Here's a draft. I left your name and email for you to add on the form, or tell me
+          them here. The form asks for the platform you were using: which one was it?</p>${card(1)}${toolbarHtml()}</div>`)
+  }
+  if (step >= 3 && !panelMode()) {
+    parts.push(`<div class="user">${esc(Q3)}</div>`)
+    parts.push(`<div class="answer"><p>Updated the description: Terra, Firefox, and that clearing cookies didn't help.
+      Name and email stay blank.</p>${card(2)}${toolbarHtml()}</div>`)
+  }
+  if (step >= 5 && !panelMode()) {
+    parts.push(`<div class="user">${esc(Q5)}</div>`)
+    parts.push(`<div class="answer"><p>Shortened the description. I kept your subject.</p>${card(3)}${toolbarHtml()}</div>`)
+  }
+  $('thread').innerHTML = parts.join('')
+  $('thread').querySelector('.answer:last-child')?.classList.add('last')
+
+  $('step-label').textContent = `${step + 1} / ${STEPS.length} · ${STEPS[step].label}`
+  $('back').disabled = step === 0
+  $('next').disabled = step === STEPS.length - 1
+  $('app').classList.toggle('panel-mode', panelMode())
+  const showPanel = panelMode() && panelOpen && (step >= 1 || tool() === 'graph')
+  $('app').classList.toggle('collapsed', showPanel && collapsed)
+  $('panel').hidden = $('divider').hidden = !showPanel
+  $('panel').style.width = `${splitPct}%`
+  $('divider').setAttribute('aria-valuenow', Math.round(100 - splitPct))
+  $('panel').innerHTML = showPanel ? panelHtml(all, latest) : ''
+  // in panel mode the scripted messages go to the draft's own chat
+  $('composer').value = panelMode() ? '' : STEPS[step].composer
+  $('send').disabled = panelMode() || !STEPS[step].composer
+
+  const values = latestValues()
+  const url = values ? formUrl(values) : FORM.url
+  $('url').textContent = url
+  $('url-open').href = url
+  $('url-len').textContent = values ? `${url.length} characters` : 'No draft yet: plain form page'
+}
+
+function go(to) {
+  step = Math.max(0, Math.min(STEPS.length - 1, to))
+  // the scripted edit belongs to step 4; going past it, v3 carries it; going before it, it's undone
+  edits = step === 4 ? { cf_subject: editedSubject } : {}
+  undos = 0
+  if (step === 0 && tool() === 'form') panelOpen = false
+  if (step === 1) panelOpen = true
+  render()
+  if (step === 1) setTimeout(() => step === 1 && go(2), 1500)
+}
+
+function prefill() {
+  if (step > 0) return
+  if (tool() !== 'form') { $('tool').value = 'form'; resetLayout() }
+  go(1)
+}
+
+$('app').addEventListener('click', (e) => {
+  if (e.target.closest('[data-prefill]')) prefill()
+  const pop = e.target.closest('[data-pop]')
+  if (pop) {
+    const open = pop.getAttribute('aria-expanded') !== 'true'
+    pop.setAttribute('aria-expanded', open)
+    pop.nextElementSibling.hidden = !open
+  }
+  const old = e.target.closest('[data-expand]')
+  if (old) { expanded.add(Number(old.dataset.expand)); render() }
+  if (e.target.closest('[data-open-panel]')) {
+    if (tool() !== 'form') { $('tool').value = 'form'; resetLayout() }
+    panelOpen = true; render()
+  }
+  if (e.target.closest('[data-collapse]')) { collapsed = !collapsed; render() }
+  if (e.target.closest('[data-graph-send]')) { graphV = graphReached = 2; render() }
+  if (e.target.closest('[data-graph-reset]')) { graphV = 1; render() }
+  // Undo steps back one change (an unsent edit first), Redo forward again; the scripted chat stays as it was
+  if (e.target.closest('[data-undo]')) {
+    if (tool() === 'graph') graphV = Math.max(1, graphV - 1)
+    else if (Object.keys(edits).length) edits = {}
+    else undos++
+    render()
+  }
+  if (e.target.closest('[data-redo]')) {
+    if (tool() === 'graph') graphV = Math.min(graphReached, graphV + 1)
+    else undos = Math.max(0, undos - 1)
+    render()
+  }
+  if (e.target.closest('[data-close-panel]')) { panelOpen = false; render() }
+  if (e.target.closest('[data-panel-send]')) go(step + 1)
+})
+$('app').addEventListener('focusin', (e) => {
+  const t = e.target.closest('.text')
+  // a placeholder clears on focus so typing replaces it
+  if (t && (t.classList.contains('missing') || t.classList.contains('left'))) {
+    t.textContent = ''
+    t.classList.remove('missing', 'left')
+  }
+})
+$('app').addEventListener('keydown', (e) => {
+  if (e.target.closest('.text') && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.target.blur() }
+  if (e.target.closest('.text') && e.key === 'Escape') {
+    e.target.textContent = latestValues()[e.target.dataset.field] ?? ''
+    e.target.blur()
+  }
+})
+$('app').addEventListener('focusout', (e) => {
+  const t = e.target.closest('.text')
+  if (!t) return
+  const name = t.dataset.field
+  const value = t.textContent.trim()
+  edit(name, value)
+  if (name === 'cf_subject' && step === 3 && value) { step = 4; editedSubject = value }
+  render()
+})
+$('app').addEventListener('change', (e) => {
+  const s = e.target.closest('select.choice')
+  if (s) { edit(s.dataset.field, s.value); render() }
+})
+
+function edit(name, value) {
+  if (value === (current().values[name] ?? '')) delete edits[name]
+  else edits[name] = value
+}
+$('get-help').addEventListener('click', () => {
+  if (step === 0) prefill()
+  else if (panelMode()) { panelOpen = true; render() }
+  else $('thread').querySelector('.card.active')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+})
+$('refine').addEventListener('change', () => { panelOpen = step >= 1 || tool() === 'graph'; undos = 0; render() })
+$('tool').addEventListener('change', () => {
+  if (tool() === 'graph') $('refine').value = 'panel'
+  resetLayout()
+  panelOpen = step >= 1 || tool() === 'graph'
+  render()
+})
+
+// the divider: drag, arrow keys (5% a press), double-click for the tool's starting width. The conversation keeps
+// at least 360px and the tool view 320px.
+function setSplit(pct) {
+  const w = $('divider').parentElement.getBoundingClientRect().width
+  splitPct = Math.min(100 - (360 / w) * 100, Math.max((320 / w) * 100, pct))
+  render()
+}
+$('divider').addEventListener('pointerdown', (e) => {
+  const d = $('divider')
+  d.setPointerCapture(e.pointerId)
+  d.classList.add('dragging')
+  const move = (ev) => {
+    const r = d.parentElement.getBoundingClientRect()
+    setSplit(((r.right - ev.clientX) / r.width) * 100)
+  }
+  const up = () => { d.classList.remove('dragging'); d.removeEventListener('pointermove', move) }
+  d.addEventListener('pointermove', move)
+  d.addEventListener('pointerup', up, { once: true })
+})
+$('divider').addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') setSplit(splitPct + 5)
+  if (e.key === 'ArrowRight') setSplit(splitPct - 5)
+})
+$('divider').addEventListener('dblclick', () => setSplit(TOOL_LAYOUT[tool()].pct))
+$('send').addEventListener('click', () => go(step + 1))
+$('back').addEventListener('click', () => go(step - 1))
+$('next').addEventListener('click', () => go(step === 1 ? 2 : step + 1))
+$('request').addEventListener('change', render)
+$('older').addEventListener('change', () => { expanded.clear(); render() })
+// lucide icons, candidates for the header button
+const HELP_ICONS = {
+  headset: '<path d="M3 11h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5Zm0 0a9 9 0 1 1 18 0m0 0v5a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3Z"/><path d="M21 16v2a4 4 0 0 1-4 4h-5"/>',
+  lifebuoy: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><path d="m4.93 4.93 4.24 4.24M14.83 14.83l4.24 4.24M14.83 9.17l4.24-4.24M4.93 19.07l4.24-4.24"/>',
+  circlehelp: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  question: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  ticket: '<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/>',
+}
+function helpIcon() {
+  $('get-help').innerHTML = `<svg class="i" viewBox="0 0 24 24">${HELP_ICONS[$('help-icon').value]}</svg>`
+}
+$('help-icon').addEventListener('change', helpIcon)
+helpIcon()
+$('theme').addEventListener('change', (e) => { document.documentElement.dataset.theme = e.target.value })
+if (matchMedia('(prefers-color-scheme: dark)').matches) { $('theme').value = 'dark'; document.documentElement.dataset.theme = 'dark' }
+
+render()
+</script>
+</body>
+</html>
