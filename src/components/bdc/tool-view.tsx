@@ -27,12 +27,36 @@ import { cn } from '@/lib/utils'
 
 export const TOOLS_DEMO = new URLSearchParams(location.search).get('tools') === 'demo'
 
-// each tool's starting layout: its share of the width, and whether the conversation starts hidden
+// each tool's starting layout: its share of the width, and whether the conversation starts hidden. A graph gets
+// more room than a form
 const TOOL_LAYOUT = {
-  graph: { pct: 70, hideConversation: true },
+  graph: { pct: 60, hideConversation: false },
   form: { pct: 40, hideConversation: false },
 }
 export type ToolKind = keyof typeof TOOL_LAYOUT
+type Widths = Record<ToolKind, number>
+
+// the width the user dragged each tool to, remembered in this browser; none: the tool's starting width
+const WIDTHS_KEY = 'bdc-tool-widths'
+const DEFAULT_WIDTHS = Object.fromEntries(Object.entries(TOOL_LAYOUT).map(([k, l]) => [k, l.pct])) as Widths
+
+function readWidths(): Widths {
+  try {
+    const saved = JSON.parse(localStorage.getItem(WIDTHS_KEY) ?? '{}') as Partial<Widths>
+    const valid = Object.entries(saved).filter(([k, v]) => k in TOOL_LAYOUT && typeof v === 'number' && v > 0 && v < 100)
+    return { ...DEFAULT_WIDTHS, ...Object.fromEntries(valid) }
+  } catch {
+    return DEFAULT_WIDTHS // storage blocked (private window), or not JSON
+  }
+}
+
+function saveWidths(widths: Widths) {
+  try {
+    localStorage.setItem(WIDTHS_KEY, JSON.stringify(widths))
+  } catch {
+    // not remembered: fine
+  }
+}
 
 // the conversation keeps at least this, and the tool view too (px)
 const MIN_CONVERSATION = 360
@@ -53,7 +77,8 @@ const Context = createContext<ToolViewContext | null>(null)
 /** The thread with the tool view beside it. */
 export function ToolSplit({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState<ToolViewContext['open']>(null)
-  const [pct, setPct] = useState(TOOL_LAYOUT.graph.pct)
+  const [widths, setWidths] = useState(readWidths) // each tool's wanted width, % of the row
+  const [rowWidth, setRowWidth] = useState(0) // px, kept up to date: the clamp follows the window
   const [conversationHidden, setConversationHidden] = useState(false)
   const [cardOff, setCardOff] = useState<'up' | 'down' | null>(null)
   const [target, setTarget] = useState<HTMLElement | null>(null)
@@ -62,7 +87,6 @@ export function ToolSplit({ children }: { children: ReactNode }) {
 
   const openTool = useCallback((owner: string, kind: ToolKind) => {
     setOpen({ owner, kind })
-    setPct(TOOL_LAYOUT[kind].pct)
     setConversationHidden(TOOL_LAYOUT[kind].hideConversation)
   }, [])
   const close = useCallback(() => setOpen(null), [])
@@ -72,11 +96,28 @@ export function ToolSplit({ children }: { children: ReactNode }) {
     [open, openTool, close, target, conversationHidden, toggleConversation, cardOff],
   )
 
-  // the divider: drag, arrow keys (5% a press), double-click for the tool's starting width
+  useEffect(() => {
+    const r = row.current
+    if (!r) return
+    const observer = new ResizeObserver(([entry]) => setRowWidth(entry.contentRect.width))
+    observer.observe(r)
+    return () => observer.disconnect()
+  }, [])
+  // the conversation keeps MIN_CONVERSATION and the tool MIN_TOOL, the conversation first when both can't.
+  // Applied when shown, so the wanted width comes back when the window widens again
+  const clamp = (p: number) =>
+    rowWidth ? Math.min(100 - (MIN_CONVERSATION / rowWidth) * 100, Math.max((MIN_TOOL / rowWidth) * 100, p)) : p
+  const pct = open ? clamp(widths[open.kind]) : 0
+
+  // the divider: drag, arrow keys (5% a press), double-click for the tool's starting width. Remembered per tool
   const setSplit = (next: number) => {
-    const w = row.current?.getBoundingClientRect().width ?? 0
-    if (!w) return
-    setPct(Math.min(100 - (MIN_CONVERSATION / w) * 100, Math.max((MIN_TOOL / w) * 100, next)))
+    if (!open) return
+    const kind = open.kind
+    setWidths((w) => {
+      const updated = { ...w, [kind]: clamp(next) }
+      saveWidths(updated)
+      return updated
+    })
   }
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     const d = e.currentTarget
