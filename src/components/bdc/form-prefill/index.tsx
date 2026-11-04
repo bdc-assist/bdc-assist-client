@@ -8,13 +8,14 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { formUrl, shownFields, type FormDef, type FormField, type FormValues } from '@/lib/forms'
 import { cn } from '@/lib/utils'
 
-import { demoFirstDraft, demoRevise } from './demo-drafts'
+import { demoFirstDraft, demoFormSuggestion, demoRevise } from './demo-drafts'
 
 // Form prefill (bdc-assist#64, design/form-prefill.html), ?tools=demo only: an answer citing a form's page
 // offers to fill it in. Prefill opens the tool view and drafts there; nothing is added to the conversation, and
 // the offer turns into a small card for the draft (always the draft as it is now). The draft is refined in the
 // tool: by its chat, or by clicking a value and typing. Open form goes to the BDC page with the values as URL
-// parameters, where the user still checks and submits. Drafting is canned (demo-drafts.ts); state is in memory.
+// parameters, where the user still checks and submits. Drafting and the chat's changes are canned
+// (demo-drafts.ts); state is in memory.
 
 // one state of the draft: its values, which fields the agent's last change touched, and which the user edited
 type Draft = { values: FormValues; changed: string[]; edited: string[] }
@@ -42,7 +43,7 @@ export function FormPrefill({ form }: { form: FormDef }) {
     if (!draft) return
     setChat((c) => [...c, { role: 'user', text }])
     setBusy(true)
-    const result = await demoRevise(text, draft.values)
+    const result = await demoRevise(text, draft.values, draft.edited)
     const changed = Object.keys({ ...draft.values, ...result.values }).filter(
       (k) => (result.values[k] ?? '') !== (draft.values[k] ?? ''),
     )
@@ -107,7 +108,13 @@ export function FormPrefill({ form }: { form: FormDef }) {
           </p>
         )}
       </div>
-      <ToolChat what="draft" messages={chat} busy={busy || stage === 'drafting'} onSend={(t) => void send(t)} />
+      <ToolChat
+        what="draft"
+        messages={chat}
+        suggestion={draft && demoFormSuggestion(draft.values)}
+        busy={busy || stage === 'drafting'}
+        onSend={(t) => void send(t)}
+      />
     </ToolViewFrame>
   )
 
