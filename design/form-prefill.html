@@ -70,7 +70,17 @@
   .app.panel-mode .main .composer { position: sticky; bottom: 0; margin-bottom: 0; box-shadow: 0 -16px 0 var(--bg),
     0 16px 0 var(--bg); background: var(--bg); }
   .app.panel-mode .main::after { content: ''; flex: none; height: 16px; }
-  .panel { position: relative; flex: none; min-width: 320px; }
+  .panel { position: relative; flex: none; min-width: 320px; container-type: inline-size; }
+  .panel-head .open-form { height: 28px; margin: 0 2px; }
+  .panel-head .open-tip { display: none; }
+  @container (max-width: 440px) {
+    .panel-head .open-label { display: none; }
+    .panel-head .open-form { width: 28px; padding: 0; justify-content: center; }
+    .panel-head .open-tip { display: block; }
+  }
+  .card.bare { border: 0; border-radius: 0; margin-top: 4px; overflow: visible; }
+  .card.bare .fields { padding: 0; }
+  .card.bare .card-foot { padding: 8px 0 0; }
   .panel-inner { position: absolute; inset: 0; display: flex; flex-direction: column; }
   .divider { flex: none; position: relative; z-index: 5; width: 9px; margin: 0 -4px; cursor: col-resize; touch-action: none;
     outline: 0; }
@@ -121,6 +131,13 @@
   .toolbar { display: flex; align-items: center; gap: 4px; min-height: 30px; padding-top: 6px; margin-left: -4px;
     color: var(--muted); }
   .answer:not(.last):not(:hover) .toolbar { visibility: hidden; }
+  .followups { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column;
+    align-items: flex-start; gap: 2px; }
+  .followups button { display: flex; align-items: center; gap: 6px; margin: 0 -6px; padding: 2px 6px; border: 0;
+    border-radius: 6px; background: transparent; color: var(--muted); font-size: 14px; text-align: start; }
+  .followups button:hover { background: var(--muted-bg); color: var(--fg); }
+  .followups svg.i { width: 14px; height: 14px; }
+  .answer:not(.last) .followups { display: none; }
   .toolbar .grow { flex: 1; }
   .tb { display: flex; align-items: center; justify-content: center; gap: 2px; min-width: 24px; height: 24px; padding: 0 4px;
     border: 0; border-radius: 6px; background: transparent; color: inherit; font-size: 12px; text-decoration: none !important; }
@@ -323,7 +340,7 @@
     the line keeps the thread to the user's own words.</li>
   <li>Older drafts collapsed or kept greyed? (Conversation mode only: the tool view has Undo instead.)</li>
   <li>Tool view: is it clear that its chat edits the object and is separate from the conversation? Is the small card
-    in the conversation (type · subject, Edit draft, Open form) enough?</li>
+    in the conversation (type · subject, Edit draft; Open form only in the tool) enough?</li>
   <li>Tool view: should it open by itself when the draft starts (as here), or only from <b>Edit draft</b>?</li>
   <li>Split: are the starting widths right (form 40%, graph 70% with the conversation hidden)? Should a width the
     user drags to be remembered per tool?</li>
@@ -417,6 +434,7 @@ const ICON = {
   graph: '<svg class="i" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>',
   undo: '<svg class="i" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>',
   redo: '<svg class="i" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13"/></svg>',
+  followup: '<svg class="i" viewBox="0 0 24 24"><polyline points="15 10 20 15 15 20"/><path d="M4 4v7a4 4 0 0 0 4 4h12"/></svg>',
   x: '<svg class="i" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>',
   down: '<svg class="i small" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
   chev: '<svg class="i" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="m9 18 6-6-6-6"/></svg>',
@@ -477,10 +495,11 @@ function cardHtml(d, active) {
     ? `Opens the form on the BDC site with these values. You can change anything there before you submit.
        ${Object.keys(edits).length ? ' Your edits go with your next message.' : ' Click a value to edit it, or ask for changes.'}`
     : 'Earlier version.'
-  // numbered drafts only where the conversation holds copies; the tool view has one draft, with Undo
-  const ver = panelMode() ? '' : `<span class="ver">· Draft v${d.v}</span>`
+  // in the tool view the tool's header names the form and holds Open form, so the draft is just its fields
+  if (panelMode()) return `<div class="card bare active"><dl class="fields">${rows}</dl>
+    <div class="card-foot">${foot}</div></div>`
   return `<div class="card ${active ? 'active' : 'superseded'}" data-v="${d.v}">
-    <div class="card-head">${ICON.form}<span class="name">${FORM.title}</span>${ver}
+    <div class="card-head">${ICON.form}<span class="name">${FORM.title}</span><span class="ver">· Draft v${d.v}</span>
       <span class="spacer"></span>${open}</div>
     <dl class="fields">${rows}</dl>
     <div class="card-foot">${foot}</div></div>`
@@ -544,7 +563,7 @@ function compactHtml(d) {
   return `<div class="card compact"><div class="card-head">${ICON.form}<span class="name">${FORM.title}</span>
       ${changed ? '<span class="ver">· Edited</span>' : ''}<span class="spacer"></span>
       <button class="btn" data-open-panel ${editing ? 'disabled' : ''}>${editing ? 'Editing' : 'Edit draft'}</button>
-      <a class="btn primary" href="${esc(formUrl(values))}" target="_blank" rel="noopener">Open form ${ICON.ext}</a></div>
+      </div>
     <div class="summary">${esc(values.ticket_type || 'No type chosen')} · ${esc(values.cf_subject || 'No subject')}</div></div>`
 }
 
@@ -573,14 +592,22 @@ function headButton(attr, icon, tip, enabled = true) {
     <span class="tip" role="tooltip">${tip}</span></span>`
 }
 
-function panelHead(icon, title, canUndo, canRedo) {
+// the tool's header: what it is, then Undo/Redo, the tool's own main action (`action`), and Close
+function panelHead(icon, title, canUndo, canRedo, action = '') {
   const tip = collapsed ? 'Show conversation' : 'Hide conversation'
   return `<div class="panel-head">
     <span class="tip-wrap"><button class="ghost square" data-collapse aria-label="${tip}">${collapsed ? ICON.panelOpen : ICON.panelClose}</button>
       <span class="tip start" role="tooltip">${tip}</span></span>
     ${icon}<span class="name">${title}</span><span class="spacer"></span>
     ${headButton('data-undo', ICON.undo, 'Undo', canUndo)}${headButton('data-redo', ICON.redo, 'Redo', canRedo)}
-    ${headButton('data-close-panel', ICON.x, 'Close')}</div>`
+    ${action}${headButton('data-close-panel', ICON.x, 'Close')}</div>`
+}
+
+// Open form in the tool's header; on a narrow tool view just its icon, with a tooltip
+function openFormHtml(values) {
+  return `<span class="tip-wrap"><a class="btn primary open-form" href="${esc(formUrl(values))}" target="_blank"
+    rel="noopener" aria-label="Open form"><span class="open-label">Open form</span>${ICON.ext}</a>
+    <span class="tip open-tip" role="tooltip">Open form on the BDC site</span></span>`
 }
 
 // a stand-in for the app's graph, to judge the space a graph gets: two concepts, their studies, and in v2 the
@@ -624,7 +651,7 @@ function panelHtml(all, latest) {
   if (tool() === 'graph') return graphPanelHtml()
   const d = current()
   const head = panelHead(ICON.form, FORM.title, Boolean(d && (Object.keys(edits).length || all.indexOf(d) > 0)),
-    undos > 0)
+    undos > 0, d ? openFormHtml({ ...d.values, ...edits }) : '')
   const body = d ? cardHtml(d, true)
     : `<div class="card" style="margin-top:12px"><div class="drafting">${ICON.spin}Drafting the ${FORM.title}…</div></div>`
   const msgs = PANEL_CHAT.filter((m) => step >= m.from).map((m) =>
@@ -636,6 +663,15 @@ function panelHtml(all, latest) {
         conversation.</p>${msgs}</div></div>
     <div class="composer"><textarea rows="1" placeholder="Ask for changes to this draft…">${esc(next)}</textarea>
       <button class="send" data-panel-send aria-label="Send" ${next ? '' : 'disabled'}><svg class="i" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div></div>`
+}
+
+// suggested follow-ups, as the app shows them: after the answer's other parts, only on the last answer (CSS)
+const FOLLOWUPS = ["How do I link my eRA Commons account to Terra?", "Which browsers does BDC support?",
+  "What if I don't have an eRA Commons account?"]
+
+function followupsHtml(prompts) {
+  return `<ul class="followups" aria-label="Suggested follow-ups">${prompts.map((p) =>
+    `<li><button type="button">${ICON.followup}${esc(p)}</button></li>`).join('')}</ul>`
 }
 
 // the offer under the answer; in a tool view, once prefilled, it becomes the draft's card in the same place
@@ -667,6 +703,7 @@ function render() {
       <li>Check that your eRA Commons account is linked in your platform profile.</li>
       <li>If it still loops, the <a href="${FORM.url}" target="_blank" rel="noopener">BDC help desk</a> can look at your account.</li></ol>
     ${offerHtml()}
+    ${followupsHtml(FOLLOWUPS)}
     ${toolbarHtml(SOURCES)}</div>`)
   // in a tool view, Prefill just opens the tool and drafts there: nothing is added to the conversation
   if (step >= 1 && !panelMode()) {
