@@ -2,7 +2,7 @@ import { ExternalLinkIcon, FileTextIcon, LoaderIcon, Redo2Icon, Undo2Icon } from
 import { useState, type ReactNode } from 'react'
 
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
-import { ToolChat, ToolViewFrame, useToolView, type ToolMessage } from '@/components/bdc/tool-view'
+import { ToolChat, TOOL_ANCHOR, ToolViewFrame, useToolView, type ToolMessage } from '@/components/bdc/tool-view'
 import { buttonVariants, Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { formUrl, shownFields, type FormDef, type FormField, type FormValues } from '@/lib/forms'
@@ -138,7 +138,7 @@ export function FormPrefill({ form }: { form: FormDef }) {
     : null
   return (
     <div className={cn('my-3 rounded-lg border text-sm', tool.isOpen && 'border-muted-foreground')}>
-      <div className="flex items-center gap-2 px-3 py-2">
+      <div {...(tool.isOpen && TOOL_ANCHOR)} className="flex items-center gap-2 px-3 py-2">
         <FileTextIcon className="text-muted-foreground size-4 shrink-0" />
         <span className="font-medium">{form.title}</span>
         {stage === 'drafting' ? (

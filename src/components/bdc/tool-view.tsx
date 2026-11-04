@@ -11,6 +11,7 @@ import {
   type KeyboardEvent,
   type PointerEvent,
   type ReactNode,
+  type RefObject,
 } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -101,11 +102,12 @@ export function ToolSplit({ children }: { children: ReactNode }) {
   const split = open && !narrow && !conversationHidden // conversation, divider and tool side by side
   return (
     <Context.Provider value={value}>
-      <div ref={row} className="flex h-full min-h-0">
+      <div ref={row} className="relative flex h-full min-h-0">
         {/* hidden, not removed: the answer that owns the tool stays mounted */}
         <div className={cn('h-full min-w-0 flex-1', open && !narrow && conversationHidden && 'hidden')}>
           {children}
         </div>
+        {split && <Connector row={row} />}
         {split && (
           <div
             role="separator"
@@ -137,6 +139,66 @@ export function ToolSplit({ children }: { children: ReactNode }) {
   )
 }
 
+/** Put on the open tool's card in the answer (its header row): the connector starts there. */
+export const TOOL_ANCHOR = { 'data-tool-anchor': '' }
+
+// A curve from the open tool's card in the conversation to the tool's header, so it's clear which answer the tool
+// belongs to. Hidden while the card is out of sight (scrolled away, or under the composer). Measured every frame
+// while shown: the card moves with scrolling, streaming answers, the divider and the window, and a frame loop is
+// simpler than observing all of those. Written to the DOM directly, so it doesn't re-render anything.
+function Connector({ row }: { row: RefObject<HTMLDivElement | null> }) {
+  const svg = useRef<SVGSVGElement>(null)
+  useEffect(() => {
+    let frame = 0
+    const tick = () => {
+      frame = requestAnimationFrame(tick)
+      const r = row.current
+      const el = svg.current
+      if (!r || !el) return
+      const anchor = r.querySelector('[data-tool-anchor]')
+      const head = r.querySelector('[data-tool-head]')
+      const viewport = r.querySelector('[data-slot="aui_thread-viewport"]')
+      const footer = r.querySelector('.aui-thread-viewport-footer')
+      const box = r.getBoundingClientRect()
+      const a = anchor?.getBoundingClientRect()
+      const b = head?.getBoundingClientRect()
+      const top = viewport?.getBoundingClientRect().top ?? box.top
+      const bottom = footer?.getBoundingClientRect().top ?? box.bottom
+      const y1 = a ? a.top + a.height / 2 : NaN
+      if (!a || !b || !(y1 >= top && y1 <= bottom)) {
+        el.style.visibility = 'hidden'
+        return
+      }
+      const x1 = a.right - box.left
+      const x2 = b.left - box.left
+      const ya = y1 - box.top
+      const yb = b.top + b.height / 2 - box.top
+      const c = Math.max(24, (x2 - x1) / 2)
+      const [path, start, end] = el.children
+      path.setAttribute('d', `M${x1} ${ya}C${x1 + c} ${ya} ${x2 - c} ${yb} ${x2} ${yb}`)
+      start.setAttribute('cx', `${x1}`)
+      start.setAttribute('cy', `${ya}`)
+      end.setAttribute('cx', `${x2}`)
+      end.setAttribute('cy', `${yb}`)
+      el.style.visibility = 'visible'
+    }
+    tick()
+    return () => cancelAnimationFrame(frame)
+  }, [row])
+  return (
+    <svg
+      ref={svg}
+      aria-hidden
+      className="pointer-events-none absolute inset-0 z-20 size-full"
+      style={{ visibility: 'hidden' }}
+    >
+      <path className="stroke-muted-foreground fill-none" strokeWidth={1.5} />
+      <circle r={3} className="fill-muted-foreground" />
+      <circle r={3} className="fill-muted-foreground" />
+    </svg>
+  )
+}
+
 /** For the answer that owns an object: whether its tool is open, and open/close. Closes the tool if the answer
  * goes away (another conversation) while it's open. */
 export function useToolView(kind: ToolKind) {
@@ -162,7 +224,7 @@ export function ToolViewFrame(props: { icon: ReactNode; title: ReactNode; action
   const tip = ctx.conversationHidden ? 'Show conversation' : 'Hide conversation'
   return createPortal(
     <>
-      <div className="@container flex h-10 shrink-0 items-center gap-2 border-b px-2 text-xs">
+      <div data-tool-head className="@container flex h-10 shrink-0 items-center gap-2 border-b px-2 text-xs">
         {!narrow && (
           <TooltipIconButton tooltip={tip} side="bottom" className="size-7 p-1.5" onClick={ctx.toggleConversation}>
             {ctx.conversationHidden ? <PanelLeftOpenIcon /> : <PanelLeftCloseIcon />}
@@ -237,7 +299,8 @@ export function ToolChat(props: {
         <div ref={end} />
       </div>
       <form
-        className="m-3 flex items-end gap-2 rounded-2xl border px-3 py-2"
+        // the thread's composer box (thread.aui.tsx); its --composer-bg is set on the thread, so repeated here
+        className="border-foreground/10 focus-within:border-foreground/25 m-3 flex items-end gap-2 rounded-2xl border bg-[color-mix(in_oklab,var(--color-muted)_30%,transparent)] px-3 py-2 transition-[border-color]"
         onSubmit={(e) => {
           e.preventDefault()
           send(text)
@@ -254,7 +317,7 @@ export function ToolChat(props: {
             }
           }}
           placeholder={`Ask for changes to this ${props.what}…`}
-          className="max-h-32 min-h-6 flex-1 resize-none bg-transparent outline-none"
+          className="caret-primary placeholder:text-muted-foreground/60 max-h-32 min-h-6 flex-1 resize-none bg-transparent outline-none"
         />
         <TooltipIconButton
           tooltip="Send"

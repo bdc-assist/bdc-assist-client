@@ -2,7 +2,14 @@ import { Maximize2Icon, Redo2Icon, Share2Icon, Undo2Icon } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
-import { ToolChat, ToolViewFrame, TOOLS_DEMO, useToolView, type ToolMessage } from '@/components/bdc/tool-view'
+import {
+  ToolChat,
+  TOOL_ANCHOR,
+  ToolViewFrame,
+  TOOLS_DEMO,
+  useToolView,
+  type ToolMessage,
+} from '@/components/bdc/tool-view'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import {
   bridges,
@@ -214,7 +221,10 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
   // Closing the tool brings the panel back, with the positions and pick from the tool view
   if (tool.isOpen)
     return (
-      <div className="border-muted-foreground my-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs">
+      <div
+        {...TOOL_ANCHOR}
+        className="border-muted-foreground my-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs"
+      >
         <Share2Icon className="text-muted-foreground size-4 shrink-0" />
         <span className="text-muted-foreground min-w-0 flex-1 truncate">
           {title}
