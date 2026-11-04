@@ -1,7 +1,8 @@
-import { Maximize2Icon } from 'lucide-react'
+import { Maximize2Icon, Share2Icon } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
+import { ToolViewFrame, TOOLS_DEMO, useToolView } from '@/components/bdc/tool-view'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import {
   bridges,
@@ -20,7 +21,8 @@ import { GraphBody } from './graph-body'
 
 // The demo's wrapper around src/kg (loaded on demand: see GraphUI in message-parts.tsx):
 // a collapsible panel under the answer with the graph, or the same as a list, and
-// the selected node's details, plus a button to show it all in a large dialog.
+// the selected node's details, plus a button to show it all in a large dialog (with ?tools=demo, in the tool
+// view beside the conversation instead: tool-view.tsx).
 // Another host would write its own wrapper around mountGraph and studyList;
 // nothing in src/kg depends on this folder.
 // Here: the panel and the dialog, with the state they share. graph-body.tsx: one copy
@@ -44,6 +46,9 @@ function summary(g: KgGraph) {
 /** `graph`: the answer's graphs merged; `parts`: each tool call's, when there are several. */
 export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart[] }) {
   const [maximized, setMaximized] = useState(false)
+  // ?tools=demo: the large copy goes in the tool view beside the conversation instead of a dialog
+  const tool = useToolView('graph')
+  const inTool = TOOLS_DEMO && tool.available
   // shared by the panel and the dialog
   const [picked, setPicked] = useState<KgViewName>('force') // the user's pick, kept across Show
   const [sharedOnlyWanted, setSharedOnly] = useState(false)
@@ -124,18 +129,48 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
     onFocus,
   }
 
+  // the large copy in the tool view (a portal, so where it's rendered from doesn't matter)
+  const toolFrame = tool.isOpen && (
+    <ToolViewFrame icon={<Share2Icon />} title={title}>
+      <GraphBody
+        raw={raw}
+        shown={shown}
+        canvasClass="min-h-0 flex-1"
+        choice={choice}
+        onChoice={setPicked}
+        views={choices.views}
+        {...filter}
+        forcePositions={forcePositions}
+        zoomGestures
+        detailsBeside
+      />
+    </ToolViewFrame>
+  )
+
+  // while the tool view shows the graph, the answer keeps a small card in its place: one live graph on screen.
+  // Closing the tool brings the panel back, with the positions and pick from the tool view
+  if (tool.isOpen)
+    return (
+      <div className="border-muted-foreground my-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs">
+        <Share2Icon className="text-muted-foreground size-4 shrink-0" />
+        <span className="text-muted-foreground min-w-0 flex-1 truncate">{title}</span>
+        {toolFrame}
+      </div>
+    )
+
   return (
     <>
       <details open className="my-3 rounded-lg border text-xs">
         <summary className="text-muted-foreground flex cursor-pointer items-center gap-2 px-3 py-1.5 select-none">
           <span className="flex-1">{title}</span>
           <TooltipIconButton
-            tooltip="Maximize"
+            tooltip={inTool ? 'Open in the tool view' : 'Maximize'}
             side="left"
             className="size-7 p-1.5"
             onClick={(e) => {
               e.preventDefault() // a click in <summary> would also fold the panel
-              setMaximized(true)
+              if (inTool) tool.open()
+              else setMaximized(true)
             }}
           >
             <Maximize2Icon />

@@ -54,7 +54,7 @@
     opacity: 0; transition: opacity 0.1s; }
   .tip-wrap:hover .tip, .tip-wrap:focus-within .tip { opacity: 1; transition-delay: 0.3s; }
   .thread { padding: 16px; display: flex; flex-direction: column; gap: 14px; min-height: 320px; }
-  .app-body { display: flex; }
+  .app-body { display: flex; position: relative; }
   .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   /* the app's --thread-max-width (44rem, thread.aui.tsx), padding inside, centred; the composer shares it */
   .main .thread { flex: 1; width: 100%; max-width: 44rem; margin-inline: auto; }
@@ -124,11 +124,16 @@
   .kg-body svg { position: absolute; inset: 0; width: 100%; height: 100%; }
   button.tag { border: 0; cursor: pointer; font: inherit; font-size: 11px; }
   button.tag:hover { color: var(--fg); }
-  .card.compact.open { border-color: var(--muted); background: var(--muted-bg); }
-  .card.compact.open .card-head { border-bottom: 0; }
+  .card.compact.open { border-color: var(--muted); }
+  .card.compact.open .card-head:last-child { border-bottom: 0; }
+  /* the connector from the open tool's card in the conversation to the tool's header */
+  .link { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 6; }
+  .link path { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+  .link circle { fill: var(--muted); }
   .card .summary { padding: 8px 12px; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden;
     text-overflow: ellipsis; }
   @media (max-width: 900px) {
+    .link { display: none; }
     .panel { position: fixed; inset: 0; z-index: 50; width: auto !important; background: var(--bg); }
     .divider, [data-collapse] { display: none !important; }
   }
@@ -191,7 +196,7 @@
   /* the draft card */
   .card { margin-top: 10px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
   .card-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line);
-    background: var(--muted-bg); font-size: 13px; }
+    font-size: 13px; }
   .card-head .name { font-weight: 500; }
   .card-head .ver { color: var(--muted); }
   .card-head .spacer { flex: 1; }
@@ -303,6 +308,7 @@
     <div class="divider" id="divider" role="separator" aria-orientation="vertical" aria-label="Resize the tool view"
       tabindex="0" hidden></div>
     <aside class="panel" id="panel" aria-label="Tool view" hidden></aside>
+    <svg class="link" id="link" aria-hidden="true"></svg>
   </div>
 </div>
 
@@ -530,7 +536,7 @@ function compactHtml(d) {
   const values = { ...d.values, ...edits }
   const changed = d.v > 1 || Object.keys(edits).length
   const editing = panelOpen && tool() === 'form'
-  return `<div class="card compact"><div class="card-head">${ICON.form}<span class="name">${FORM.title}</span>
+  return `<div class="card compact${editing ? ' open' : ''}"><div class="card-head">${ICON.form}<span class="name">${FORM.title}</span>
       ${changed ? '<span class="ver">· Edited</span>' : ''}<span class="spacer"></span>
       <button class="btn" data-open-panel ${editing ? 'disabled' : ''}>${editing ? 'Editing' : 'Edit draft'}</button>
       </div>
@@ -610,7 +616,7 @@ function answerGraphHtml() {
   const edited = graphV > 1
   if (panelOpen) return `<div class="card compact open"><div class="card-head">${ICON.graph}
       <span class="name">${GRAPH_TITLE}</span>${edited ? '<span class="ver">· Edited</span>' : ''}
-      <span class="spacer"></span><span class="ver">Shown in the tool view</span></div></div>`
+</div></div>`
   const marker = edited ? `<span class="tip-wrap"><button class="tag edited" data-open-graph>Edited since this
       answer</button><span class="tip" role="tooltip">Open in the tool view to see the changes or reset them</span></span>` : ''
   return `<div class="kg"><div class="kg-head">${ICON.graph}<span class="name">${GRAPH_TITLE}</span>${marker}
@@ -707,6 +713,7 @@ function render() {
   $('panel').style.width = `${splitPct}%`
   $('divider').setAttribute('aria-valuenow', Math.round(100 - splitPct))
   $('panel').innerHTML = showPanel ? panelHtml(all, latest) : ''
+  drawLink()
 
   const values = latestValues()
   const url = values ? formUrl(values) : FORM.url
@@ -806,6 +813,30 @@ $('tool').addEventListener('change', () => {
   panelOpen = tool() === 'form' && step >= 1
   render()
 })
+
+// a curve from the open tool's card header in the conversation to the tool's header. Hidden when either end is
+// out of sight: the card scrolled away (or under the composer), the conversation hidden, or the tool full screen.
+function drawLink() {
+  const svg = $('link')
+  svg.innerHTML = ''
+  const head = $('thread').querySelector('.card.compact.open .card-head')
+  const toolHead = $('panel').querySelector('.panel-head')
+  if (!head || !toolHead || $('app').classList.contains('collapsed')) return
+  const box = svg.getBoundingClientRect()
+  const main = document.querySelector('.main').getBoundingClientRect()
+  const bottom = document.querySelector('.main .composer').getBoundingClientRect().top
+  const a = head.getBoundingClientRect()
+  const b = toolHead.getBoundingClientRect()
+  const y1 = a.top + a.height / 2
+  if (y1 < main.top || y1 > bottom) return
+  const x1 = a.right - box.left, x2 = b.left - box.left
+  const ya = y1 - box.top, yb = b.top + b.height / 2 - box.top
+  const c = Math.max(24, (x2 - x1) / 2)
+  svg.innerHTML = `<path d="M${x1} ${ya}C${x1 + c} ${ya} ${x2 - c} ${yb} ${x2} ${yb}"/>
+    <circle cx="${x1}" cy="${ya}" r="3"/><circle cx="${x2}" cy="${yb}" r="3"/>`
+}
+document.querySelector('.main').addEventListener('scroll', drawLink)
+addEventListener('resize', drawLink)
 
 // the divider: drag, arrow keys (5% a press), double-click for the tool's starting width. The conversation keeps
 // at least 360px and the tool view 320px.
