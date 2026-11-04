@@ -6,9 +6,9 @@
 <title>Form prefill</title>
 <!-- Design scratch page, not part of the app build. Open via the dev server:
      npm run dev, then /design/form-prefill.html. Issue bdc-assist#64: bdc-assist fills in a BDC site form
-     (Get Help first) through URL parameters. The draft lives in the conversation as a card, so it can be
-     refined by chatting or by editing a value in place: either in the conversation (each refinement a new copy, older
-     ones collapsed) or in a tool view beside it (one draft changed in place, with Undo).
+     (Get Help first) through URL parameters. The draft opens in a tool view beside the conversation (one draft
+     changed in place, with Undo), refined by chatting there or by editing a value in place; the conversation keeps
+     a small card for it.
      Assumes the chat agent drafts the form (a `form` SSE event, like `kg`), not a separate endpoint.
      Field names, types and choices are illustrative, after Steven's frontmatter sketch on the issue:
      the live form is injected by script and its real parameter names aren't known yet. -->
@@ -114,6 +114,18 @@
   .pchat p { margin: 0; }
   .pchat .user { padding: 6px 12px; }
   .panel .composer { flex: none; }
+  /* the answer's graph in the conversation; while the tool shows it, a small card instead */
+  .kg { margin-top: 10px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .kg-head { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 6px 0 12px;
+    border-bottom: 1px solid var(--line); font-size: 13px; }
+  .kg-head .name { font-weight: 500; }
+  .kg-head .spacer { flex: 1; }
+  .kg-body { position: relative; height: 300px; }
+  .kg-body svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  button.tag { border: 0; cursor: pointer; font: inherit; font-size: 11px; }
+  button.tag:hover { color: var(--fg); }
+  .card.compact.open { border-color: var(--muted); background: var(--muted-bg); }
+  .card.compact.open .card-head { border-bottom: 0; }
   .card .summary { padding: 8px 12px; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden;
     text-overflow: ellipsis; }
   @media (max-width: 900px) {
@@ -121,7 +133,6 @@
     .divider, [data-collapse] { display: none !important; }
   }
   .user { align-self: flex-end; max-width: 85%; background: var(--muted-bg); border-radius: 18px; padding: 8px 14px; }
-  .request { align-self: flex-end; display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
   .answer p { margin: 0 0 8px; }
   .answer ol { margin: 0 0 8px; padding-left: 20px; }
   .answer :is(p, li) a { color: var(--bdc-link); text-decoration: underline; text-underline-offset: 3px; }
@@ -209,12 +220,6 @@
   .spin { animation: spin 1s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* an older draft, collapsed */
-  .old { margin-top: 10px; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px dashed var(--line);
-    border-radius: 8px; color: var(--muted); font-size: 13px; background: transparent; width: 100%; text-align: left; }
-  .old:hover { color: var(--fg); }
-  .card.superseded { opacity: 0.75; }
-
   .url { max-width: 760px; font: 12px/1.5 ui-monospace, monospace; word-break: break-all; padding: 10px 12px;
     background: var(--muted-bg); border-radius: 8px; }
   .url-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 13px; color: var(--muted); margin: 8px 0; }
@@ -230,10 +235,10 @@
 </head>
 <body>
 <h1>Form prefill</h1>
-<p class="note">bdc-assist#64. An answer that cites a page with a form offers to fill it in. The draft is a card in the
-  conversation: refine it by chatting ("mention I'm on Terra") or by clicking a value and typing, either in the
-  conversation or in a tool view beside it. <b>Open form</b> is an ordinary link to the BDC page with the values as URL
-  parameters, and the user still reviews and submits there.</p>
+<p class="note">bdc-assist#64. An answer that cites a page with a form offers to fill it in. The draft opens in a tool
+  view beside the conversation: refine it by chatting there ("mention I'm on Terra") or by clicking a value and typing.
+  <b>Open form</b> is an ordinary link to the BDC page with the values as URL parameters, and the user still reviews
+  and submits there.</p>
 
 <div class="controls">
   <span class="stepper">
@@ -241,28 +246,10 @@
     <span id="step-label"></span>
     <button id="next" aria-label="Next step">›</button>
   </span>
-  <label>Refine in
-    <select id="refine">
-      <option value="panel">A tool view (split)</option>
-      <option value="thread">The conversation</option>
-    </select>
-  </label>
   <label>Tool view shows
     <select id="tool">
       <option value="form">The form draft</option>
       <option value="graph">A knowledge graph (stand-in)</option>
-    </select>
-  </label>
-  <label>Prefill request (conversation mode)
-    <select id="request">
-      <option value="line">A status line</option>
-      <option value="user">A user message</option>
-    </select>
-  </label>
-  <label>Older drafts
-    <select id="older">
-      <option value="collapsed">Collapsed to one line</option>
-      <option value="full">Kept in full, greyed</option>
     </select>
   </label>
   <label>Help icon
@@ -281,18 +268,21 @@
 
 <h2>The flow</h2>
 <p class="note">Step through with ‹ ›, or use the page as a user would: <b>Prefill form</b> (or the help icon in the
-  header) starts a draft, the composer holds the next scripted message, and in the latest draft you can click any
-  value to edit it. Your edits go with the next message, so the agent builds on them: in step 5 the subject keeps what
-  you typed. <b>Refine in a tool view</b>: <b>Prefill form</b> opens the tool and drafts there, nothing is added to the conversation, and the offer turns into a small card for the draft (always the draft as it is now),
-  and the draft opens in a split beside it with its own chat, so the scripted messages go in the tool's composer and
-  the conversation doesn't grow. No versions: <b>Undo</b> and <b>Redo</b> in the tool's header step back and forward
+  header) opens the tool and drafts there. Nothing is added to the conversation: the offer turns into a small card for
+  the draft (always the draft as it is now), and the draft has its own chat in the tool, whose composer holds the next
+  scripted message. Click any value in the draft to edit it. Your edits go with the next message, so the agent builds
+  on them: in step 5 the subject keeps what you typed. No versions: <b>Undo</b> and <b>Redo</b> in the tool's header step back and forward
   through changes (an unsent edit first), and a changed graph says "Edited since this answer" with
   <b>Reset to original</b>. Drag the divider (or focus it and use
   the arrow keys; double-click resets), and hide or show the conversation with the button at the left of the tool's
   header. Each tool sets how it opens: the form at 40% beside the conversation, a graph at 70% with the conversation
-  hidden (switch <b>Tool view shows</b> to see it, and send its message to expand it). On a narrow window the tool view
-  is full screen.</p>
-<div class="app" id="app">
+  hidden. On a narrow window the tool view is full screen.</p>
+<p class="note"><b>A graph</b>: switch <b>Tool view shows</b> to the knowledge graph for a conversation whose answer
+  has a graph. Its maximize button opens the tool, and while the tool is open the answer's graph is a small card, so
+  there's only one live graph on screen (show the conversation to see it). Send the tool's message to expand asthma,
+  then close the tool: the answer now shows the edited graph, marked <b>Edited since this answer</b>; the marker opens
+  the tool, where <b>Reset to original</b> is.</p>
+<div class="app panel-mode" id="app">
   <div class="app-head">
     <button class="ghost square" aria-label="Toggle sidebar"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg></button>
     <span class="title">I can't log in through eRA Commons…</span>
@@ -307,7 +297,7 @@
       <div class="thread" id="thread"></div>
       <div class="composer">
         <textarea id="composer" rows="1" placeholder="Ask about BDC…"></textarea>
-        <button class="send" id="send" aria-label="Send"><svg class="i" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+        <button class="send" id="send" aria-label="Send" disabled><svg class="i" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
       </div>
     </div>
     <div class="divider" id="divider" role="separator" aria-orientation="vertical" aria-label="Resize the tool view"
@@ -336,15 +326,14 @@
     date, journal, link) appears, with the required title marked needed.</li>
   <li>The page asks people not to include controlled data, participant information or credentials. The agent
     should follow that when drafting; should the card also say it?</li>
-  <li>Conversation mode: prefill request as a status line or as a user message? The user message shows what the agent was asked;
-    the line keeps the thread to the user's own words.</li>
-  <li>Older drafts collapsed or kept greyed? (Conversation mode only: the tool view has Undo instead.)</li>
   <li>Tool view: is it clear that its chat edits the object and is separate from the conversation? Is the small card
     in the conversation (type · subject, Edit draft; Open form only in the tool) enough?</li>
   <li>Tool view: should it open by itself when the draft starts (as here), or only from <b>Edit draft</b>?</li>
   <li>Split: are the starting widths right (form 40%, graph 70% with the conversation hidden)? Should a width the
     user drags to be remembered per tool?</li>
   <li>Graph with the conversation hidden: does it feel like today's maximize dialog, so it can replace it?</li>
+  <li>Graph: is the card in the answer while the tool is open clear about where the graph went? After closing, is
+    the <b>Edited since this answer</b> marker enough to show the graph no longer matches the answer's text?</li>
   <li>Editing a value in place: discoverable enough (hover tint, text cursor), or does it need a pencil icon?</li>
   <li>Phone width: the fields stack under their labels.</li>
 </ol>
@@ -384,7 +373,6 @@ const FORM = {
 const Q1 = "I can't log in through eRA Commons. It keeps sending me back to the login page."
 const Q3 = "It's Terra, in Firefox. I already tried clearing cookies. Leave my name and email off."
 const Q5 = 'Make the description shorter.'
-const REQUEST = 'Draft the Get Help form from our conversation.'
 
 const V1 = {
   cf_requestors_name: '', requester: '',
@@ -415,7 +403,6 @@ let editedSubject = 'Login loop on Terra via eRA Commons' // what you type in st
 
 let step = 0
 let edits = {}        // in-place edits to the latest draft, by field name
-let expanded = new Set()
 
 const $ = (id) => document.getElementById(id)
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
@@ -436,6 +423,7 @@ const ICON = {
   redo: '<svg class="i" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13"/></svg>',
   followup: '<svg class="i" viewBox="0 0 24 24"><polyline points="15 10 20 15 15 20"/><path d="M4 4v7a4 4 0 0 0 4 4h12"/></svg>',
   x: '<svg class="i" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  maximize: '<svg class="i" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>',
   down: '<svg class="i small" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
   chev: '<svg class="i" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="m9 18 6-6-6-6"/></svg>',
 }
@@ -449,10 +437,10 @@ function drafts() {
   return out
 }
 
-// the draft being shown and edited: the latest, or in the tool view an earlier one after Undo
+// the draft being shown and edited: the latest, or an earlier one after Undo
 function current() {
   const all = drafts()
-  return panelMode() ? all[Math.max(0, all.length - 1 - undos)] : all.at(-1)
+  return all[Math.max(0, all.length - 1 - undos)]
 }
 
 function latestValues() {
@@ -464,16 +452,17 @@ function shownFields(values) {
   return FORM.fields.filter((f) => !f.when || values.ticket_type === f.when)
 }
 
-function cardHtml(d, active) {
-  const values = active ? { ...d.values, ...edits } : d.values
+// the draft in the tool: the tool's header names the form and holds Open form, so this is just its fields
+function cardHtml(d) {
+  const values = { ...d.values, ...edits }
   const rows = shownFields(values).map((f) => {
     const label = `<dt>${esc(f.label)}${f.required ? '<span class="req"> *</span>' : ''}</dt>`
     if (f.confirm) return `${label}<dd><div class="val"><span class="left">You tick this on the form</span></div></dd>`
     const v = values[f.name]
-    const edited = d.edited.has(f.name) || (active && f.name in edits)
-    const span = (cls, s) => `<span class="text ${cls}" data-field="${f.name}" ${active ? 'contenteditable="plaintext-only"' : ''}>${s}</span>`
+    const edited = d.edited.has(f.name) || f.name in edits
+    const span = (cls, s) => `<span class="text ${cls}" data-field="${f.name}" contenteditable="plaintext-only">${s}</span>`
     let text
-    if (f.choices && active) {
+    if (f.choices) {
       const empty = f.required ? 'Not chosen yet' : 'Optional, left blank'
       text = `<select class="choice${v ? '' : f.required ? ' missing' : ' left'}" data-field="${f.name}">
         <option value="">${empty}</option>${f.choices.map((c) =>
@@ -488,28 +477,10 @@ function cardHtml(d, active) {
       : !v && !f.personal && f.required ? '<span class="tag needed">needed</span>' : ''
     return `${label}<dd><div class="val">${text}${tag}</div></dd>`
   }).join('')
-  const open = active
-    ? `<a class="btn primary" href="${esc(formUrl(values))}" target="_blank" rel="noopener">Open form ${ICON.ext}</a>`
-    : ''
-  const foot = active
-    ? `Opens the form on the BDC site with these values. You can change anything there before you submit.
-       ${Object.keys(edits).length ? ' Your edits go with your next message.' : ' Click a value to edit it, or ask for changes.'}`
-    : 'Earlier version.'
-  // in the tool view the tool's header names the form and holds Open form, so the draft is just its fields
-  if (panelMode()) return `<div class="card bare active"><dl class="fields">${rows}</dl>
+  const foot = `Opens the form on the BDC site with these values. You can change anything there before you submit.
+    ${Object.keys(edits).length ? ' Your edits go with your next message.' : ' Click a value to edit it, or ask for changes.'}`
+  return `<div class="card bare active"><dl class="fields">${rows}</dl>
     <div class="card-foot">${foot}</div></div>`
-  return `<div class="card ${active ? 'active' : 'superseded'}" data-v="${d.v}">
-    <div class="card-head">${ICON.form}<span class="name">${FORM.title}</span><span class="ver">· Draft v${d.v}</span>
-      <span class="spacer"></span>${open}</div>
-    <dl class="fields">${rows}</dl>
-    <div class="card-foot">${foot}</div></div>`
-}
-
-function draftHtml(d, isLatest) {
-  if (isLatest) return cardHtml(d, true)
-  if ($('older').value === 'collapsed' && !expanded.has(d.v))
-    return `<button class="old" data-expand="${d.v}">${ICON.chev}${FORM.title} · Draft v${d.v} · updated below</button>`
-  return cardHtml(d, false)
 }
 
 function formUrl(values) {
@@ -551,11 +522,10 @@ function toolbarHtml(sources = []) {
     <span class="grow"></span>${sources.map(sourceHtml).join('')}</div>`
 }
 
-const panelMode = () => $('refine').value === 'panel'
 let panelOpen = false
 let undos = 0         // tool view: how many changes back from the latest draft
 
-// in tool-view mode the conversation keeps one small card for the draft, showing its current state
+// the conversation keeps one small card for the draft, showing its current state
 function compactHtml(d) {
   const values = { ...d.values, ...edits }
   const changed = d.v > 1 || Object.keys(edits).length
@@ -631,6 +601,30 @@ function graphSvg() {
     ${added.map((a) => label(a, 'var(--new-bg)', 'var(--new)')).join('')}</svg>`
 }
 
+// the graph conversation: an answer with its graph inline. While the tool shows the graph, the answer keeps a
+// small card in its place (one live graph on screen); after closing, the answer shows the graph as edited, marked
+const GQ = 'Which studies measure asthma and COPD?'
+const GRAPH_TITLE = 'Knowledge graph · asthma, COPD'
+
+function answerGraphHtml() {
+  const edited = graphV > 1
+  if (panelOpen) return `<div class="card compact open"><div class="card-head">${ICON.graph}
+      <span class="name">${GRAPH_TITLE}</span>${edited ? '<span class="ver">· Edited</span>' : ''}
+      <span class="spacer"></span><span class="ver">Shown in the tool view</span></div></div>`
+  const marker = edited ? `<span class="tip-wrap"><button class="tag edited" data-open-graph>Edited since this
+      answer</button><span class="tip" role="tooltip">Open in the tool view to see the changes or reset them</span></span>` : ''
+  return `<div class="kg"><div class="kg-head">${ICON.graph}<span class="name">${GRAPH_TITLE}</span>${marker}
+      <span class="spacer"></span>${headButton('data-open-graph', ICON.maximize, 'Open in the tool view')}</div>
+    <div class="kg-body">${graphSvg()}</div></div>`
+}
+
+function graphThreadHtml() {
+  return `<div class="user">${esc(GQ)}</div>
+    <div class="answer last"><p>Eight studies measure one or both: three on asthma, three on COPD, and two on both.
+      The graph shows which concept each study measures.</p>
+      ${answerGraphHtml()}${toolbarHtml()}</div>`
+}
+
 function graphPanelHtml() {
   const next = graphV === 1 ? 'Expand asthma to related concepts' : ''
   const chat = graphReached > 1 ? `<div class="user">Expand asthma to related concepts</div>
@@ -639,7 +633,7 @@ function graphPanelHtml() {
     ? `<span class="standin">Edited since this answer · <button class="reset" data-graph-reset>Reset to original</button></span>`
     : `<span class="standin">Stand-in: in the app, the answer's graph with its views and legend</span>`
   return `<div class="panel-inner">
-    ${panelHead(ICON.graph, 'Knowledge graph · asthma, COPD', graphV > 1, graphV < graphReached)}
+    ${panelHead(ICON.graph, GRAPH_TITLE, graphV > 1, graphV < graphReached)}
     <div class="graph-area">${edited}${graphSvg()}</div>
     <div class="gchat"><p class="hint">Messages here change this graph in place. They don't appear in the
       conversation.</p>${chat}</div>
@@ -652,7 +646,7 @@ function panelHtml(all, latest) {
   const d = current()
   const head = panelHead(ICON.form, FORM.title, Boolean(d && (Object.keys(edits).length || all.indexOf(d) > 0)),
     undos > 0, d ? openFormHtml({ ...d.values, ...edits }) : '')
-  const body = d ? cardHtml(d, true)
+  const body = d ? cardHtml(d)
     : `<div class="card" style="margin-top:12px"><div class="drafting">${ICON.spin}Drafting the ${FORM.title}…</div></div>`
   const msgs = PANEL_CHAT.filter((m) => step >= m.from).map((m) =>
     `${m.user ? `<div class="user">${esc(m.user)}</div>` : ''}<p>${esc(m.agent)}</p>`).join('')
@@ -674,28 +668,23 @@ function followupsHtml(prompts) {
     `<li><button type="button">${ICON.followup}${esc(p)}</button></li>`).join('')}</ul>`
 }
 
-// the offer under the answer; in a tool view, once prefilled, it becomes the draft's card in the same place
+// the offer under the answer; once prefilled, it becomes the draft's card in the same place
 function offerHtml() {
-  if (panelMode() && step === 1)
+  if (step === 1)
     return `<div class="card compact"><div class="card-head">${ICON.form}<span class="name">${FORM.title}</span>
       <span class="ver">· Drafting…</span><span class="spacer"></span>${ICON.spin}</div></div>`
-  if (panelMode() && step >= 2) return compactHtml(current())
+  if (step >= 2) return compactHtml(current())
   return `<div class="offer">${ICON.form}<span class="text"><b>${FORM.title}</b>: bdc-assist can fill it in from this
       conversation for you to check and send.</span>
     <button class="btn" data-prefill ${step > 0 ? 'disabled' : ''}>Prefill form</button></div>`
 }
 
-function requestHtml() {
-  return $('request').value === 'user'
-    ? `<div class="user">${REQUEST}</div>`
-    : `<div class="request">${ICON.wand}Asked to draft the ${FORM.title}</div>`
-}
-
 function render() {
   const all = drafts()
   const latest = all.at(-1)
-  const card = (v) => { const d = all.find((x) => x.v === v); return d ? draftHtml(d, d === latest) : '' }
   const parts = []
+  if (tool() === 'graph') parts.push(graphThreadHtml())
+  else {
   parts.push(`<div class="user">${esc(Q1)}</div>`)
   parts.push(`<div class="answer">
     <p>Login loops are usually a cookie or account-linking problem. Try these first:</p>
@@ -705,22 +694,6 @@ function render() {
     ${offerHtml()}
     ${followupsHtml(FOLLOWUPS)}
     ${toolbarHtml(SOURCES)}</div>`)
-  // in a tool view, Prefill just opens the tool and drafts there: nothing is added to the conversation
-  if (step >= 1 && !panelMode()) {
-    parts.push(requestHtml())
-    parts.push(step === 1
-      ? `<div class="answer"><div class="card"><div class="drafting">${ICON.spin}Drafting the ${FORM.title}…</div></div></div>`
-      : `<div class="answer"><p>Here's a draft. I left your name and email for you to add on the form, or tell me
-          them here. The form asks for the platform you were using: which one was it?</p>${card(1)}${toolbarHtml()}</div>`)
-  }
-  if (step >= 3 && !panelMode()) {
-    parts.push(`<div class="user">${esc(Q3)}</div>`)
-    parts.push(`<div class="answer"><p>Updated the description: Terra, Firefox, and that clearing cookies didn't help.
-      Name and email stay blank.</p>${card(2)}${toolbarHtml()}</div>`)
-  }
-  if (step >= 5 && !panelMode()) {
-    parts.push(`<div class="user">${esc(Q5)}</div>`)
-    parts.push(`<div class="answer"><p>Shortened the description. I kept your subject.</p>${card(3)}${toolbarHtml()}</div>`)
   }
   $('thread').innerHTML = parts.join('')
   $('thread').querySelector('.answer:last-child')?.classList.add('last')
@@ -728,16 +701,12 @@ function render() {
   $('step-label').textContent = `${step + 1} / ${STEPS.length} · ${STEPS[step].label}`
   $('back').disabled = step === 0
   $('next').disabled = step === STEPS.length - 1
-  $('app').classList.toggle('panel-mode', panelMode())
-  const showPanel = panelMode() && panelOpen && (step >= 1 || tool() === 'graph')
+  const showPanel = panelOpen && (step >= 1 || tool() === 'graph')
   $('app').classList.toggle('collapsed', showPanel && collapsed)
   $('panel').hidden = $('divider').hidden = !showPanel
   $('panel').style.width = `${splitPct}%`
   $('divider').setAttribute('aria-valuenow', Math.round(100 - splitPct))
   $('panel').innerHTML = showPanel ? panelHtml(all, latest) : ''
-  // in panel mode the scripted messages go to the draft's own chat
-  $('composer').value = panelMode() ? '' : STEPS[step].composer
-  $('send').disabled = panelMode() || !STEPS[step].composer
 
   const values = latestValues()
   const url = values ? formUrl(values) : FORM.url
@@ -771,13 +740,12 @@ $('app').addEventListener('click', (e) => {
     pop.setAttribute('aria-expanded', open)
     pop.nextElementSibling.hidden = !open
   }
-  const old = e.target.closest('[data-expand]')
-  if (old) { expanded.add(Number(old.dataset.expand)); render() }
   if (e.target.closest('[data-open-panel]')) {
     if (tool() !== 'form') { $('tool').value = 'form'; resetLayout() }
     panelOpen = true; render()
   }
   if (e.target.closest('[data-collapse]')) { collapsed = !collapsed; render() }
+  if (e.target.closest('[data-open-graph]')) { resetLayout(); panelOpen = true; render() }
   if (e.target.closest('[data-graph-send]')) { graphV = graphReached = 2; render() }
   if (e.target.closest('[data-graph-reset]')) { graphV = 1; render() }
   // Undo steps back one change (an unsent edit first), Redo forward again; the scripted chat stays as it was
@@ -830,14 +798,12 @@ function edit(name, value) {
 }
 $('get-help').addEventListener('click', () => {
   if (step === 0) prefill()
-  else if (panelMode()) { panelOpen = true; render() }
-  else $('thread').querySelector('.card.active')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  else { panelOpen = true; render() }
 })
-$('refine').addEventListener('change', () => { panelOpen = step >= 1 || tool() === 'graph'; undos = 0; render() })
 $('tool').addEventListener('change', () => {
-  if (tool() === 'graph') $('refine').value = 'panel'
   resetLayout()
-  panelOpen = step >= 1 || tool() === 'graph'
+  // the graph starts in the answer; its maximize button opens the tool
+  panelOpen = tool() === 'form' && step >= 1
   render()
 })
 
@@ -865,11 +831,8 @@ $('divider').addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight') setSplit(splitPct - 5)
 })
 $('divider').addEventListener('dblclick', () => setSplit(TOOL_LAYOUT[tool()].pct))
-$('send').addEventListener('click', () => go(step + 1))
 $('back').addEventListener('click', () => go(step - 1))
 $('next').addEventListener('click', () => go(step === 1 ? 2 : step + 1))
-$('request').addEventListener('change', render)
-$('older').addEventListener('change', () => { expanded.clear(); render() })
 // lucide icons, candidates for the header button
 const HELP_ICONS = {
   headset: '<path d="M3 11h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5Zm0 0a9 9 0 1 1 18 0m0 0v5a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3Z"/><path d="M21 16v2a4 4 0 0 1-4 4h-5"/>',
@@ -884,7 +847,6 @@ function helpIcon() {
 $('help-icon').addEventListener('change', helpIcon)
 helpIcon()
 $('theme').addEventListener('change', (e) => { document.documentElement.dataset.theme = e.target.value })
-if (matchMedia('(prefers-color-scheme: dark)').matches) { $('theme').value = 'dark'; document.documentElement.dataset.theme = 'dark' }
 
 render()
 </script>
