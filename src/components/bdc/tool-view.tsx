@@ -1,4 +1,4 @@
-import { ArrowUpIcon, CornerDownRightIcon, LoaderIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, XIcon } from 'lucide-react'
+import { ArrowDownIcon, ArrowUpIcon, CornerDownRightIcon, LoaderIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, XIcon } from 'lucide-react'
 import {
   createContext,
   useCallback,
@@ -45,6 +45,7 @@ type ToolViewContext = {
   target: HTMLElement | null // where the open tool renders
   conversationHidden: boolean
   toggleConversation: () => void
+  cardOff: 'up' | 'down' | null // where the open tool's card is while it's out of sight in the conversation
 }
 
 const Context = createContext<ToolViewContext | null>(null)
@@ -54,6 +55,7 @@ export function ToolSplit({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState<ToolViewContext['open']>(null)
   const [pct, setPct] = useState(TOOL_LAYOUT.graph.pct)
   const [conversationHidden, setConversationHidden] = useState(false)
+  const [cardOff, setCardOff] = useState<'up' | 'down' | null>(null)
   const [target, setTarget] = useState<HTMLElement | null>(null)
   const row = useRef<HTMLDivElement>(null)
   const narrow = useIsMobile()
@@ -66,8 +68,8 @@ export function ToolSplit({ children }: { children: ReactNode }) {
   const close = useCallback(() => setOpen(null), [])
   const toggleConversation = useCallback(() => setConversationHidden((h) => !h), [])
   const value = useMemo(
-    () => ({ open, openTool, close, target, conversationHidden, toggleConversation }),
-    [open, openTool, close, target, conversationHidden, toggleConversation],
+    () => ({ open, openTool, close, target, conversationHidden, toggleConversation, cardOff }),
+    [open, openTool, close, target, conversationHidden, toggleConversation, cardOff],
   )
 
   // the divider: drag, arrow keys (5% a press), double-click for the tool's starting width
@@ -107,7 +109,7 @@ export function ToolSplit({ children }: { children: ReactNode }) {
         <div className={cn('h-full min-w-0 flex-1', open && !narrow && conversationHidden && 'hidden')}>
           {children}
         </div>
-        {split && <Connector row={row} />}
+        {split && <Connector row={row} onOff={setCardOff} />}
         {split && (
           <div
             role="separator"
@@ -143,13 +145,16 @@ export function ToolSplit({ children }: { children: ReactNode }) {
 export const TOOL_ANCHOR = { 'data-tool-anchor': '' }
 
 // A curve from the open tool's card in the conversation to the tool's header, so it's clear which answer the tool
-// belongs to. Hidden while the card is out of sight (scrolled away, or under the composer). Measured every frame
-// while shown: the card moves with scrolling, streaming answers, the divider and the window, and a frame loop is
-// simpler than observing all of those. Written to the DOM directly, so it doesn't re-render anything.
-function Connector({ row }: { row: RefObject<HTMLDivElement | null> }) {
+// belongs to. While the card is out of sight (scrolled away, or under the composer) there's no curve: instead the
+// tool's header shows a small button pointing up or down to it (`onOff`), which scrolls it into view (showCard).
+// Measured every frame while shown: the card moves with scrolling, streaming answers, the divider and the window,
+// and a frame loop is simpler than observing all of those. Written to the DOM directly; only where the card is
+// (in sight, above, below) is React state, set when it changes.
+function Connector({ row, onOff }: { row: RefObject<HTMLDivElement | null>; onOff: (off: 'up' | 'down' | null) => void }) {
   const svg = useRef<SVGSVGElement>(null)
   useEffect(() => {
     let frame = 0
+    let off: 'up' | 'down' | null = null
     const tick = () => {
       frame = requestAnimationFrame(tick)
       const r = row.current
@@ -164,17 +169,19 @@ function Connector({ row }: { row: RefObject<HTMLDivElement | null> }) {
       const b = head?.getBoundingClientRect()
       const top = viewport?.getBoundingClientRect().top ?? box.top
       const bottom = footer?.getBoundingClientRect().top ?? box.bottom
-      const y1 = a ? a.top + a.height / 2 : NaN
-      if (!a || !b || !(y1 >= top && y1 <= bottom)) {
+      const mid = a ? a.top + a.height / 2 : 0
+      const now = !a || !b ? null : mid < top ? 'up' : mid > bottom ? 'down' : null
+      if (now !== off) onOff((off = now))
+      if (!a || !b || now) {
         el.style.visibility = 'hidden'
         return
       }
       const x1 = a.right - box.left
       const x2 = b.left - box.left
-      const ya = y1 - box.top
+      const ya = mid - box.top
       const yb = b.top + b.height / 2 - box.top
       const c = Math.max(24, (x2 - x1) / 2)
-      const [path, start, end] = el.children
+      const [path, start, end] = el.children as unknown as SVGElement[]
       path.setAttribute('d', `M${x1} ${ya}C${x1 + c} ${ya} ${x2 - c} ${yb} ${x2} ${yb}`)
       start.setAttribute('cx', `${x1}`)
       start.setAttribute('cy', `${ya}`)
@@ -183,8 +190,11 @@ function Connector({ row }: { row: RefObject<HTMLDivElement | null> }) {
       el.style.visibility = 'visible'
     }
     tick()
-    return () => cancelAnimationFrame(frame)
-  }, [row])
+    return () => {
+      cancelAnimationFrame(frame)
+      onOff(null)
+    }
+  }, [row, onOff])
   return (
     <svg
       ref={svg}
@@ -192,10 +202,26 @@ function Connector({ row }: { row: RefObject<HTMLDivElement | null> }) {
       className="pointer-events-none absolute inset-0 z-20 size-full"
       style={{ visibility: 'hidden' }}
     >
-      <path className="stroke-muted-foreground fill-none" strokeWidth={1.5} />
-      <circle r={3} className="fill-muted-foreground" />
-      <circle r={3} className="fill-muted-foreground" />
+      <path className="stroke-ring fill-none" strokeWidth={1.5} />
+      <circle r={3} className="fill-ring" />
+      <circle r={3} className="fill-ring" />
     </svg>
+  )
+}
+
+/** Scrolls the open tool's card into the middle of the conversation and briefly tints it. */
+function showCard() {
+  const anchor = document.querySelector('[data-tool-anchor]')
+  if (!anchor) return
+  anchor.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  // once it's had time to arrive
+  setTimeout(
+    () =>
+      anchor.animate([{ backgroundColor: 'var(--color-muted)' }, { backgroundColor: 'transparent' }], {
+        duration: 1200,
+        easing: 'ease-out',
+      }),
+    400,
   )
 }
 
@@ -215,8 +241,8 @@ export function useToolView(kind: ToolKind) {
   return { available: Boolean(ctx), isOpen, open, close: close ?? (() => {}) }
 }
 
-/** The open tool's frame, rendered into the tool view: header (show/hide conversation, icon, title, the tool's
- * own actions, Close) and the body. Render it only while the tool is open. */
+/** The open tool's frame, rendered into the tool view: header (show the card in the conversation while it's out of
+ * sight, show/hide conversation, icon, title, the tool's own actions, Close) and the body. Render it only while the tool is open. */
 export function ToolViewFrame(props: { icon: ReactNode; title: ReactNode; actions?: ReactNode; children: ReactNode }) {
   const ctx = useContext(Context)
   const narrow = useIsMobile()
@@ -224,7 +250,19 @@ export function ToolViewFrame(props: { icon: ReactNode; title: ReactNode; action
   const tip = ctx.conversationHidden ? 'Show conversation' : 'Hide conversation'
   return createPortal(
     <>
-      <div data-tool-head className="@container flex h-10 shrink-0 items-center gap-2 border-b px-2 text-xs">
+      <div data-tool-head className="@container relative flex h-10 shrink-0 items-center gap-2 border-b px-2 text-xs">
+        {ctx.cardOff && (
+          <TooltipIconButton
+            tooltip="Show in conversation"
+            side="bottom"
+            variant="outline"
+            // on the header's left edge, half in the gutter beside it
+            className="dark:border-border dark:bg-background dark:hover:bg-accent absolute top-1/2 left-0 z-30 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full p-1"
+            onClick={showCard}
+          >
+            {ctx.cardOff === 'down' ? <ArrowDownIcon /> : <ArrowUpIcon />}
+          </TooltipIconButton>
+        )}
         {!narrow && (
           <TooltipIconButton tooltip={tip} side="bottom" className="size-7 p-1.5" onClick={ctx.toggleConversation}>
             {ctx.conversationHidden ? <PanelLeftOpenIcon /> : <PanelLeftCloseIcon />}
