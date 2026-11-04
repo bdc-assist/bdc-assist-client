@@ -1,8 +1,8 @@
-import { Maximize2Icon, Share2Icon } from 'lucide-react'
+import { Maximize2Icon, Redo2Icon, Share2Icon, Undo2Icon } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
-import { ToolViewFrame, TOOLS_DEMO, useToolView } from '@/components/bdc/tool-view'
+import { ToolChat, ToolViewFrame, TOOLS_DEMO, useToolView, type ToolMessage } from '@/components/bdc/tool-view'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import {
   bridges,
@@ -17,6 +17,7 @@ import {
 
 import { setShownGraph } from '@/lib/shown-graphs'
 
+import { demoEdit, demoSuggestion } from './demo-edits'
 import { GraphBody } from './graph-body'
 
 // The demo's wrapper around src/kg (loaded on demand: see GraphUI in message-parts.tsx):
@@ -55,7 +56,24 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
   const [grouped, setGrouped] = useState(true) // versions and synonyms merged, as the views do by default
   const [variables, setVariables] = useState(false) // each variable, not bundles, as mountGraph does by default
   const [source, setSource] = useState(-1) // which graph: -1 all merged, else parts[source]
-  const current = (source >= 0 && parts[source]?.graph) || graph
+  // ?tools=demo: changes made in the tool view's chat. states[at] is the graph shown, null the answer's own;
+  // Undo and Redo move `at`, a new change drops what was undone. Reset to original is a change too (undoable).
+  // The answer shows the changed graph as well, marked. In memory only: a reload loses them
+  const [edits, setEdits] = useState<{ states: (KgGraph | null)[]; at: number }>({ states: [null], at: 0 })
+  const edited = edits.states[edits.at]
+  const change = (next: KgGraph | null) =>
+    setEdits((e) => ({ states: [...e.states.slice(0, e.at + 1), next], at: e.at + 1 }))
+  const [chat, setChat] = useState<ToolMessage[]>([])
+  const [busy, setBusy] = useState(false)
+  const current = edited ?? ((source >= 0 && parts[source]?.graph) || graph)
+  const send = async (text: string) => {
+    setChat((c) => [...c, { role: 'user', text }])
+    setBusy(true)
+    const result = await demoEdit(text, current)
+    if (result.graph !== current) change(result.graph)
+    setChat((c) => [...c, { role: 'tool', text: result.reply }])
+    setBusy(false)
+  }
   // the message is re-rendered on every stream event, and done delivers the same
   // graph again as a new object: redraw only when the content changes, so compare it as
   // JSON, worked out only when the object changes (not on every event). A new source is
@@ -122,7 +140,7 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
     sharedOnly,
     onSharedOnly: setSharedOnly,
     canShare: sharedStudies > 0,
-    sources: parts.map((p) => p.label),
+    sources: edited ? [] : parts.map((p) => p.label), // a changed graph is one graph
     source,
     onSource: setSource,
     focus,
@@ -131,7 +149,45 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
 
   // the large copy in the tool view (a portal, so where it's rendered from doesn't matter)
   const toolFrame = tool.isOpen && (
-    <ToolViewFrame icon={<Share2Icon />} title={title}>
+    <ToolViewFrame
+      icon={<Share2Icon />}
+      title={title}
+      actions={
+        <>
+          <TooltipIconButton
+            tooltip="Undo"
+            side="bottom"
+            className="size-7 p-1.5"
+            disabled={edits.at === 0 || busy}
+            onClick={() => setEdits((e) => ({ ...e, at: e.at - 1 }))}
+          >
+            <Undo2Icon />
+          </TooltipIconButton>
+          <TooltipIconButton
+            tooltip="Redo"
+            side="bottom"
+            className="size-7 p-1.5"
+            disabled={edits.at === edits.states.length - 1 || busy}
+            onClick={() => setEdits((e) => ({ ...e, at: e.at + 1 }))}
+          >
+            <Redo2Icon />
+          </TooltipIconButton>
+        </>
+      }
+    >
+      {edited && (
+        <p className="text-muted-foreground border-b px-3 py-1.5 text-xs">
+          Edited since this answer ·{' '}
+          <button
+            type="button"
+            className="text-foreground underline underline-offset-3"
+            disabled={busy}
+            onClick={() => change(null)}
+          >
+            Reset to original
+          </button>
+        </p>
+      )}
       <GraphBody
         raw={raw}
         shown={shown}
@@ -144,6 +200,13 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
         zoomGestures
         detailsBeside
       />
+      <ToolChat
+        what="graph"
+        messages={chat}
+        suggestion={edited ? null : demoSuggestion(current)}
+        busy={busy}
+        onSend={(t) => void send(t)}
+      />
     </ToolViewFrame>
   )
 
@@ -153,7 +216,10 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
     return (
       <div className="border-muted-foreground my-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs">
         <Share2Icon className="text-muted-foreground size-4 shrink-0" />
-        <span className="text-muted-foreground min-w-0 flex-1 truncate">{title}</span>
+        <span className="text-muted-foreground min-w-0 flex-1 truncate">
+          {title}
+          {edited && ' · Edited'}
+        </span>
         {toolFrame}
       </div>
     )
@@ -163,6 +229,18 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
       <details open className="my-3 rounded-lg border text-xs">
         <summary className="text-muted-foreground flex cursor-pointer items-center gap-2 px-3 py-1.5 select-none">
           <span className="flex-1">{title}</span>
+          {edited && (
+            <button
+              type="button"
+              className="bg-muted hover:text-foreground rounded-full px-2 py-0.5 text-[11px]"
+              onClick={(e) => {
+                e.preventDefault() // a click in <summary> would also fold the panel
+                tool.open()
+              }}
+            >
+              Edited since this answer
+            </button>
+          )}
           <TooltipIconButton
             tooltip={inTool ? 'Open in the tool view' : 'Maximize'}
             side="left"

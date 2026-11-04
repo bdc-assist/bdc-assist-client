@@ -1,4 +1,4 @@
-import { PanelLeftCloseIcon, PanelLeftOpenIcon, XIcon } from 'lucide-react'
+import { ArrowUpIcon, CornerDownRightIcon, LoaderIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, XIcon } from 'lucide-react'
 import {
   createContext,
   useCallback,
@@ -162,7 +162,7 @@ export function ToolViewFrame(props: { icon: ReactNode; title: ReactNode; action
   const tip = ctx.conversationHidden ? 'Show conversation' : 'Hide conversation'
   return createPortal(
     <>
-      <div className="flex h-10 shrink-0 items-center gap-2 border-b px-2 text-xs">
+      <div className="@container flex h-10 shrink-0 items-center gap-2 border-b px-2 text-xs">
         {!narrow && (
           <TooltipIconButton tooltip={tip} side="bottom" className="size-7 p-1.5" onClick={ctx.toggleConversation}>
             {ctx.conversationHidden ? <PanelLeftOpenIcon /> : <PanelLeftCloseIcon />}
@@ -178,5 +178,95 @@ export function ToolViewFrame(props: { icon: ReactNode; title: ReactNode; action
       <div className="flex min-h-0 flex-1 flex-col">{props.children}</div>
     </>,
     ctx.target,
+  )
+}
+
+export type ToolMessage = { role: 'user' | 'tool'; text: string }
+
+/** The tool's own chat, under the object: its messages change the object in place and don't appear in the
+ * conversation. `suggestion`: a message to offer as a button; `busy`: a change is being made. */
+export function ToolChat(props: {
+  what: string // "graph", "draft": for the hint and the placeholder
+  messages: ToolMessage[]
+  suggestion?: string | null
+  busy?: boolean
+  onSend: (text: string) => void
+}) {
+  const [text, setText] = useState('')
+  const end = useRef<HTMLDivElement>(null)
+  // braces: scrollIntoView may return a promise (newer browsers), which React would take for a cleanup
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: 'nearest' })
+  }, [props.messages.length, props.busy])
+  const send = (t: string) => {
+    if (!t.trim() || props.busy) return
+    props.onSend(t.trim())
+    setText('')
+  }
+  return (
+    <div className="shrink-0 border-t text-sm">
+      <div className="flex max-h-40 flex-col gap-2 overflow-y-auto px-3 pt-2">
+        <p className="text-muted-foreground text-xs">
+          Messages here change this {props.what} in place. They don&apos;t appear in the conversation.
+        </p>
+        {props.messages.map((m, i) =>
+          m.role === 'user' ? (
+            <div key={i} className="bg-muted self-end rounded-2xl px-3 py-1.5">
+              {m.text}
+            </div>
+          ) : (
+            <p key={i}>{m.text}</p>
+          ),
+        )}
+        {props.busy && (
+          <p className="text-muted-foreground flex items-center gap-2 text-xs">
+            <LoaderIcon className="size-3.5 animate-spin" />
+            Working…
+          </p>
+        )}
+        {props.suggestion && !props.busy && (
+          <button
+            type="button"
+            onClick={() => send(props.suggestion!)}
+            className="text-muted-foreground hover:bg-muted hover:text-foreground -mx-1.5 flex items-center gap-1.5 self-start rounded-md px-1.5 py-0.5 text-start"
+          >
+            <CornerDownRightIcon className="size-3.5" />
+            {props.suggestion}
+          </button>
+        )}
+        <div ref={end} />
+      </div>
+      <form
+        className="m-3 flex items-end gap-2 rounded-2xl border px-3 py-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          send(text)
+        }}
+      >
+        <textarea
+          rows={1}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              send(text)
+            }
+          }}
+          placeholder={`Ask for changes to this ${props.what}…`}
+          className="max-h-32 min-h-6 flex-1 resize-none bg-transparent outline-none"
+        />
+        <TooltipIconButton
+          tooltip="Send"
+          side="top"
+          type="submit"
+          variant="default"
+          className="size-7 rounded-full p-1.5"
+          disabled={!text.trim() || props.busy}
+        >
+          <ArrowUpIcon />
+        </TooltipIconButton>
+      </form>
+    </div>
   )
 }

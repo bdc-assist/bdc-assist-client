@@ -1,6 +1,7 @@
 import type { ChatModelAdapter, ThreadMessage } from '@assistant-ui/react'
 
 import { fromKgList, kgParts, type KgGraph, type KgPart } from '@/kg'
+import { formForSources } from '@/lib/forms'
 import { readSSE } from '@/lib/sse'
 
 // Wire format of POST /chat/stream (bdc-assist: stream_chat in r_assist/api.py; its README's API section).
@@ -58,6 +59,10 @@ export const GRAPH_PART = 'bdc-graph' // data: GraphPartData
 export type GraphPartData = { graph: KgGraph; parts: KgPart[] }
 export const FOLLOWUPS_PART = 'bdc-followups' // data: string[]
 export const UNAVAILABLE_PART = 'bdc-unavailable' // data: string[] (MCP server names)
+export const FORM_PART = 'bdc-form' // data: FormPartData
+
+/** The form part's data: a BDC site form the answer cites, which it offers to fill in (lib/forms.ts). */
+export type FormPartData = { form: string }
 
 export type StatusPartData = { node: string | null; status: string | null }
 export type DraftPartData = { words: number }
@@ -97,6 +102,9 @@ export function toContent({ text, streaming, meta }: StreamState, reveal: Reveal
   if (reveal === 'stream' && meta.rejected) parts.push(data(REJECTED_PART, {}))
   if (meta.blocked) parts.push(data(BLOCKED_PART, {}))
   if (meta.done && meta.unavailable.length) parts.push(data(UNAVAILABLE_PART, meta.unavailable))
+  // an answer citing a form's page offers to fill it in (shown only with ?tools=demo for now)
+  const form = meta.done && !meta.blocked ? formForSources(meta.sources) : null
+  if (form) parts.push(data(FORM_PART, { form: form.id } satisfies FormPartData))
   // the server sends none for a blocked question; checked anyway, they'd make no sense there
   if (meta.done && !meta.blocked && meta.followups.length) parts.push(data(FOLLOWUPS_PART, meta.followups))
   return parts
