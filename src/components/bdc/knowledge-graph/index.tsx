@@ -204,7 +204,7 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
         {...filter}
         forcePositions={forcePositions}
         zoomGestures
-        detailsBeside
+        detailsStrip
       />
     </ToolViewFrame>
   )

@@ -49,6 +49,7 @@ export type GraphBodyProps = {
   forcePositions: Map<string, { x: number; y: number }> // see mountGraph: shared by the panel and the dialog
   covered?: boolean // the maximized dialog is over it: when it closes, show what was moved there
   detailsBeside?: boolean // details in a column on the right, not below: picking a node never resizes the views
+  detailsStrip?: boolean // details below in a short strip of fixed height that scrolls: the same, stacked
 }
 
 const ZOOM_STEP = 1.3
@@ -57,6 +58,7 @@ const ZOOM_KEY = /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl'
 export function GraphBody(props: GraphBodyProps) {
   const { raw, shown, canvasClass, choice, onChoice, views, sharedOnly, onSharedOnly, canShare, zoomGestures } = props
   const { sources, source, onSource, grouped, onGrouped, canGroup, forcePositions, covered, detailsBeside } = props
+  const { detailsStrip } = props
   const { focus, onFocus } = props
   const { variables, onVariables } = props
   const mode: ViewMode = isLayout(choice) ? 'graph' : choice
@@ -258,7 +260,13 @@ export function GraphBody(props: GraphBodyProps) {
           </div>
         </div>
         <div
-          className={detailsBeside ? 'w-80 shrink-0 overflow-y-auto border-t border-l px-3 py-2' : 'border-t px-3 py-2'}
+          className={
+            detailsBeside
+              ? 'w-80 shrink-0 overflow-y-auto border-t border-l px-3 py-2'
+              : detailsStrip
+                ? 'h-36 shrink-0 overflow-y-auto border-t px-3 py-2'
+                : 'border-t px-3 py-2'
+          }
         >
           <FocusDetails focus={focus} graph={shown} />
         </div>
