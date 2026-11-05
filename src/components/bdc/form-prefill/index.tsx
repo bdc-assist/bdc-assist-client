@@ -2,7 +2,7 @@ import { ExternalLinkIcon, LoaderIcon, Redo2Icon, Undo2Icon } from 'lucide-react
 import { useState, type ReactNode } from 'react'
 
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
-import { ToolCard, ToolChat, ToolViewFrame, useToolView, type ToolMessage } from '@/components/bdc/tool-view'
+import { ToolCard, ToolViewFrame, useToolView, type ToolMessage } from '@/components/bdc/tool-view'
 import { buttonVariants } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { formUrl, shownFields, type FormDef, type FormField, type FormValues } from '@/lib/forms'
@@ -69,6 +69,13 @@ export function FormPrefill({ form }: { form: FormDef }) {
   const frame = tool.isOpen && (
     <ToolViewFrame
       kind="form"
+      chat={{
+        what: 'draft',
+        messages: chat,
+        suggestion: draft && demoFormSuggestion(draft.values),
+        busy: busy || stage === 'drafting',
+        onSend: (t) => void send(t),
+      }}
       name={form.title}
       summary={summary ?? undefined}
       edited={edited}
@@ -117,13 +124,6 @@ export function FormPrefill({ form }: { form: FormDef }) {
           </p>
         )}
       </div>
-      <ToolChat
-        what="draft"
-        messages={chat}
-        suggestion={draft && demoFormSuggestion(draft.values)}
-        busy={busy || stage === 'drafting'}
-        onSend={(t) => void send(t)}
-      />
     </ToolViewFrame>
   )
 

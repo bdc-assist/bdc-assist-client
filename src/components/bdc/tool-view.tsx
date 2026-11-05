@@ -381,10 +381,16 @@ export function ToolCard(props: {
   )
 }
 
+// the tool's chat goes to the right of the object when the tool view has room for both, else below it
+const CHAT_WIDTH = 280 // px
+const CHAT_RIGHT_MIN = MIN_TOOL + CHAT_WIDTH
+
 /** The open tool's frame, rendered into the tool view. Its header, the same for every tool: show the card in the
  * conversation (while it's out of sight), expand to full width / show conversation, the tool's icon and `name`
  * (default: the tool's), Edited (a menu with Reset to original) and the `summary`, then Undo/Redo and the tool's
- * own action (`actions`), Close. Render it only while the tool is open. */
+ * own action (`actions`), Close. Then the object (`children`) and its `chat`: to the right when the tool view is at
+ * least CHAT_RIGHT_MIN wide (apart from the conversation's composer, and the object keeps its full height), else
+ * below. Render it only while the tool is open. */
 export function ToolViewFrame(props: {
   kind: ToolKind
   name?: string
@@ -392,12 +398,23 @@ export function ToolViewFrame(props: {
   edited?: boolean
   onReset?: () => void
   actions?: ReactNode
+  chat?: ToolChatProps
   children: ReactNode
 }) {
   const ctx = useContext(Context)
   const narrow = useIsMobile()
   const [menu, setMenu] = useState(false)
+  // the tool view's width, for where the chat goes
+  const [width, setWidth] = useState(0)
+  const observer = useRef<ResizeObserver | null>(null)
+  const measure = useCallback((el: HTMLDivElement | null) => {
+    observer.current?.disconnect()
+    if (!el) return
+    observer.current = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width))
+    observer.current.observe(el)
+  }, [])
   if (!ctx?.target) return null
+  const right = width >= CHAT_RIGHT_MIN
   const { icon: Icon, name } = TOOLS[props.kind]
   // chevrons change the tool view's width; the panel icons stay the conversations sidebar's (and the card's)
   const tip = ctx.conversationHidden ? 'Show conversation' : 'Expand to full width'
@@ -457,7 +474,10 @@ export function ToolViewFrame(props: {
           <XIcon />
         </TooltipIconButton>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col">{props.children}</div>
+      <div ref={measure} className={cn('flex min-h-0 flex-1', right ? 'flex-row' : 'flex-col')}>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">{props.children}</div>
+        {props.chat && <ToolChat {...props.chat} placement={right ? 'right' : 'below'} />}
+      </div>
     </>,
     ctx.target,
   )
@@ -465,16 +485,20 @@ export function ToolViewFrame(props: {
 
 export type ToolMessage = { role: 'user' | 'tool'; text: string }
 
-/** The tool's own chat, under the object: its messages change the object in place and don't appear in the
- * conversation. `suggestion`: a message to offer as a button; `busy`: a change is being made. */
-export function ToolChat(props: {
+export type ToolChatProps = {
   what: string // "graph", "draft": for the hint and the placeholder
   messages: ToolMessage[]
-  suggestion?: string | null
-  busy?: boolean
+  suggestion?: string | null // a message to offer as a button, above the composer
+  busy?: boolean // a change is being made
   onSend: (text: string) => void
-}) {
+}
+
+/** The tool's own chat: its messages change the object in place and don't appear in the conversation. To the right
+ * of the object it has the height for every message; below it, the last exchange shows and earlier ones fold
+ * ("Show earlier"). The hint shows only before the first message. */
+function ToolChat(props: ToolChatProps & { placement: 'right' | 'below' }) {
   const [text, setText] = useState('')
+  const [showEarlier, setShowEarlier] = useState(false)
   const end = useRef<HTMLDivElement>(null)
   // braces: scrollIntoView may return a promise (newer browsers), which React would take for a cleanup
   useEffect(() => {
@@ -485,19 +509,41 @@ export function ToolChat(props: {
     props.onSend(t.trim())
     setText('')
   }
+  const right = props.placement === 'right'
+  // the last exchange: from the last message the user sent (or the last message, before they've sent any)
+  const lastUser = props.messages.findLastIndex((m) => m.role === 'user')
+  const from = right || showEarlier ? 0 : Math.max(0, lastUser >= 0 ? lastUser : props.messages.length - 1)
+  const earlier = right ? null : from > 0 ? `Show earlier (${from})` : showEarlier && lastUser > 0 ? 'Hide earlier' : null
   return (
-    <div className="shrink-0 border-t text-sm">
-      <div className="flex max-h-40 flex-col gap-2 overflow-y-auto px-3 pt-2">
-        <p className="text-muted-foreground text-xs">
-          Messages here change this {props.what} in place. They don&apos;t appear in the conversation.
-        </p>
-        {props.messages.map((m, i) =>
+    <div
+      className={cn(
+        'flex min-h-0 flex-col text-sm',
+        right ? 'shrink-0 border-l' : 'max-h-[45%] shrink-0 border-t',
+      )}
+      style={right ? { width: CHAT_WIDTH } : undefined}
+    >
+      <div className={cn('flex min-h-0 flex-col gap-2 overflow-y-auto px-3 pt-2', right && 'flex-1')}>
+        {props.messages.length === 0 && !props.busy && (
+          <p className={cn('text-muted-foreground text-xs', right && 'mt-auto')}>
+            Messages here change this {props.what} in place. They don&apos;t appear in the conversation.
+          </p>
+        )}
+        {earlier && (
+          <button
+            type="button"
+            onClick={() => setShowEarlier((v) => !v)}
+            className="text-muted-foreground hover:bg-muted hover:text-foreground self-center rounded-md px-1.5 py-0.5 text-xs"
+          >
+            {earlier}
+          </button>
+        )}
+        {props.messages.slice(from).map((m, i) =>
           m.role === 'user' ? (
-            <div key={i} className="bg-muted self-end rounded-2xl px-3 py-1.5">
+            <div key={from + i} className="bg-muted self-end rounded-2xl px-3 py-1.5">
               {m.text}
             </div>
           ) : (
-            <p key={i}>{m.text}</p>
+            <p key={from + i}>{m.text}</p>
           ),
         )}
         {props.busy && (
@@ -506,21 +552,21 @@ export function ToolChat(props: {
             Working…
           </p>
         )}
-        {props.suggestion && !props.busy && (
-          <button
-            type="button"
-            onClick={() => send(props.suggestion!)}
-            className="text-muted-foreground hover:bg-muted hover:text-foreground -mx-1.5 flex items-center gap-1.5 self-start rounded-md px-1.5 py-0.5 text-start"
-          >
-            <CornerDownRightIcon className="size-3.5" />
-            {props.suggestion}
-          </button>
-        )}
         <div ref={end} />
       </div>
+      {props.suggestion && !props.busy && (
+        <button
+          type="button"
+          onClick={() => send(props.suggestion!)}
+          className="text-muted-foreground hover:bg-muted hover:text-foreground mx-1.5 mt-2 flex items-center gap-1.5 self-start rounded-md px-1.5 py-0.5 text-start"
+        >
+          <CornerDownRightIcon className="size-3.5 shrink-0" />
+          {props.suggestion}
+        </button>
+      )}
       <form
         // the thread's composer box (thread.aui.tsx); its --composer-bg is set on the thread, so repeated here
-        className="border-foreground/10 focus-within:border-foreground/25 m-3 flex items-end gap-2 rounded-2xl border bg-[color-mix(in_oklab,var(--color-muted)_30%,transparent)] px-3 py-2 transition-[border-color]"
+        className="border-foreground/10 focus-within:border-foreground/25 m-3 flex shrink-0 items-end gap-2 rounded-2xl border bg-[color-mix(in_oklab,var(--color-muted)_30%,transparent)] px-3 py-2 transition-[border-color]"
         onSubmit={(e) => {
           e.preventDefault()
           send(text)

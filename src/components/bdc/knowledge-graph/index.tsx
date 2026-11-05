@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import {
   ToolCard,
-  ToolChat,
   ToolViewFrame,
   TOOLS_DEMO,
   useToolView,
@@ -162,6 +161,13 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
   const toolFrame = tool.isOpen && (
     <ToolViewFrame
       kind="graph"
+      chat={{
+        what: 'graph',
+        messages: chat,
+        suggestion: edited ? null : demoSuggestion(current),
+        busy,
+        onSend: (t) => void send(t),
+      }}
       summary={summaryLine}
       edited={Boolean(edited)}
       onReset={() => change(null)}
@@ -199,13 +205,6 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
         forcePositions={forcePositions}
         zoomGestures
         detailsBeside
-      />
-      <ToolChat
-        what="graph"
-        messages={chat}
-        suggestion={edited ? null : demoSuggestion(current)}
-        busy={busy}
-        onSend={(t) => void send(t)}
       />
     </ToolViewFrame>
   )
