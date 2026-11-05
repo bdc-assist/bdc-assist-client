@@ -49,7 +49,7 @@ export type GraphBodyProps = {
   forcePositions: Map<string, { x: number; y: number }> // see mountGraph: shared by the panel and the dialog
   covered?: boolean // the maximized dialog is over it: when it closes, show what was moved there
   detailsBeside?: boolean // details in a column on the right, not below: picking a node never resizes the views
-  detailsStrip?: boolean // details below in a short strip of fixed height that scrolls: the same, stacked
+  detailsStrip?: boolean // details below in a short strip that scrolls, its height set by the view's, not the details
 }
 
 const ZOOM_STEP = 1.3
@@ -264,7 +264,9 @@ export function GraphBody(props: GraphBodyProps) {
             detailsBeside
               ? 'w-80 shrink-0 overflow-y-auto border-t border-l px-3 py-2'
               : detailsStrip
-                ? 'h-36 shrink-0 overflow-y-auto border-t px-3 py-2'
+                ? // 30% of the graph view, at most 5.5rem (4 rows of details): short windows keep more graph. Never depends on what's
+                  // selected, so selecting doesn't resize (and jump) the graph
+                  'shrink-0 grow-0 basis-[min(5.5rem,30%)] overflow-y-auto border-t px-3 py-2'
                 : 'border-t px-3 py-2'
           }
         >
