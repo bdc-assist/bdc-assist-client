@@ -35,7 +35,8 @@ export function ToolCard(props: {
         className={cn('flex h-9 items-center gap-2 pr-1 pl-3', foldable && 'cursor-pointer select-none')}
       >
         <Icon className="text-muted-foreground size-4 shrink-0" />
-        <span className="shrink-0 font-medium">{props.name ?? name}</span>
+        {/* short of room: the name shortens, Edited stays (as in the tool's header) */}
+        <span className="min-w-0 truncate font-medium">{props.name ?? name}</span>
         {props.edited && (
           <span className="bg-muted text-muted-foreground shrink-0 rounded-full px-2 text-[11px] leading-[18px]">
             Edited

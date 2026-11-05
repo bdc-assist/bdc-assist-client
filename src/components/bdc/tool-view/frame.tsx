@@ -68,8 +68,10 @@ export function ToolViewFrame(props: {
           </TooltipIconButton>
         )}
         <Icon className="text-muted-foreground size-4 shrink-0" />
-        <span className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="shrink-0 text-sm font-medium">{props.name ?? name}</span>
+        {/* when it's short of room: the summary goes first, then the name shortens; Edited (the way to Reset)
+            always shows. Clipped, so nothing draws under Undo/Redo */}
+        <span className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+          <span className="min-w-0 shrink truncate text-sm font-medium">{props.name ?? name}</span>
           {props.edited && (
             <Popover open={menu} onOpenChange={setMenu}>
               <PopoverTrigger asChild>
@@ -96,7 +98,7 @@ export function ToolViewFrame(props: {
               </PopoverContent>
             </Popover>
           )}
-          {props.summary && <span className="text-muted-foreground min-w-0 truncate">{props.summary}</span>}
+          {props.summary && <span className="text-muted-foreground min-w-0 shrink-[1000] truncate">{props.summary}</span>}
         </span>
         {props.actions}
         <TooltipIconButton tooltip="Close" side="bottom" className="size-7 p-1.5" onClick={ctx.close}>
