@@ -147,6 +147,7 @@
   .link { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 6; opacity: 0.5; }
   .link path { fill: none; stroke: var(--muted); stroke-width: 1.5; }
   .link circle { fill: var(--muted); }
+  .link .tab { fill: var(--muted); } /* .obj.open's border */
 </style>
 </head>
 <body>
@@ -178,6 +179,12 @@
       <option value="50">50%</option>
       <option value="60" selected>60%</option>
       <option value="70">70%</option>
+    </select>
+  </label>
+  <label>Card to tool
+    <select id="link-style">
+      <option value="connector">A connector to the tool's header</option>
+      <option value="arrow">A triangle on the card's right edge</option>
     </select>
   </label>
   <label>Page theme
@@ -397,6 +404,8 @@ function render() {
 }
 
 // a curve from the open card's header to the tool's header (hidden when the card is out of sight)
+const TAB_GAP = 2 // px between the card's edge and the triangle
+
 function drawLink() {
   const svg = $('link')
   svg.innerHTML = ''
@@ -411,6 +420,16 @@ function drawLink() {
   if (y1 < main.top || y1 > main.bottom - 70) return
   const x1 = a.right - box.left, x2 = b.left - box.left
   const ya = y1 - box.top, yb = b.top + b.height / 2 - box.top
+  // or just a small triangle on the card's right edge, halfway down, pointing to the tool, in the open card's border colour
+  const arrow = $('link-style').value === 'arrow'
+  svg.style.opacity = arrow ? '1' : ''
+  if (arrow) {
+    // centred on the whole card, not its header row
+    const card = head.closest('.obj').getBoundingClientRect()
+    const yc = card.top + card.height / 2 - box.top
+    svg.innerHTML = `<polygon class="tab" points="${x1 + TAB_GAP},${yc - 7} ${x1 + TAB_GAP + 7},${yc} ${x1 + TAB_GAP},${yc + 7}"/>`
+    return
+  }
   const c = Math.max(24, (x2 - x1) / 2)
   svg.innerHTML = `<path d="M${x1} ${ya}C${x1 + c} ${ya} ${x2 - c} ${yb} ${x2} ${yb}"/>
     <circle cx="${x1}" cy="${ya}" r="3"/><circle cx="${x2}" cy="${yb}" r="3"/>`
@@ -426,6 +445,7 @@ $('app').addEventListener('click', (e) => {
   else if (e.target.closest('[data-reset]')) { edited[tool()] = false; menuOpen = false; render() }
   else if (menuOpen && !e.target.closest('.menu')) { menuOpen = false; render() }
 })
+$('link-style').addEventListener('change', drawLink)
 for (const id of ['tool', 'chat', 'width']) $(id).addEventListener('change', () => { menuOpen = false; render() })
 $('theme').addEventListener('change', (e) => { document.documentElement.dataset.theme = e.target.value; render() })
 $('main').addEventListener('scroll', drawLink)

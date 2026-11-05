@@ -215,15 +215,19 @@ export function ToolSplit({ children }: { children: ReactNode }) {
   )
 }
 
-/** Put on the open tool's card in the answer (its header row): the connector starts there. */
+/** Put on the open tool's card in the answer (its header row): where the card is, for its triangle and the
+ * show-in-conversation button. */
 export const TOOL_ANCHOR = { 'data-tool-anchor': '' }
 
-// A curve from the open tool's card in the conversation to the tool's header, so it's clear which answer the tool
-// belongs to. While the card is out of sight (scrolled away, or under the composer) there's no curve: instead the
-// tool's header shows a small button pointing up or down to it (`onOff`), which scrolls it into view (showCard).
+// A small triangle on the open tool's card in the conversation, just off its right edge and halfway down, pointing
+// to the tool, in the open card's border colour (design/tool-view.html), so it's clear which answer the tool belongs
+// to. While the card is out of sight (scrolled away, or under the composer) there's no triangle: instead the tool's
+// header shows a small button pointing up or down to it (`onOff`), which scrolls it into view (showCard).
 // Measured every frame while shown: the card moves with scrolling, streaming answers, the divider and the window,
 // and a frame loop is simpler than observing all of those. Written to the DOM directly; only where the card is
 // (in sight, above, below) is React state, set when it changes.
+const TAB_GAP = 3 // px between the card's right edge and the triangle
+
 function Connector({ row, onOff }: { row: RefObject<HTMLDivElement | null>; onOff: (off: 'up' | 'down' | null) => void }) {
   const svg = useRef<SVGSVGElement>(null)
   useEffect(() => {
@@ -250,17 +254,11 @@ function Connector({ row, onOff }: { row: RefObject<HTMLDivElement | null>; onOf
         el.style.visibility = 'hidden'
         return
       }
-      const x1 = a.right - box.left
-      const x2 = b.left - box.left
-      const ya = mid - box.top
-      const yb = b.top + b.height / 2 - box.top
-      const c = Math.max(24, (x2 - x1) / 2)
-      const [path, start, end] = el.children as unknown as SVGElement[]
-      path.setAttribute('d', `M${x1} ${ya}C${x1 + c} ${ya} ${x2 - c} ${yb} ${x2} ${yb}`)
-      start.setAttribute('cx', `${x1}`)
-      start.setAttribute('cy', `${ya}`)
-      end.setAttribute('cx', `${x2}`)
-      end.setAttribute('cy', `${yb}`)
+      // centred on the whole card, not its header row
+      const card = (anchor?.closest('[data-tool-card]') ?? anchor)!.getBoundingClientRect()
+      const x = a.right - box.left + TAB_GAP
+      const y = card.top + card.height / 2 - box.top
+      el.firstElementChild?.setAttribute('points', `${x},${y - 7} ${x + 7},${y} ${x},${y + 7}`)
       el.style.visibility = 'visible'
     }
     tick()
@@ -276,9 +274,7 @@ function Connector({ row, onOff }: { row: RefObject<HTMLDivElement | null>; onOf
       className="pointer-events-none absolute inset-0 z-20 size-full"
       style={{ visibility: 'hidden' }}
     >
-      <path className="stroke-ring fill-none" strokeWidth={1.5} />
-      <circle r={3} className="fill-ring" />
-      <circle r={3} className="fill-ring" />
+      <polygon className="fill-muted-foreground" />
     </svg>
   )
 }
@@ -320,7 +316,7 @@ export function useToolView(kind: ToolKind) {
  * An object with an inline view (the graph) passes it as `children`, shown under the same two rows while its tool
  * is closed, so opening the tool reads as the view shrinking to its card. A card with an inline view folds it
  * away and back: by its chevron, or a click anywhere on the header row or the summary (as the old graph panel's <details> did). While open: a darker border, and the
- * connector starts at its header row. */
+ * triangle off its right edge (Connector). */
 export function ToolCard(props: {
   kind: ToolKind
   name?: string
@@ -336,7 +332,7 @@ export function ToolCard(props: {
   const foldable = Boolean(props.children) && !props.isOpen
   const fold = foldable ? () => setFolded((f) => !f) : undefined
   return (
-    <div className={cn('my-3 rounded-lg border text-sm', props.isOpen && 'border-muted-foreground')}>
+    <div data-tool-card className={cn('my-3 rounded-lg border text-sm', props.isOpen && 'border-muted-foreground')}>
       <div
         {...(props.isOpen && TOOL_ANCHOR)}
         onClick={fold}
