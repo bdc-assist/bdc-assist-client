@@ -1,4 +1,16 @@
-import { ArrowDownIcon, ArrowUpIcon, CornerDownRightIcon, LoaderIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, XIcon } from 'lucide-react'
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  ChevronDownIcon,
+  ChevronsLeftIcon,
+  ChevronsRightIcon,
+  CornerDownRightIcon,
+  FileTextIcon,
+  LoaderIcon,
+  Share2Icon,
+  XIcon,
+  type LucideIcon,
+} from 'lucide-react'
 import {
   createContext,
   useCallback,
@@ -16,24 +28,27 @@ import {
 import { createPortal } from 'react-dom'
 
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 
-// The tool view (design/form-prefill.html): an object from an answer (a graph, later a form draft) opens beside
-// the conversation in a split, with a draggable divider, or full screen on a narrow window. Demo only for now:
+// The tool view (design/form-prefill.html, design/tool-view.html): an object from an answer (a graph, a form draft)
+// opens beside the conversation in a split, with a draggable divider, or full screen on a narrow window. Every tool
+// looks the same: the same card in the answer, the same header here (TOOLS gives each its icon and name). Demo only for now:
 // ?tools=demo turns it on; without it the graph keeps its maximize dialog.
 // The answer that owns the object renders it into the tool view through a portal (useToolView), so its state
 // stays where it is, and the tool view sits outside the message (whose content-visibility clips painting).
 
 export const TOOLS_DEMO = new URLSearchParams(location.search).get('tools') === 'demo'
 
-// each tool's starting layout: its share of the width, and whether the conversation starts hidden. A graph gets
-// more room than a form
-const TOOL_LAYOUT = {
-  graph: { pct: 60, hideConversation: false },
-  form: { pct: 40, hideConversation: false },
+// each tool's icon and name (its card and its header), and its starting layout: its share of the width, and
+// whether the conversation starts hidden. A graph gets more room than a form
+export const TOOLS: Record<'graph' | 'form', { icon: LucideIcon; name: string; pct: number; hideConversation: boolean }> = {
+  graph: { icon: Share2Icon, name: 'Knowledge graph', pct: 60, hideConversation: false },
+  form: { icon: FileTextIcon, name: 'Form', pct: 40, hideConversation: false },
 }
-export type ToolKind = keyof typeof TOOL_LAYOUT
+const TOOL_LAYOUT = TOOLS
+export type ToolKind = keyof typeof TOOLS
 type Widths = Record<ToolKind, number>
 
 // the width the user dragged each tool to, remembered in this browser; none: the tool's starting width
@@ -282,13 +297,26 @@ export function useToolView(kind: ToolKind) {
   return { available: Boolean(ctx), isOpen, open, close: close ?? (() => {}) }
 }
 
-/** The open tool's frame, rendered into the tool view: header (show the card in the conversation while it's out of
- * sight, show/hide conversation, icon, title, the tool's own actions, Close) and the body. Render it only while the tool is open. */
-export function ToolViewFrame(props: { icon: ReactNode; title: ReactNode; actions?: ReactNode; children: ReactNode }) {
+/** The open tool's frame, rendered into the tool view. Its header, the same for every tool: show the card in the
+ * conversation (while it's out of sight), expand to full width / show conversation, the tool's icon and `name`
+ * (default: the tool's), Edited (a menu with Reset to original) and the `summary`, then Undo/Redo and the tool's
+ * own action (`actions`), Close. Render it only while the tool is open. */
+export function ToolViewFrame(props: {
+  kind: ToolKind
+  name?: string
+  summary?: string
+  edited?: boolean
+  onReset?: () => void
+  actions?: ReactNode
+  children: ReactNode
+}) {
   const ctx = useContext(Context)
   const narrow = useIsMobile()
+  const [menu, setMenu] = useState(false)
   if (!ctx?.target) return null
-  const tip = ctx.conversationHidden ? 'Show conversation' : 'Hide conversation'
+  const { icon: Icon, name } = TOOLS[props.kind]
+  // chevrons change the tool view's width; the panel icons stay the conversations sidebar's (and the card's)
+  const tip = ctx.conversationHidden ? 'Show conversation' : 'Expand to full width'
   return createPortal(
     <>
       <div data-tool-head className="@container relative flex h-10 shrink-0 items-center gap-2 border-b px-2 text-xs">
@@ -306,11 +334,40 @@ export function ToolViewFrame(props: { icon: ReactNode; title: ReactNode; action
         )}
         {!narrow && (
           <TooltipIconButton tooltip={tip} side="bottom" className="size-7 p-1.5" onClick={ctx.toggleConversation}>
-            {ctx.conversationHidden ? <PanelLeftOpenIcon /> : <PanelLeftCloseIcon />}
+            {ctx.conversationHidden ? <ChevronsRightIcon /> : <ChevronsLeftIcon />}
           </TooltipIconButton>
         )}
-        <span className="text-muted-foreground flex size-4 shrink-0 items-center [&>svg]:size-4">{props.icon}</span>
-        <span className="text-muted-foreground min-w-0 flex-1 truncate">{props.title}</span>
+        <Icon className="text-muted-foreground size-4 shrink-0" />
+        <span className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="shrink-0 text-sm font-medium">{props.name ?? name}</span>
+          {props.edited && (
+            <Popover open={menu} onOpenChange={setMenu}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="bg-muted text-muted-foreground hover:text-foreground flex shrink-0 items-center gap-0.5 rounded-full px-2 text-[11px] leading-[18px]"
+                >
+                  Edited
+                  <ChevronDownIcon className="size-3" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent side="bottom" align="start" className="w-56 gap-0 p-1">
+                <p className="text-muted-foreground px-2 py-1 text-xs">Changed since this answer</p>
+                <button
+                  type="button"
+                  className="hover:bg-muted w-full rounded-md px-2 py-1.5 text-start text-sm"
+                  onClick={() => {
+                    setMenu(false)
+                    props.onReset?.()
+                  }}
+                >
+                  Reset to original
+                </button>
+              </PopoverContent>
+            </Popover>
+          )}
+          {props.summary && <span className="text-muted-foreground min-w-0 truncate">{props.summary}</span>}
+        </span>
         {props.actions}
         <TooltipIconButton tooltip="Close" side="bottom" className="size-7 p-1.5" onClick={ctx.close}>
           <XIcon />

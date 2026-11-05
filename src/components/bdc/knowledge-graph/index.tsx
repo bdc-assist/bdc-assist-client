@@ -129,6 +129,10 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
   }, [graph, raw, choice, grouped, sharedOnly, variables, forcePositions])
   // what was asked about, in this graph (all results, or the one call shown)
   const asked = merged.nodes.filter((n) => n.seed).map((n) => n.label)
+  // the card's and the tool header's summary line
+  const summaryLine = [asked.join(', '), summary(merged), ...(sharedStudies > 0 ? [`${sharedStudies} shared`] : [])]
+    .filter(Boolean)
+    .join(' · ')
   const title = (
     <>
       <span className="text-foreground font-medium">
@@ -157,8 +161,10 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
   // the large copy in the tool view (a portal, so where it's rendered from doesn't matter)
   const toolFrame = tool.isOpen && (
     <ToolViewFrame
-      icon={<Share2Icon />}
-      title={title}
+      kind="graph"
+      summary={summaryLine}
+      edited={Boolean(edited)}
+      onReset={() => change(null)}
       actions={
         <>
           <TooltipIconButton
@@ -182,19 +188,6 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
         </>
       }
     >
-      {edited && (
-        <p className="text-muted-foreground border-b px-3 py-1.5 text-xs">
-          Edited since this answer ·{' '}
-          <button
-            type="button"
-            className="text-foreground underline underline-offset-3"
-            disabled={busy}
-            onClick={() => change(null)}
-          >
-            Reset to original
-          </button>
-        </p>
-      )}
       <GraphBody
         raw={raw}
         shown={shown}

@@ -60,10 +60,19 @@ export function FormPrefill({ form }: { form: FormDef }) {
     })
   }
 
+  // changed since the first draft (the agent's), by chat or by hand; Reset goes back to it
+  const edited = Boolean(draft && drafts.states[0] && JSON.stringify(draft.values) !== JSON.stringify(drafts.states[0].values))
+  // the card's and the tool header's summary line
+  const summary = draft
+    ? `${draft.values.ticket_type || 'No type chosen'} · ${draft.values.cf_subject || 'No subject'}`
+    : null
   const frame = tool.isOpen && (
     <ToolViewFrame
-      icon={<FileTextIcon />}
-      title={<span className="text-foreground font-medium">{form.title}</span>}
+      kind="form"
+      name={form.title}
+      summary={summary ?? undefined}
+      edited={edited}
+      onReset={() => drafts.states[0] && change(drafts.states[0])} // back to the first draft, undoably
       actions={
         <>
           <TooltipIconButton
@@ -133,9 +142,6 @@ export function FormPrefill({ form }: { form: FormDef }) {
     )
 
   // the draft's card, in the offer's place: the draft as it is now
-  const summary = draft
-    ? `${draft.values.ticket_type || 'No type chosen'} · ${draft.values.cf_subject || 'No subject'}`
-    : null
   return (
     <div className={cn('my-3 rounded-lg border text-sm', tool.isOpen && 'border-muted-foreground')}>
       <div {...(tool.isOpen && TOOL_ANCHOR)} className="flex items-center gap-2 px-3 py-2">
@@ -144,7 +150,7 @@ export function FormPrefill({ form }: { form: FormDef }) {
         {stage === 'drafting' ? (
           <span className="text-muted-foreground">· Drafting…</span>
         ) : (
-          drafts.at > 0 && <span className="text-muted-foreground">· Edited</span>
+          edited && <span className="text-muted-foreground">· Edited</span>
         )}
         <span className="flex-1" />
         {stage === 'drafting' ? (
