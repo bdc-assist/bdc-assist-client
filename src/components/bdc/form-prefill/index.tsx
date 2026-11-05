@@ -1,9 +1,9 @@
-import { ExternalLinkIcon, FileTextIcon, LoaderIcon, Redo2Icon, Undo2Icon } from 'lucide-react'
+import { ExternalLinkIcon, LoaderIcon, Redo2Icon, Undo2Icon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
-import { ToolChat, TOOL_ANCHOR, ToolViewFrame, useToolView, type ToolMessage } from '@/components/bdc/tool-view'
-import { buttonVariants, Button } from '@/components/ui/button'
+import { ToolCard, ToolChat, ToolViewFrame, useToolView, type ToolMessage } from '@/components/bdc/tool-view'
+import { buttonVariants } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { formUrl, shownFields, type FormDef, type FormField, type FormValues } from '@/lib/forms'
 import { cn } from '@/lib/utils'
@@ -11,8 +11,8 @@ import { cn } from '@/lib/utils'
 import { demoFirstDraft, demoFormSuggestion, demoRevise } from './demo-drafts'
 
 // Form prefill (bdc-assist#64, design/form-prefill.html), ?tools=demo only: an answer citing a form's page
-// offers to fill it in. Prefill opens the tool view and drafts there; nothing is added to the conversation, and
-// the offer turns into a small card for the draft (always the draft as it is now). The draft is refined in the
+// offers to fill it in: the form's card, whose open button drafts it in the tool view. Nothing is added to the
+// conversation, and the card then shows the draft (always as it is now). The draft is refined in the
 // tool: by its chat, or by clicking a value and typing. Open form goes to the BDC page with the values as URL
 // parameters, where the user still checks and submits. Drafting and the chat's changes are canned
 // (demo-drafts.ts); state is in memory.
@@ -127,43 +127,39 @@ export function FormPrefill({ form }: { form: FormDef }) {
     </ToolViewFrame>
   )
 
+  // the offer is the same card, before there's a draft: opening it drafts the form in the tool view
   if (stage === 'offer')
     return (
-      <div className="my-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border px-3 py-2 text-sm">
-        <FileTextIcon className="text-muted-foreground size-4 shrink-0" />
-        <span className="min-w-0 flex-1">
-          <span className="font-medium">{form.title}</span>: bdc-assist can fill it in from this conversation for you to
-          check and send.
-        </span>
-        <Button variant="outline" size="sm" onClick={() => void prefill()}>
-          Prefill form
-        </Button>
-      </div>
+      <ToolCard
+        kind="form"
+        name={form.title}
+        summary="bdc-assist can fill this in from the conversation. Open it in the side panel to start."
+        isOpen={false}
+        onOpen={() => void prefill()}
+      />
     )
 
-  // the draft's card, in the offer's place: the draft as it is now
+  // the draft's card (the card every tool's object has): the draft as it is now
   return (
-    <div className={cn('my-3 rounded-lg border text-sm', tool.isOpen && 'border-muted-foreground')}>
-      <div {...(tool.isOpen && TOOL_ANCHOR)} className="flex items-center gap-2 px-3 py-2">
-        <FileTextIcon className="text-muted-foreground size-4 shrink-0" />
-        <span className="font-medium">{form.title}</span>
-        {stage === 'drafting' ? (
-          <span className="text-muted-foreground">· Drafting…</span>
-        ) : (
-          edited && <span className="text-muted-foreground">· Edited</span>
-        )}
-        <span className="flex-1" />
-        {stage === 'drafting' ? (
-          <LoaderIcon className="text-muted-foreground size-4 animate-spin" />
-        ) : (
-          <Button variant="outline" size="sm" disabled={tool.isOpen} onClick={tool.open}>
-            {tool.isOpen ? 'Editing' : 'Edit draft'}
-          </Button>
-        )}
-      </div>
-      {summary && <p className="text-muted-foreground truncate border-t px-3 py-2 text-xs">{summary}</p>}
+    <>
+      <ToolCard
+        kind="form"
+        name={form.title}
+        summary={summary}
+        edited={edited}
+        status={
+          stage === 'drafting' && (
+            <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+              <LoaderIcon className="size-3.5 animate-spin" />
+              Drafting…
+            </span>
+          )
+        }
+        isOpen={tool.isOpen}
+        onOpen={tool.open}
+      />
       {frame}
-    </div>
+    </>
   )
 }
 

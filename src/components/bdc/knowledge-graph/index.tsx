@@ -1,10 +1,10 @@
-import { Maximize2Icon, Redo2Icon, Share2Icon, Undo2Icon } from 'lucide-react'
+import { Maximize2Icon, Redo2Icon, Undo2Icon } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import {
+  ToolCard,
   ToolChat,
-  TOOL_ANCHOR,
   ToolViewFrame,
   TOOLS_DEMO,
   useToolView,
@@ -210,21 +210,29 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
     </ToolViewFrame>
   )
 
-  // while the tool view shows the graph, the answer keeps a small card in its place: one live graph on screen.
-  // Closing the tool brings the panel back, with the positions and pick from the tool view
-  if (tool.isOpen)
+  // ?tools=demo: the card every tool's object has (tool-view.tsx), with the graph under it while its tool is
+  // closed; open, the card alone stays in its place: one live graph on screen. Closing the tool brings the graph
+  // back, with the positions and pick from the tool view
+  if (inTool)
     return (
-      <div
-        {...TOOL_ANCHOR}
-        className="border-muted-foreground my-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs"
-      >
-        <Share2Icon className="text-muted-foreground size-4 shrink-0" />
-        <span className="text-muted-foreground min-w-0 flex-1 truncate">
-          {title}
-          {edited && ' · Edited'}
-        </span>
+      <>
+        <ToolCard kind="graph" summary={summaryLine} edited={Boolean(edited)} isOpen={tool.isOpen} onOpen={tool.open}>
+          <div className="border-t text-xs">
+            <GraphBody
+              raw={raw}
+              shown={shown}
+              canvasClass="h-72"
+              choice={choice}
+              onChoice={setPicked}
+              views={choices.views}
+              {...filter}
+              forcePositions={forcePositions}
+              zoomGestures="modifier"
+            />
+          </div>
+        </ToolCard>
         {toolFrame}
-      </div>
+      </>
     )
 
   return (
@@ -232,26 +240,13 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
       <details open className="my-3 rounded-lg border text-xs">
         <summary className="text-muted-foreground flex cursor-pointer items-center gap-2 px-3 py-1.5 select-none">
           <span className="flex-1">{title}</span>
-          {edited && (
-            <button
-              type="button"
-              className="bg-muted hover:text-foreground rounded-full px-2 py-0.5 text-[11px]"
-              onClick={(e) => {
-                e.preventDefault() // a click in <summary> would also fold the panel
-                tool.open()
-              }}
-            >
-              Edited since this answer
-            </button>
-          )}
           <TooltipIconButton
-            tooltip={inTool ? 'Open in the tool view' : 'Maximize'}
+            tooltip="Maximize"
             side="left"
             className="size-7 p-1.5"
             onClick={(e) => {
               e.preventDefault() // a click in <summary> would also fold the panel
-              if (inTool) tool.open()
-              else setMaximized(true)
+              setMaximized(true)
             }}
           >
             <Maximize2Icon />
