@@ -29,7 +29,7 @@ import { GraphBody } from './graph-body'
 // The demo's wrapper around src/kg (loaded on demand: see GraphUI in message-parts.tsx):
 // a collapsible panel under the answer with the graph, or the same as a list, and
 // the selected node's details, plus a button to show it all in a large dialog (with ?tools=demo, in the tool
-// view beside the conversation instead: tool-view.tsx).
+// view beside the conversation instead: ../tool-view/).
 // Another host would write its own wrapper around mountGraph and studyList;
 // nothing in src/kg depends on this folder.
 // Here: the panel and the dialog, with the state they share. graph-body.tsx: one copy
@@ -209,7 +209,7 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
     </ToolViewFrame>
   )
 
-  // ?tools=demo: the card every tool's object has (tool-view.tsx), with the graph under it while its tool is
+  // ?tools=demo: the card every tool's object has (../tool-view/card.tsx), with the graph under it while its tool is
   // closed; open, the card alone stays in its place: one live graph on screen. Closing the tool brings the graph
   // back, with the positions and pick from the tool view
   if (inTool)

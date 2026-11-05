@@ -3,9 +3,16 @@ import type { FormValues } from '@/lib/forms'
 // ?tools=demo only: a stand-in for the agent that would draft the form from the conversation. Canned, for the
 // stub's get_help answer (an eRA Commons login loop), as in design/form-prefill.html.
 
-/** The first draft, and what the agent says about it. */
-export async function demoFirstDraft(): Promise<{ values: FormValues; reply: string }> {
-  await new Promise((r) => setTimeout(r, 1500)) // as if the agent were drafting
+/** The first draft, and what the agent says about it. `blank`: nothing to draft from (the header's Get help in an
+ * empty conversation). Otherwise always the login-loop draft, whatever the conversation was about. */
+export async function demoFirstDraft(blank = false): Promise<{ values: FormValues; reply: string }> {
+  await new Promise((r) => setTimeout(r, blank ? 300 : 1500)) // as if the agent were drafting
+  if (blank)
+    return {
+      values: {},
+      reply:
+        'What do you need help with? Tell me here and I\'ll fill in the form, or click a value to fill it in yourself.',
+    }
   return {
     values: {
       cf_subject: 'eRA Commons login loops back to the login page',
@@ -25,6 +32,7 @@ const SHORT_START = 'eRA Commons login on'
  * shorten. None once both are done. */
 export function demoFormSuggestion(values: FormValues): string | null {
   const description = values.cf_submitted_description ?? ''
+  if (!description) return null // a blank draft: the script is for the login loop
   if (!find(PLATFORMS, description)) return "It's Terra, in Firefox. I already tried clearing cookies. Leave my name and email off."
   if (!description.startsWith(SHORT_START)) return 'Make the description shorter.'
   return null
