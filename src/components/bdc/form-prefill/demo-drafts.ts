@@ -77,7 +77,7 @@ export async function demoRevise(
     next.requester = email
     done.push('Added your email.')
   }
-  const name = text.match(/\bmy name is ([A-Z][\w'-]*(?: [A-Z][\w'-]*)*)/)?.[1]
+  const name = text.match(/\b[Mm]y name is ([A-Z][\w'-]*(?: [A-Z][\w'-]*)*)/)?.[1]
   if (name) {
     next.cf_requestors_name = name
     done.push('Added your name.')

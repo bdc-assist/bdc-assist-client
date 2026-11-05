@@ -6,6 +6,7 @@ import {
   createBdcAdapter,
   DRAFT_PART,
   FOLLOWUPS_PART,
+  FORM_PART,
   GRAPH_PART,
   REJECTED_PART,
   SOURCES_PART,
@@ -14,6 +15,7 @@ import {
   UNAVAILABLE_PART,
   type Reveal,
 } from '@/lib/bdc-adapter'
+import { GET_HELP } from '@/lib/forms'
 import { streamOf } from '@/lib/test-utils'
 
 const msg = (role: 'user' | 'assistant', text: string) =>
@@ -296,6 +298,23 @@ describe('data parts', () => {
       'asthma concept graph',
       'copd concept graph',
     ])
+  })
+
+  it('offers a form once done, when the sources cite its page, before the follow-ups', async () => {
+    const sources = { 'bdc-doc': [{ title: 'Get Help', link: GET_HELP.url, type: 'page' }] }
+    const { yields } = await run(
+      sse({ type: 'sources', sources, sources_md: '' }, { type: 'node', node: 'output_guardrail' }, done({ sources })),
+    )
+    expect(names(yields[0])).not.toContain(FORM_PART) // sources known, not done yet
+    const last = partsOf(yields.at(-1)!)
+    expect(last.find((p) => p.name === FORM_PART)?.data).toEqual({ form: 'get-help' })
+    expect(last.map((p) => p.name).slice(-2)).toEqual([FORM_PART, FOLLOWUPS_PART])
+  })
+
+  it('offers no form for other sources, or a refused question', async () => {
+    expect(names((await run(sse(done()))).yields[0])).not.toContain(FORM_PART)
+    const sources = { 'bdc-doc': [{ title: 'Get Help', link: GET_HELP.url, type: 'page' }] }
+    expect(names((await run(sse(done({ sources, blocked: 'input' })))).yields[0])).not.toContain(FORM_PART)
   })
 
   it('adds the follow-ups last, once done', async () => {
