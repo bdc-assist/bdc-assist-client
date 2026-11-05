@@ -30,11 +30,36 @@ bdc-assist has a stub server that serves its real API with a scripted agent. Fro
 checkout: `uv run python tests/_stub_stream_server.py` (port 8011), then run this client with
 `VITE_API_URL=http://127.0.0.1:8011`. A keyword in the question picks a path: `block` (input
 guardrail refuses), `reject` (output guardrail replaces the draft), `canned` (predefined reply),
-`nosources`, `crash` (the stream ends with an error). A Dug tool's name picks its real graph:
+`nosources`, `crash` (the stream ends with an error), `get_help` (an answer citing the Get Help
+page, for the form demo below). A Dug tool's name picks its real graph:
 `concept_graph` (congenital heart disease), `concept_graph_2` (asthma and COPD), `concept_connections`
 (asthma's related concepts), `cohort_variables` (asthma + COPD search words), `search_concepts` (a BMI
 search); several combine, e.g. `concept_graph_2 concept_connections`. Anything else gets a docs answer
 with a small graph.
+
+### Tool view demo
+
+Add `?tools=demo` to the page URL to try the tool view, a mock-up for bdc-assist#64 faked in the
+client (no API changes). An object from an answer opens in a side panel beside the conversation,
+with its own chat that changes it in place; the answer keeps a small card for it. Drag the divider
+to resize (remembered per tool in this browser); on a narrow window the panel is full screen.
+Without the flag, graphs keep their maximize dialog.
+
+- **Knowledge graph**: ask the stub `concept_graph_2` and open the graph's side panel. The panel's
+  chat understands one request, expanding asthma, which merges in the `concept_connections` graph.
+  Undo and Redo step through changes; *Edited* has *Reset to original*.
+- **Get Help form**: ask the stub `get_help`. The answer offers to fill in the BDC Get Help form;
+  opening it drafts the form in the side panel. Refine it by its chat (suggestion buttons give the
+  scripted messages) or by clicking a value, then *Open form* goes to the BDC page with the values
+  as URL parameters (whether the site will read them isn't decided yet).
+- **Get help button** in the header: its own Get Help draft, separate from any answer's, drafted
+  from the conversation (blank in a new one).
+
+Drafting and the chats are canned (`src/components/bdc/knowledge-graph/demo-edits.ts`,
+`src/components/bdc/form-prefill/demo-drafts.ts`), so they work against the stub only, and edits
+are kept in memory, not saved with the conversation. The form's fields are a local stand-in
+(`src/lib/forms.ts`) for definitions the BDC docs would provide. Code: `src/components/bdc/tool-view/`
+(the panel, card and chat every tool shares) and `src/components/bdc/form-prefill/`.
 
 ## Saved conversations
 
