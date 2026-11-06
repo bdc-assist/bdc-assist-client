@@ -9,7 +9,7 @@
       {
         "patterns": [
           {
-            "group": ["@/kg/*", "**/kg/model/*", "**/kg/views/*"],
+            "group": ["@/kg/*", "!@/kg/test-fixtures", "**/kg/model/*", "**/kg/views/*"],
             "message": "Import src/kg from '@/kg' (its public API, src/kg/index.ts), never its files."
           }
         ]
