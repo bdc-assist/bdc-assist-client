@@ -88,7 +88,7 @@ describe('createBdcAdapter', () => {
   it('streams tokens, tracks node and status, then finishes on done', async () => {
     const { yields } = await run(
       sse(
-        { type: 'node', node: 'agent' },
+        { type: 'node', node: 'main_agent' },
         { type: 'status', text: 'calling search_docs' },
         { type: 'token', text: 'BDC ' },
         { type: 'token', text: 'is' },
@@ -96,10 +96,10 @@ describe('createBdcAdapter', () => {
       ),
     )
     expect(yields.map(textOf)).toEqual(['', '', 'BDC ', 'BDC is', 'BDC is.'])
-    expect(dataOf(yields[0], STATUS_PART)).toEqual({ node: 'agent', status: null })
-    expect(dataOf(yields[1], STATUS_PART)).toEqual({ node: 'agent', status: 'calling search_docs' })
+    expect(dataOf(yields[0], STATUS_PART)).toEqual({ node: 'main_agent', status: null })
+    expect(dataOf(yields[1], STATUS_PART)).toEqual({ node: 'main_agent', status: 'calling search_docs' })
     // tokens don't clear it
-    expect(dataOf(yields[2], STATUS_PART)).toEqual({ node: 'agent', status: 'calling search_docs' })
+    expect(dataOf(yields[2], STATUS_PART)).toEqual({ node: 'main_agent', status: 'calling search_docs' })
     expect(dataParts(yields.at(-1)!)).toEqual([
       { type: 'data', name: SOURCES_PART, data: { 'bdc-doc': [{ title: 'Overview', link: 'https://x/overview', type: 'page' }] } },
       { type: 'data', name: FOLLOWUPS_PART, data: ['What is dbGaP?'] },
@@ -233,14 +233,14 @@ describe('data parts', () => {
   const names = (y: ChatModelRunResult) => partsOf(y).map((p) => p.name)
 
   it('keeps the text part first', async () => {
-    const { yields } = await run(sse({ type: 'node', node: 'agent' }, done({ blocked: 'input' })))
+    const { yields } = await run(sse({ type: 'node', node: 'main_agent' }, done({ blocked: 'input' })))
     for (const y of yields) expect(y.content?.[0].type).toBe('text')
   })
 
   it('shows the node label until tokens flow, and the tool status until reset', async () => {
     const { yields } = await run(
       sse(
-        { type: 'node', node: 'agent' },
+        { type: 'node', node: 'main_agent' },
         { type: 'status', text: 'calling search_docs' },
         { type: 'token', text: 'Let me look that up.' },
         { type: 'reset' },
@@ -250,10 +250,10 @@ describe('data parts', () => {
       ),
     )
     const statusOf = (y: ChatModelRunResult) => partsOf(y).find((p) => p.name === STATUS_PART)?.data
-    expect(partsOf(yields[0])).toEqual([{ type: 'data', name: STATUS_PART, data: { node: 'agent', status: null } }])
-    expect(statusOf(yields[1])).toEqual({ node: 'agent', status: 'calling search_docs' })
-    expect(statusOf(yields[2])).toEqual({ node: 'agent', status: 'calling search_docs' }) // tool still running
-    expect(statusOf(yields[3])).toEqual({ node: 'agent', status: null }) // reset: "Thinking…"
+    expect(partsOf(yields[0])).toEqual([{ type: 'data', name: STATUS_PART, data: { node: 'main_agent', status: null } }])
+    expect(statusOf(yields[1])).toEqual({ node: 'main_agent', status: 'calling search_docs' })
+    expect(statusOf(yields[2])).toEqual({ node: 'main_agent', status: 'calling search_docs' }) // tool still running
+    expect(statusOf(yields[3])).toEqual({ node: 'main_agent', status: null }) // reset: "Thinking…"
     expect(names(yields[4])).toEqual([]) // answer streaming
     expect(statusOf(yields[5])).toEqual({ node: 'output_guardrail', status: null })
     expect(names(yields[6])).not.toContain(STATUS_PART) // done
@@ -299,7 +299,7 @@ describe('data parts', () => {
   })
 
   it('adds the follow-ups last, once done', async () => {
-    const { yields } = await run(sse({ type: 'node', node: 'agent' }, done({ followups: ['A?', 'B?'] })))
+    const { yields } = await run(sse({ type: 'node', node: 'main_agent' }, done({ followups: ['A?', 'B?'] })))
     expect(names(yields[0])).not.toContain(FOLLOWUPS_PART)
     const last = partsOf(yields.at(-1)!)
     expect(last.at(-1)).toEqual({ type: 'data', name: FOLLOWUPS_PART, data: ['A?', 'B?'] })
@@ -366,7 +366,7 @@ describe('rejection', () => {
 
 describe("reveal: 'after-check'", () => {
   const events = sse(
-    { type: 'node', node: 'agent' },
+    { type: 'node', node: 'main_agent' },
     { type: 'token', text: 'one two three ' },
     { type: 'sources', sources: { 'bdc-doc': [{ title: 'A', link: 'https://a', type: 'faq' }] }, sources_md: '- A' },
     { type: 'token', text: 'four' },
