@@ -6,7 +6,7 @@
 <title>Source icons</title>
 <!-- Design scratch page, not part of the app build. Open via the dev server:
      npm run dev, then /design/source-icons.html. The icons are the app's own (lucide-react);
-     the list copies SOURCE_TYPES in src/components/bdc/message-parts.tsx: keep the two in step. -->
+     the list copies SOURCE_TYPES in src/components/bdc/source-types.ts: keep the two in step. -->
 <style>
   * { box-sizing: border-box; }
   body {
@@ -26,20 +26,19 @@
   table { border-collapse: collapse; width: 100%; font-size: 13px; }
   td, th { text-align: left; padding: 6px 12px 6px 0; border-bottom: 1px solid var(--line); vertical-align: middle; }
   th { color: var(--muted); font-weight: 500; }
-  /* as the app draws them: a 24px box, a 16px icon, muted until hovered */
-  .icon { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 4px;
-    border-radius: 6px; color: var(--muted); }
-  .icon:hover, .group:hover { color: var(--fg); background: var(--hover); }
-  .group { display: inline-flex; align-items: center; gap: 2px; height: 24px; padding: 0 4px; border-radius: 6px;
+  /* as the app draws them: a 24px-high button, a 16px icon, a count for 2+, a chevron (every type
+     opens a list, even of one); less padding on the right, where the chevron has its own; muted until hovered */
+  .group { display: inline-flex; align-items: center; gap: 2px; height: 24px; padding: 0 2px 0 4px; border-radius: 6px;
     color: var(--muted); font-size: 12px; }
+  .group:hover { color: var(--fg); background: var(--hover); }
   .big { color: var(--fg); }
-  .row { display: flex; gap: 4px; align-items: center; justify-content: flex-end; padding: 6px 0; }
+  .row { display: flex; gap: 2px; align-items: center; justify-content: flex-end; padding: 6px 0; }
   .note { color: var(--muted); font-size: 12px; }
 </style>
 </head>
 <body>
 <h1>Source icons</h1>
-<p class="muted">Every icon the source row under an answer uses (<code>SOURCE_TYPES</code> in message-parts.tsx), at the
+<p class="muted">Every icon the source row under an answer uses (<code>SOURCE_TYPES</code> in source-types.ts), at the
   app's size and enlarged, in light and dark. Hover to see the hover state.</p>
 <div id="root"></div>
 
@@ -85,9 +84,9 @@ const CANDIDATES = [
   [NewspaperIcon, 'NewspaperIcon', 'taken: Update'],
 ]
 
-const small = (Icon, title) => h('span', { className: 'icon', title }, h(Icon, { size: 16 }))
 const group = (Icon, n, title) =>
-  h('span', { className: 'group', title }, h(Icon, { size: 16 }), n, h(ChevronDownIcon, { size: 12 }))
+  h('span', { className: 'group', title }, h(Icon, { size: 16 }), n > 1 && n, h(ChevronDownIcon, { size: 12 }))
+const small = (Icon, title) => group(Icon, 1, title)
 
 function Panel({ dark }) {
   return h('div', { className: `panel${dark ? ' dark' : ''}` },
