@@ -146,7 +146,7 @@ export function ToolSplit({ children }: { children: ReactNode }) {
           aria-label="Tool view"
           style={split ? { width: `${pct}%` } : undefined}
           className={cn(
-            'bg-background flex min-w-0 flex-col',
+            'bg-sidebar flex min-w-0 flex-col',
             narrow ? 'fixed inset-0 z-50' : split ? 'shrink-0' : 'flex-1',
           )}
         />
