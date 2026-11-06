@@ -71,7 +71,7 @@ describe('toEmail', () => {
   it('leaves out status, sources and follow-ups', () => {
     const answer = [
       text('Answer.'),
-      data(STATUS_PART, { node: 'agent', status: null }),
+      data(STATUS_PART, { node: 'main_agent', status: null }),
       data(SOURCES_PART, { 'bdc-doc': [{ title: 'Secret doc', link: 'https://example.org/doc', type: 'docs' }] }),
       data(FOLLOWUPS_PART, ['What next?']),
     ]
