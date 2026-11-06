@@ -41,7 +41,8 @@ export function ToolChat(props: ToolChatProps & { placement: 'right' | 'below' }
     <div
       className={cn(
         'flex min-h-0 flex-col text-sm',
-        right ? 'shrink-0 border-l' : 'max-h-[45%] shrink-0 border-t',
+        // no border of its own: the tool's sheet beside or above it is the edge
+        right ? 'shrink-0' : 'max-h-[45%] shrink-0',
       )}
       style={right ? { width: CHAT_WIDTH } : undefined}
     >
