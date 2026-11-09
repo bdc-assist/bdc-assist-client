@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import { demoFormSuggestion } from './demo-drafts'
 import type { Draft, FormDraftState } from './use-form-draft'
 
-/** A form draft in the tool view (`d` from useFormDraft): its fields, Undo/Redo, Open form and its chat. Render it
+/** A form draft in the tool view (`d` from useFormDraft): its fields, Undo/Redo, Open on BDC and its chat. Render it
  * only while the draft's tool is open. */
 export function FormDraftTool({ form, d }: { form: FormDef; d: FormDraftState }) {
   const { draft } = d
@@ -37,7 +37,7 @@ export function FormDraftTool({ form, d }: { form: FormDef; d: FormDraftState })
           <TooltipIconButton tooltip="Redo" side="bottom" className="size-7 p-1.5" disabled={!d.canRedo} onClick={d.redo}>
             <Redo2Icon />
           </TooltipIconButton>
-          {draft && <OpenForm href={formUrl(form, draft.values)} />}
+          {draft && <OpenOnBdc href={formUrl(form, draft.values)} />}
         </>
       }
     >
@@ -50,7 +50,7 @@ export function FormDraftTool({ form, d }: { form: FormDef; d: FormDraftState })
               ))}
             </dl>
             <p className="text-muted-foreground mt-2 text-xs">
-              Open form goes to the form on the BDC site with these values. You can change anything there before you
+              Open on BDC goes to the form on the BDC site with these values. You can change anything there before you
               submit. Click a value to edit it, or ask for changes below.
             </p>
           </>
@@ -65,13 +65,14 @@ export function FormDraftTool({ form, d }: { form: FormDef; d: FormDraftState })
   )
 }
 
-// Open form in the tool's header; on a narrow tool view just its icon (the header is a container)
-function OpenForm({ href }: { href: string }) {
+// Open on BDC in the tool's header (not "Open form": the card's Edit form opens the draft); on a narrow tool view
+// just its icon (the header is a container)
+function OpenOnBdc({ href }: { href: string }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <a href={href} target="_blank" rel="noopener" className={cn(buttonVariants({ size: 'sm' }), 'mx-0.5')}>
-          <span className="@max-md:sr-only">Open form</span>
+          <span className="@max-md:sr-only">Open on BDC</span>
           <ExternalLinkIcon />
         </a>
       </TooltipTrigger>

@@ -1,14 +1,17 @@
-import { ChevronsDownUpIcon, ChevronsUpDownIcon, PanelRightIcon } from 'lucide-react'
+import { ChevronsDownUpIcon, ChevronsUpDownIcon, ChevronRightIcon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 import { TOOL_ANCHOR } from './context'
 import { TOOLS, type ToolKind } from './tools'
 
 /** An object's card in the answer, the same for every tool: a header row (icon, `name` (default: the tool's),
- * Edited, `status` (e.g. "Drafting…"), and a button to open its tool, gone while it's open) and a `summary` line.
+ * Edited, `status` (e.g. "Drafting…"), and a labelled button to open its tool (TOOLS' `open`, e.g. "Edit form"),
+ * gone while it's open) and a `summary` line.
  * An object with an inline view (the graph) passes it as `children`, shown under the same two rows while its tool
  * is closed, so opening the tool reads as the view shrinking to its card. A card with an inline view folds it
  * away and back: by its chevron, or a click anywhere on the header row or the summary (as the old graph panel's
@@ -23,7 +26,7 @@ export function ToolCard(props: {
   onOpen?: () => void
   children?: ReactNode
 }) {
-  const { icon: Icon, name } = TOOLS[props.kind]
+  const { icon: Icon, name, open } = TOOLS[props.kind]
   const [folded, setFolded] = useState(false)
   const foldable = Boolean(props.children) && !props.isOpen
   const fold = foldable ? () => setFolded((f) => !f) : undefined
@@ -59,17 +62,24 @@ export function ToolCard(props: {
           </TooltipIconButton>
         )}
         {props.onOpen && !props.isOpen && (
-          <TooltipIconButton
-            tooltip="Open in side panel"
-            side="left"
-            className="size-7 p-1.5"
-            onClick={(e) => {
-              e.stopPropagation() // not a fold
-              props.onOpen?.()
-            }}
-          >
-            <PanelRightIcon />
-          </TooltipIconButton>
+          // labelled, with a chevron after it: as a bare panel icon it read as a layout toggle, not as opening the object
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="xs"
+                className="shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation() // not a fold
+                  props.onOpen?.()
+                }}
+              >
+                {open}
+                <ChevronRightIcon data-icon="inline-end" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">Open in side panel</TooltipContent>
+          </Tooltip>
         )}
       </div>
       {props.summary && (

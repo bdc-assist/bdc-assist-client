@@ -20,11 +20,15 @@ const GraphStarIcon = createLucideIcon('graph-star', [
   ['circle', { cx: '4', cy: '4', r: '2', key: 'k' }],
 ])
 
-// each tool's icon and name (its card and its header), and its starting layout: its share of the width, and
+// each tool's icon and name (its card and its header), its card's open button label (what you'd do there; the
+// tooltip says where it opens), and its starting layout: its share of the width, and
 // whether the conversation starts hidden. A graph gets more room than a form
-export const TOOLS: Record<'graph' | 'form', { icon: LucideIcon; name: string; pct: number; hideConversation: boolean }> = {
-  graph: { icon: GraphStarIcon, name: 'Knowledge graph', pct: 60, hideConversation: false },
-  form: { icon: ClipboardPenIcon, name: 'Form', pct: 40, hideConversation: false },
+export const TOOLS: Record<
+  'graph' | 'form',
+  { icon: LucideIcon; name: string; open: string; pct: number; hideConversation: boolean }
+> = {
+  graph: { icon: GraphStarIcon, name: 'Knowledge graph', open: 'Explore graph', pct: 60, hideConversation: false },
+  form: { icon: ClipboardPenIcon, name: 'Form', open: 'Edit form', pct: 40, hideConversation: false },
 }
 export type ToolKind = keyof typeof TOOLS
 

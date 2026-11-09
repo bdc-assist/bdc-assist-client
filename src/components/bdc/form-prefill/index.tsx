@@ -9,7 +9,7 @@ import { useFormDraft } from './use-form-draft'
 // Form prefill (bdc-assist#64, design/form-prefill.html), ?tools=demo only: an answer citing a form's page
 // offers to fill it in: the form's card, whose open button drafts it in the tool view. Nothing is added to the
 // conversation, and the card then shows the draft (always as it is now). The draft is refined in the
-// tool: by its chat, or by clicking a value and typing. Open form goes to the BDC page with the values as URL
+// tool: by its chat, or by clicking a value and typing. Open on BDC goes to the BDC page with the values as URL
 // parameters, where the user still checks and submits. The header's Get help button (get-help-button.tsx) has a
 // draft of its own, the same way. use-form-draft.ts: a draft's state; draft-tool.tsx: the draft in the tool view.
 
