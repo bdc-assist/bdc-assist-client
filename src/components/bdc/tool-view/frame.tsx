@@ -106,8 +106,9 @@ export function ToolViewFrame(props: {
         </TooltipIconButton>
       </div>
       <div ref={measure} className={cn('flex min-h-0 flex-1', right ? 'flex-row' : 'flex-col')}>
-        {/* the tool itself (graph, form) on a white sheet, inset in the panel's grey with the chat */}
-        <div className="bg-background m-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border">
+        {/* the tool itself (graph, form) on a white sheet, inset in the panel's grey with the chat, outlined
+            like the open card in the conversation (ToolCard) */}
+        <div className="bg-background border-muted-foreground m-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border">
           {props.children}
         </div>
         {props.chat && <ToolChat {...props.chat} placement={right ? 'right' : 'below'} />}
