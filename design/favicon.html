@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Favicon</title>
+<!-- Design scratch page, not part of the app build. Open via the dev server:
+     npm run dev, then /design/favicon.html. The app icon (public/favicon.svg: lucide's notebook-pen,
+     recoloured) in RENCI colours: the current one, three tiled versions, and a theme-adaptive one with no
+     tile. Shown as a browser tab (16px), the sidebar header (28px) and large (64px), on light and dark.
+     The SVG for the picked version is at the bottom, ready to save as public/favicon.svg.
+     Chosen 2026-10-29: Slate circle at 70%, Stone notebook and lines, RENCI Blue pen (public/favicon.svg,
+     also shown as an <img> in the sidebar header). -->
+<style>
+  :root { --bg: #ffffff; --fg: #0a0a0a; --muted: #737373; --line: #e5e5e5; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px 24px 48px; background: var(--bg); color: var(--fg);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 0 0 2px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .controls { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center;
+    padding: 10px 0; background: var(--bg); border-bottom: 1px solid var(--line); margin-bottom: 16px; font-size: 13px; }
+  .controls label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .controls select { font: inherit; }
+  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgb(0 0 0 / 0.15); }
+  .parts { display: grid; grid-template-columns: auto auto; gap: 4px 8px; align-items: center; font-size: 12px; }
+  .parts select { font: inherit; font-size: 12px; }
+  .part { display: flex; align-items: center; gap: 6px; }
+  .ratio { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 6.5em; }
+  .ratio.low { color: #c2410c; }
+  .scheme-head { grid-column: 1 / -1; font-weight: 600; margin-top: 4px; }
+
+  .variant { display: grid; grid-template-columns: 300px 1fr; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .variant.picked { background: linear-gradient(90deg, rgb(0 117 141 / 0.06), transparent 60%); }
+  .variant-head { display: flex; flex-direction: column; gap: 6px; }
+  .variant-head button { align-self: flex-start; font: inherit; font-size: 12px; cursor: pointer; }
+  .scenes { display: flex; flex-wrap: wrap; gap: 12px; }
+  .scene { border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px; min-width: 200px; }
+  .scene-label { font-size: 11px; opacity: 0.7; }
+  .light { background: #dee1e6; color: #1f1f1f; }
+  .dark { background: #202124; color: #e8eaed; }
+
+  /* a browser tab strip with the active tab */
+  .tab { display: flex; align-items: center; gap: 8px; width: 200px; height: 32px; padding: 0 12px;
+    border-radius: 8px 8px 0 0; font-size: 12px; }
+  .light .tab { background: #ffffff; }
+  .dark .tab { background: #35363a; }
+  .tab .x { margin-left: auto; opacity: 0.6; }
+
+  /* the sidebar header */
+  .side { display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 6px; font-weight: 600; }
+  .light .side { background: #fafafa; color: #0a0a0a; }
+  .dark .side { background: #171717; color: #fafafa; }
+
+  .big { display: flex; align-items: center; gap: 12px; }
+
+  pre { background: #f5f5f5; border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x: auto;
+    font-size: 12px; max-width: 900px; }
+</style>
+</head>
+<body>
+<h1>Favicon</h1>
+<p class="muted">The app icon (lucide notebook-pen) in RENCI colours: RENCI Blue #00758D, Twilight #14385F,
+  Ultramarine #00A9C4, Quantum Pink #FF44CA, Frost #D6E8F2, Stone #666676, Slate #F3F3F8. Every part's colour
+  can be changed; the ratio after it is its contrast against the tile, or against the light / dark sidebar when
+  there's no tile (orange below 3:1). Each version is shown
+  as a browser tab (16px), the sidebar header (28px) and large (64px), on light and dark. "Adaptive" follows the
+  browser's light/dark setting here, as a favicon would; in the sidebar it would follow the app's toggle instead.</p>
+<div id="root"></div>
+
+<script type="module">
+import { createElement as h, Fragment, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+
+// the RENCI palette, plus white and the current pen colour
+const COLORS = {
+  renciBlue: ['RENCI Blue', '#00758D'], twilight: ['Twilight', '#14385F'], ultramarine: ['Ultramarine', '#00A9C4'],
+  pink: ['Quantum Pink', '#FF44CA'], frost: ['Frost', '#D6E8F2'], stone: ['Stone', '#666676'],
+  slate: ['Slate', '#F3F3F8'], white: ['White', '#FFFFFF'], oldPen: ['current teal', '#008CA8'],
+}
+const hex = (k) => COLORS[k]?.[1]
+// the sidebar backgrounds the icon sits on without a tile
+const SIDEBAR = { light: '#FAFAFA', dark: '#171717' }
+
+function lum(c) {
+  const v = [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16) / 255)
+    .map((x) => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4))
+  return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]
+}
+const contrast = (a, b) => {
+  const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m)
+  return (x + 0.05) / (y + 0.05)
+}
+
+// lucide notebook-pen, as in public/favicon.svg
+const NOTEBOOK = 'M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4'
+const LINES = ['M2 6h4', 'M2 10h4', 'M2 14h4', 'M2 18h4']
+const PEN = 'M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z'
+const PARTS = ['tile', 'notebook', 'lines', 'pen']
+
+// starting colours per version (palette keys; tile 'none' = no tile). Adaptive has a set per scheme.
+const PRESETS = {
+  current: { name: 'Current', note: 'public/favicon.svg today.',
+    c: { tile: 'none', notebook: 'stone', lines: 'frost', pen: 'oldPen' } },
+  twilight: { name: 'Twilight tile', c: { tile: 'twilight', notebook: 'frost', lines: 'frost', pen: 'ultramarine' } },
+  blue: { name: 'RENCI Blue tile', c: { tile: 'renciBlue', notebook: 'white', lines: 'frost', pen: 'white' } },
+  slate: { name: 'Slate tile', c: { tile: 'slate', notebook: 'stone', lines: 'twilight', pen: 'renciBlue' } },
+  adaptive: { name: 'Adaptive', note: 'A set per scheme; the favicon switches with the browser\'s setting. ' +
+    'Starts as the two recent picks swapped by scheme: the dark circle on light backgrounds, the light one on dark.',
+    c: { light: { tile: 'twilight', notebook: 'frost', lines: 'frost', pen: 'ultramarine' },
+         dark: { tile: 'frost', notebook: 'renciBlue', lines: 'renciBlue', pen: 'twilight' } } },
+  adaptiveBare: { name: 'Adaptive, no tile', note: 'A set per scheme, no background.',
+    c: { light: { tile: 'none', notebook: 'stone', lines: 'twilight', pen: 'renciBlue' },
+         dark: { tile: 'none', notebook: 'frost', lines: 'frost', pen: 'ultramarine' } } },
+}
+const isAdaptive = (id) => id.startsWith('adaptive')
+// the colour set a version uses in a scheme
+const setFor = (id, colors, scheme) => (isAdaptive(id) ? colors[id][scheme] : colors[id])
+
+function body(c, opts) {
+  const strokes = (cls) =>
+    `<path${cls ? ' class="n"' : ` stroke="${hex(c.notebook)}"`} d="${NOTEBOOK}"/>` +
+    LINES.map((d) => `<path${cls ? ' class="l"' : ` stroke="${hex(c.lines)}"`} d="${d}"/>`).join('') +
+    `<path${cls ? ' class="p"' : ` stroke="${hex(c.pen)}"`} d="${PEN}"/>`
+  return { strokes, tiled: c.tile !== 'none' }
+}
+
+function tileWrap(inner, tileHex, opts) {
+  // the icon shrinks to fit inside the tile; strokes stay 2 icon units, so they thin with it
+  const s = opts.inset / 100, o = +((24 - 24 * s) / 2).toFixed(3)
+  const rx = opts.shape === 'circle' ? 12 : opts.shape === 'square' ? 2 : 5
+  return `<rect class="t" width="24" height="24" rx="${rx}"${tileHex ? ` fill="${tileHex}"` : ''}/>` +
+    `<g transform="translate(${o} ${o}) scale(${s})">${inner}</g>`
+}
+
+// the SVG for a version; `scheme` forces one scheme (else the adaptive one gets a media query)
+function svgFor(id, colors, opts, scheme) {
+  let inner
+  if (isAdaptive(id) && !scheme) {
+    const { light, dark } = colors[id]
+    const rule = (c) => `.n{stroke:${hex(c.notebook)}}.l{stroke:${hex(c.lines)}}.p{stroke:${hex(c.pen)}}` +
+      `.t{fill:${c.tile === 'none' ? 'none' : hex(c.tile)}}`
+    const tiled = light.tile !== 'none' || dark.tile !== 'none'
+    const strokes = body(light, opts).strokes(true)
+    inner = `<style>${rule(light)}@media (prefers-color-scheme:dark){${rule(dark)}}</style>` +
+      (tiled ? tileWrap(strokes, null, opts) : strokes)
+  } else {
+    const c = setFor(id, colors, scheme ?? 'light')
+    const { strokes, tiled } = body(c, opts)
+    inner = tiled ? tileWrap(strokes(false), hex(c.tile), opts) : strokes(false)
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" ` +
+    `stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`
+}
+
+function Icon({ id, colors, opts, size, scheme }) {
+  const src = `data:image/svg+xml,${encodeURIComponent(svgFor(id, colors, opts, scheme))}`
+  return h('img', { src, width: size, height: size, alt: '' })
+}
+
+function Scene({ id, colors, opts, scheme }) {
+  const p = { id, colors, opts, scheme }
+  return h('div', { className: `scene ${scheme}` },
+    h('span', { className: 'scene-label' }, scheme),
+    h('div', { className: 'tab' }, h(Icon, { ...p, size: 16 }), 'BDC Assist', h('span', { className: 'x' }, '×')),
+    h('div', { className: 'side' }, h(Icon, { ...p, size: 28 }), 'BDC Assist'),
+    h('div', { className: 'big' }, h(Icon, { ...p, size: 64 }), h(Icon, { ...p, size: 32 }), h(Icon, { ...p, size: 16 })),
+  )
+}
+
+// contrast of a part against its tile, or against both sidebars with no tile
+function Ratio({ c, part, schemes }) {
+  if (part === 'tile') {
+    if (c.tile === 'none') return h('span', { className: 'ratio' })
+    const r = schemes.map((s) => contrast(hex(c.tile), SIDEBAR[s]))
+    return h('span', { className: 'ratio', title: 'tile against the sidebar' },
+      r.map((x) => `${x.toFixed(1)}:1`).join(' / '))
+  }
+  const against = c.tile === 'none' ? schemes.map((s) => SIDEBAR[s]) : [hex(c.tile)]
+  const r = against.map((b) => contrast(hex(c[part]), b))
+  return h('span', { className: `ratio${Math.min(...r) < 3 ? ' low' : ''}` }, r.map((x) => `${x.toFixed(1)}:1`).join(' / '))
+}
+
+function Parts({ c, onChange, schemes }) {
+  return PARTS.map((part) => h(Fragment, { key: part },
+    h('span', null, part[0].toUpperCase() + part.slice(1)),
+    h('span', { className: 'part' },
+      h('select', { value: c[part], onChange: (e) => onChange({ ...c, [part]: e.target.value }) },
+        part === 'tile' && h('option', { value: 'none' }, 'none'),
+        Object.entries(COLORS).map(([k, [name]]) => h('option', { key: k, value: k }, name))),
+      h('span', { className: 'swatch', style: { background: c[part] === 'none' ? 'transparent' : hex(c[part]) } }),
+      h(Ratio, { c, part, schemes })),
+  ))
+}
+
+function Page() {
+  const [colors, setColors] = useState(() =>
+    Object.fromEntries(Object.entries(PRESETS).map(([id, p]) => [id, structuredClone(p.c)])))
+  const [shape, setShape] = useState('rounded')
+  const [inset, setInset] = useState(75)
+  const [picked, setPicked] = useState('twilight')
+  const opts = { shape, inset }
+  const set = (id, c) => setColors({ ...colors, [id]: c })
+  return h(Fragment, null,
+    h('div', { className: 'controls' },
+      h('label', null, 'Tile shape ',
+        h('select', { value: shape, onChange: (e) => setShape(e.target.value) },
+          h('option', { value: 'rounded' }, 'rounded square'),
+          h('option', { value: 'square' }, 'square'),
+          h('option', { value: 'circle' }, 'circle'))),
+      h('label', null, 'Icon in tile ',
+        h('select', { value: inset, onChange: (e) => setInset(Number(e.target.value)) },
+          [65, 70, 75, 80, 85].map((n) => h('option', { key: n, value: n }, `${n}%`)))),
+      h('button', { type: 'button', onClick: () => setColors(
+        Object.fromEntries(Object.entries(PRESETS).map(([id, p]) => [id, structuredClone(p.c)]))) }, 'Reset colours'),
+    ),
+    Object.entries(PRESETS).map(([id, p]) => h('div', { key: id, className: `variant${id === picked ? ' picked' : ''}` },
+      h('div', { className: 'variant-head' },
+        h('h2', null, p.name),
+        p.note && h('span', { className: 'muted' }, p.note),
+        h('div', { className: 'parts' },
+          isAdaptive(id)
+            ? ['light', 'dark'].map((s) => h(Fragment, { key: s },
+                h('span', { className: 'scheme-head' }, s),
+                h(Parts, { c: colors[id][s], schemes: [s], onChange: (c) => set(id, { ...colors[id], [s]: c }) })))
+            : h(Parts, { c: colors[id], schemes: ['light', 'dark'], onChange: (c) => set(id, c) })),
+        h('button', { type: 'button', onClick: () => setPicked(id) }, id === picked ? 'Picked' : 'Pick'),
+      ),
+      h('div', { className: 'scenes' },
+        h(Scene, { id, colors, opts, scheme: 'light' }),
+        h(Scene, { id, colors, opts, scheme: 'dark' })),
+    )),
+    h('h2', { style: { marginTop: 24 } }, `SVG: ${PRESETS[picked].name}`),
+    h('pre', null, svgFor(picked, colors, opts).replace(/></g, '>\n<')),
+  )
+}
+
+createRoot(document.getElementById('root')).render(h(Page))
+</script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 import { Maximize2Icon } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
@@ -13,6 +13,8 @@ import {
   type KgPart,
   type KgViewName,
 } from '@/kg'
+
+import { setShownGraph } from '@/lib/shown-graphs'
 
 import { GraphBody } from './graph-body'
 
@@ -86,6 +88,15 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
     () => drawnGraph(raw, { collapseVersions: grouped, groupSynonyms: grouped, sharedOnly }),
     [raw, grouped, sharedOnly],
   )
+  // for an email of the answer: draw the graph as it's shown here
+  useEffect(() => {
+    setShownGraph(graph, {
+      graph: raw,
+      view: choice,
+      options: { collapseVersions: grouped, groupSynonyms: grouped, sharedOnly, variables },
+      forcePositions,
+    })
+  }, [graph, raw, choice, grouped, sharedOnly, variables, forcePositions])
   // what was asked about, in this graph (all results, or the one call shown)
   const asked = merged.nodes.filter((n) => n.seed).map((n) => n.label)
   const title = (

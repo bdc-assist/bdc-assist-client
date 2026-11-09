@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Chat header</title>
+<!-- Design scratch page, not part of the app build. Open via the dev server:
+     npm run dev, then /design/header.html. Where the chat's top controls go (sidebar toggle, New
+     conversation, theme) now that text scrolls under the floating buttons on narrow windows: today's
+     floating buttons, the same over a fading strip, or a header bar (with the conversation title, the app
+     name, or nothing in the middle). Each frame is scrolled part way, so text sits under the top.
+     Chosen 2026-10-29: header bar (40px, was 48 here), ghost buttons, conversation title centred
+     (components/bdc/chat-header.tsx). -->
+<style>
+  :root { --bg: #ffffff; --fg: #0a0a0a; --muted: #737373; --muted-bg: #f5f5f5; --line: #e5e5e5;
+    --sidebar: #fafafa; --user-bubble: #f5f5f5; --overlay: rgb(0 0 0 / 0.5); }
+  :root[data-theme="dark"] { --bg: #0a0a0a; --fg: #fafafa; --muted: #a1a1a1; --muted-bg: #262626;
+    --line: rgb(255 255 255 / 0.1); --sidebar: #171717; --user-bubble: #262626; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px 24px 48px; background: var(--bg); color: var(--fg);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 28px 0 4px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .note { color: var(--muted); font-size: 13px; margin: 2px 0 10px; max-width: 760px; }
+  .controls { position: sticky; top: 0; z-index: 30; display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center;
+    padding: 10px 0; background: var(--bg); border-bottom: 1px solid var(--line); margin-bottom: 8px; font-size: 13px; }
+  .controls label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .controls select { font: inherit; }
+  button { font: inherit; color: inherit; }
+  svg { flex-shrink: 0; }
+
+  .app { position: relative; display: flex; height: 460px; border: 1px solid var(--line); border-radius: 10px;
+    overflow: hidden; background: var(--bg); }
+  .main { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+  /* sidebar, much simplified */
+  .sidebar { width: 256px; flex-shrink: 0; display: flex; flex-direction: column; background: var(--sidebar);
+    border-right: 1px solid var(--line); }
+  .sidebar.sheet { position: absolute; z-index: 11; top: 0; bottom: 0; left: 0; width: min(288px, 85%);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.2); border-right: 0; }
+  .sheet-backdrop { position: absolute; inset: 0; z-index: 10; background: var(--overlay); }
+  .side-head { display: flex; align-items: center; gap: 8px; padding: 12px; border-bottom: 1px solid var(--line);
+    font-weight: 600; }
+  .side-head img { width: 28px; height: 28px; }
+  .side-list { padding: 8px; display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+  .side-list div { padding: 6px 10px; border-radius: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .side-list .new { display: flex; align-items: center; gap: 8px; }
+  .side-list .active { background: var(--muted-bg); }
+
+  /* the buttons: round outlined (today) or plain ghost icons */
+  .btn { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--bg); cursor: pointer; }
+  .btn.ghost { border-color: transparent; background: transparent; border-radius: 6px; }
+  .btn:hover { background: var(--muted-bg); }
+
+  /* floating: absolutely placed over the thread */
+  .float-left, .float-right { position: absolute; top: 12px; z-index: 5; display: flex; gap: 8px; }
+  .float-left { left: 16px; }
+  .float-right { right: 24px; }
+  .strip { position: absolute; top: 0; left: 0; right: 0; height: 64px; z-index: 4; pointer-events: none;
+    background: linear-gradient(var(--bg) 60%, transparent); }
+
+  /* header bar */
+  .header { flex-shrink: 0; display: flex; align-items: center; gap: 4px; height: 40px; padding: 0 8px;
+    border-bottom: 1px solid var(--line); background: var(--bg); }
+  .header.borderless { border-bottom-color: transparent; }
+  .header .title { flex: 1; min-width: 0; text-align: center; font-size: 14px; font-weight: 500; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  .header .title.left { text-align: left; }
+  .header .slot { display: flex; gap: 4px; min-width: 72px; }
+  .header .slot.right { justify-content: flex-end; }
+
+  /* thread */
+  .thread { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 16px 0; }
+  .thread-inner { max-width: 44rem; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  .user { align-self: flex-end; max-width: 85%; background: var(--user-bubble); border-radius: 18px; padding: 8px 14px; }
+  .answer p { margin: 0 0 10px; line-height: 1.6; }
+  .composer { max-width: 44rem; width: calc(100% - 32px); margin: 12px auto 16px; border: 1px solid var(--line);
+    border-radius: 20px; padding: 10px 14px; color: var(--muted); flex-shrink: 0; }
+</style>
+</head>
+<body>
+<h1>Chat header</h1>
+<p class="muted">Where the sidebar toggle, New conversation and the theme toggle go. Each frame is scrolled part
+  way so text sits under the top, as it does mid-conversation; scroll a frame to see more. New conversation shows
+  only while the sidebar is hidden, as now.</p>
+<div id="root"></div>
+
+<script type="module">
+import { createElement as h, Fragment, useEffect, useRef, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import { MoonIcon, PanelLeftIcon, PlusIcon, SunIcon } from 'lucide-react'
+
+const TITLE = 'What studies have kidney disease variables?'
+const PARAS = [
+  'BDC has several studies with kidney disease variables. The largest are the Chronic Renal Insufficiency Cohort (CRIC), the Jackson Heart Study and MESA, which record eGFR, serum creatinine and urine albumin at several visits.',
+  'In PIC-SURE you can search for "kidney" or "eGFR" to see how many participants each study has with those variables, before you request access. The concept graph below links the kidney disease concepts Dug found to the studies and variables it matched.',
+  'Most of these studies are available through dbGaP. Once your Data Access Request is approved, the data shows up in your Terra or Seven Bridges workspace.',
+  'For a cohort across studies, start from the concept rather than a single variable name: the same measurement is often named differently in each study.',
+]
+
+function Thread() {
+  const ref = useRef(null)
+  // scrolled part way, as mid-conversation
+  useEffect(() => { if (ref.current) ref.current.scrollTop = 90 }, [])
+  return h('div', { className: 'thread', ref },
+    h('div', { className: 'thread-inner' },
+      h('div', { className: 'user' }, TITLE),
+      h('div', { className: 'answer' }, PARAS.map((p, i) => h('p', { key: i }, p))),
+      h('div', { className: 'user' }, 'Which of those have eGFR at more than one visit?'),
+      h('div', { className: 'answer' }, PARAS.slice(0, 2).map((p, i) => h('p', { key: i }, p)))))
+}
+
+function Sidebar({ sheet, onClose }) {
+  return h(Fragment, null,
+    sheet && h('div', { className: 'sheet-backdrop', onClick: onClose }),
+    h('aside', { className: `sidebar${sheet ? ' sheet' : ''}` },
+      h('div', { className: 'side-head' }, h('img', { src: '/favicon.svg', alt: '' }), 'BDC Assist'),
+      h('div', { className: 'side-list' },
+        h('div', { className: 'new' }, h(PlusIcon, { size: 16 }), 'New conversation'),
+        h('div', { className: 'active' }, TITLE),
+        h('div', null, 'How do I get started with Terra on BDC?'),
+        h('div', null, 'What is PIC-SURE and how do I access it?'))))
+}
+
+function Frame({ width, o }) {
+  const narrow = width < 768
+  const [open, setOpen] = useState(o.sidebarOpen && !narrow)
+  useEffect(() => setOpen(o.sidebarOpen && !narrow), [o.sidebarOpen, narrow])
+  const sidebarShown = open
+  const cls = `btn${o.ghost ? ' ghost' : ''}`
+  const toggle = h('button', { className: cls, title: open ? 'Hide conversations' : 'Show conversations',
+    onClick: () => setOpen(!open) }, h(PanelLeftIcon, { size: 16 }))
+  const newBtn = !sidebarShown && h('button', { className: cls, title: 'New conversation' }, h(PlusIcon, { size: 16 }))
+  const theme = h('button', { className: cls, title: o.dark ? 'Light mode' : 'Dark mode' },
+    o.dark ? h(SunIcon, { size: 16 }) : h(MoonIcon, { size: 16 }))
+  const middle = o.middle === 'title' ? TITLE : o.middle === 'app' ? 'BDC Assist' : ''
+  const header = o.layout.startsWith('header')
+  return h('div', { className: 'app', style: { width } },
+    sidebarShown && !narrow && h(Sidebar, {}),
+    h('div', { className: 'main' },
+      header
+        ? h('div', { className: `header${o.layout === 'header-borderless' ? ' borderless' : ''}` },
+            h('div', { className: 'slot' }, toggle, newBtn),
+            h('div', { className: `title${o.titleLeft ? ' left' : ''}` }, middle),
+            h('div', { className: 'slot right' }, theme))
+        : h(Fragment, null,
+            o.layout === 'strip' && h('div', { className: 'strip' }),
+            h('div', { className: 'float-left' }, toggle, newBtn),
+            h('div', { className: 'float-right' }, theme)),
+      h(Thread),
+      h('div', { className: 'composer' }, 'Send a message...')),
+    sidebarShown && narrow && h(Sidebar, { sheet: true, onClose: () => setOpen(false) }),
+  )
+}
+
+const NOTES = {
+  float: 'Today: round outlined buttons floating over the thread. On narrow windows text runs under them.',
+  strip: 'Floating buttons over a strip that fades from the page colour, so scrolled text is hidden under them. ' +
+    'No structure change; nothing in the middle.',
+  header: 'A 40px header bar above the thread, with a bottom border: the thread scrolls below it, so nothing overlaps ' +
+    'at any width.',
+  'header-borderless': 'The same header bar without the border: lighter, but the edge where text scrolls away is ' +
+    'less clear.',
+}
+
+function Page() {
+  const [layout, setLayout] = useState('header')
+  const [middle, setMiddle] = useState('title')
+  const [titleLeft, setTitleLeft] = useState(false)
+  const [ghost, setGhost] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [dark, setDark] = useState(false)
+  useEffect(() => { document.documentElement.dataset.theme = dark ? 'dark' : 'light' }, [dark])
+  const o = { layout, middle, titleLeft, ghost, sidebarOpen, dark }
+  const check = (text, value, set) =>
+    h('label', null, h('input', { type: 'checkbox', checked: value, onChange: (e) => set(e.target.checked) }), text)
+  const header = layout.startsWith('header')
+  return h(Fragment, null,
+    h('div', { className: 'controls' },
+      h('label', null, 'Layout ',
+        h('select', { value: layout, onChange: (e) => {
+          setLayout(e.target.value)
+          setGhost(e.target.value.startsWith('header'))
+        } },
+          h('option', { value: 'float' }, 'floating (today)'),
+          h('option', { value: 'strip' }, 'floating over a fade'),
+          h('option', { value: 'header' }, 'header bar'),
+          h('option', { value: 'header-borderless' }, 'header bar, no border'))),
+      header && h('label', null, 'Middle ',
+        h('select', { value: middle, onChange: (e) => setMiddle(e.target.value) },
+          h('option', { value: 'title' }, 'conversation title'),
+          h('option', { value: 'app' }, 'BDC Assist'),
+          h('option', { value: 'none' }, 'nothing'))),
+      header && middle !== 'none' && check('title on the left', titleLeft, setTitleLeft),
+      check('ghost buttons (else round outlined)', ghost, setGhost),
+      check('sidebar open (wide frames)', sidebarOpen, setSidebarOpen),
+      check('dark', dark, setDark),
+    ),
+    h('p', { className: 'note' }, NOTES[layout]),
+    [1100, 760, 390].map((w) => h(Fragment, { key: w },
+      h('h2', null, `${w}px window`),
+      h(Frame, { width: w, o }))),
+  )
+}
+
+createRoot(document.getElementById('root')).render(h(Page))
+</script>
+</body>
+</html>

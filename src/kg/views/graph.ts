@@ -6,6 +6,7 @@ import { largestBundle, toElements } from './elements'
 import { carryFocus, focusConnections, isPair, sameFocus, type KgFocus } from '../model/focus'
 import { arrangeForce as settleForce } from './force'
 import { arrangeRadial, type Box } from './radial'
+import { IMAGE_SCALE, rasterize } from './raster'
 import { styleFor } from './style'
 import type { KgGraph } from '../model/types'
 import type { KgLayout, KgView, KgViewOptions } from './view'
@@ -276,6 +277,11 @@ export function mountGraph(container: HTMLElement, graph: KgGraph, options: Grap
     },
     refreshStyle() {
       cy.style(styleFor(container))
+    },
+    // Cytoscape draws the whole graph (full) in model coordinates, whatever the zoom
+    image({ background = '#ffffff' } = {}) {
+      const png = cy.png({ full: true, scale: IMAGE_SCALE, bg: background, output: 'base64uri' })
+      return rasterize(png, background)
     },
     destroy() {
       container.removeEventListener('wheel', onWheel)

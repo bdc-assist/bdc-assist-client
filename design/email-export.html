@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Email export</title>
+<!-- Design scratch page, not part of the app build. Open via the dev server:
+     npm run dev, then /design/email-export.html. "Copy for email": the conversation (or one question and
+     answer) copied to the clipboard as HTML + plain text, then a mailto: with only the subject opens the
+     user's mail client to paste into. Sources are left out (user, 2026-10-30: there can be a lot).
+     Also a paste test: does a knowledge graph image survive being pasted into Gmail, Outlook, Apple Mail?
+     The email sets no text or background colours, so it follows the client's light or dark mode.
+     The graphs are drawn by the real src/kg (Force via mountGraph, Flow via mountFlow) from the
+     asthma + COPD fixture, in light colours on white whatever the theme (one image has to read in
+     both), then turned into PNGs: Force by
+     stacking Cytoscape's canvases (the app would add an image() to the KgView API instead), Flow by
+     inlining computed styles into a copy of its SVG and drawing that onto a canvas. -->
+<style>
+  :root { --bg: #ffffff; --fg: #0a0a0a; --muted: #737373; --muted-bg: #f5f5f5; --line: #e5e5e5; --ok: #15803d; --bad: #b91c1c; }
+  :root[data-theme="dark"] { --bg: #0a0a0a; --fg: #fafafa; --muted: #a1a1a1; --muted-bg: #262626;
+    --line: rgb(255 255 255 / 0.1); --ok: #4ade80; --bad: #f87171; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; padding: 16px 24px 48px; background: var(--bg); color: var(--fg);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 28px 0 4px; }
+  .note { color: var(--muted); font-size: 13px; margin: 2px 0 10px; max-width: 760px; }
+  .controls { position: sticky; top: 0; z-index: 30; display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center;
+    padding: 10px 0; background: var(--bg); border-bottom: 1px solid var(--line); margin-bottom: 8px; font-size: 13px; }
+  .controls label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .controls select { font: inherit; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+  .actions button { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 6px 12px; }
+  .actions button.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .actions button:hover { background: var(--muted-bg); }
+  .actions button.primary:hover { opacity: 0.85; background: var(--fg); }
+  .status { font-size: 13px; color: var(--muted); }
+  .status.ok { color: var(--ok); }
+  .status.bad { color: var(--bad); }
+
+  /* the mail client's compose window, roughly; it follows the page theme, as a dark-mode client
+     would (the email sets no text or background colours of its own) */
+  .mail { max-width: 760px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .mail-head { display: grid; grid-template-columns: 64px 1fr; gap: 4px 8px; padding: 10px 14px; font-size: 13px;
+    background: var(--muted-bg); border-bottom: 1px solid var(--line); }
+  .mail-head span:nth-child(odd) { color: var(--muted); }
+  .mail-body { background: var(--bg); color: var(--fg); padding: 16px 18px; }
+
+  /* the graphs as src/kg draws them, in the app's light colours */
+  .captures { display: flex; flex-wrap: wrap; gap: 16px; }
+  .capture { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+  .kg { width: 720px; max-width: 100%; height: 440px; background: #ffffff; border: 1px solid var(--line); border-radius: 8px;
+    --kg-label: #737373; --kg-edge: #a1a1a1; --kg-selected: #0a0a0a; }
+  .kg.flow { height: auto; min-height: 200px; overflow: auto; }
+
+  /* the control: a mock thread, each answer with its action bar */
+  .thread { max-width: 760px; border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex;
+    flex-direction: column; gap: 12px; }
+  .user { align-self: flex-end; max-width: 85%; background: var(--muted-bg); border-radius: 18px; padding: 8px 14px; }
+  .answer p { margin: 0 0 6px; }
+  .answer .graph-stub { height: 64px; border: 1px dashed var(--line); border-radius: 8px; display: flex; align-items: center;
+    justify-content: center; color: var(--muted); font-size: 13px; margin: 6px 0; }
+  .bar { display: flex; gap: 2px; margin-left: -6px; color: var(--muted); }
+  .icon-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0;
+    border-radius: 6px; background: transparent; color: inherit; }
+  .icon-btn:hover { background: var(--muted-bg); color: var(--fg); }
+
+  /* the dialog, roughly shadcn's */
+  dialog { width: min(420px, calc(100% - 32px)); border: 1px solid var(--line); border-radius: 10px; padding: 20px;
+    background: var(--bg); color: var(--fg); box-shadow: 0 10px 30px rgb(0 0 0 / 0.2); }
+  dialog::backdrop { background: rgb(0 0 0 / 0.5); }
+  dialog h3 { font-size: 16px; margin: 0 0 14px; }
+  dialog fieldset { border: 0; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  dialog legend { font-weight: 500; margin-bottom: 6px; padding: 0; }
+  dialog label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  dialog .buttons { display: flex; align-items: center; gap: 8px; margin-top: 20px; }
+  dialog .buttons .spacer { flex: 1; }
+  dialog .buttons button { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 6px 12px; }
+  dialog .buttons button.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  dialog .link { border: 0 !important; padding: 6px 4px !important; color: var(--muted); text-decoration: underline;
+    text-underline-offset: 3px; }
+
+  /* sonner's default toast, roughly: bottom right, a card that slides up and leaves after 4 s */
+  .toaster { position: fixed; z-index: 100; right: 24px; bottom: 24px; display: flex; flex-direction: column; gap: 8px; }
+  .toast { display: flex; align-items: center; gap: 8px; width: 356px; max-width: calc(100vw - 48px); padding: 14px 16px;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font-size: 13px;
+    box-shadow: 0 4px 12px rgb(0 0 0 / 0.1); animation: toast-in 0.3s ease-out; }
+  .toast.bad svg { color: var(--bad); }
+  .toast.leaving { opacity: 0; transform: translateY(8px); transition: opacity 0.2s, transform 0.2s; }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(16px); } }
+  @media (max-width: 600px) { .toaster { left: 16px; right: 16px; bottom: 16px; } .toast { width: auto; } }
+
+  ol.checks { max-width: 760px; padding-left: 20px; }
+  ol.checks li { margin: 4px 0; }
+  code { font-size: 12px; background: var(--muted-bg); padding: 1px 4px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<h1>Email export</h1>
+<p class="note">"Copy for email" puts the email below on the clipboard (HTML, with a plain-text copy for clients that
+  only take text), then opens the mail client with just the subject filled in; the user pastes. A plain
+  <code>mailto:</code> body can't carry HTML or images and long ones get cut off. Sources are left out.</p>
+
+<div class="controls">
+  <label>Scope
+    <select id="scope">
+      <option value="single">One question and answer (answer's ⋯ menu)</option>
+      <option value="full">Whole conversation (header button)</option>
+    </select>
+  </label>
+  <label>Graph in the email
+    <select id="graph">
+      <option value="force">Image: Force</option>
+      <option value="flow">Image: Flow</option>
+      <option value="table">Table of studies (no image)</option>
+      <option value="line">One line, no graph</option>
+    </select>
+  </label>
+  <label>Page theme
+    <select id="theme"><option value="light">Light</option><option value="dark">Dark</option></select>
+  </label>
+</div>
+
+<h2>The control</h2>
+<p class="note">One envelope button in each answer's action bar (next to Copy), no header button: its dialog also
+  covers the whole conversation. Scope defaults to the answer clicked; "Whole conversation" is hidden in a
+  one-question conversation; the graph checkbox shows only when the chosen part has a graph, which goes in as the
+  view it's showing in the app. The last choices are remembered in this browser. After copying, a toast says to
+  paste (the status line under the thread stands in for it). "Copy only" is for webmail users whose <code>mailto:</code> opens the wrong
+  app, or nothing.</p>
+<div class="controls" style="position: static">
+  <label>Conversation
+    <select id="length"><option value="2">Two questions</option><option value="1">One question</option></select>
+  </label>
+  <label>After copying
+    <select id="confirm">
+      <option value="toast">Toast (shadcn sonner)</option>
+      <option value="icon">Envelope turns into a check</option>
+    </select>
+  </label>
+</div>
+<div class="thread" id="thread"></div>
+<p class="status" id="dlg-status" role="status"></p>
+
+<dialog id="email-dialog" aria-labelledby="email-title">
+  <form method="dialog">
+    <h3 id="email-title">Email</h3>
+    <fieldset id="scope-set">
+      <legend>Include</legend>
+      <label><input type="radio" name="scope" value="single" checked /> This question and answer</label>
+      <label id="scope-full"><input type="radio" name="scope" value="full" /> <span></span></label>
+    </fieldset>
+    <label id="graph-row"><input type="checkbox" id="with-graph" checked /> <span></span></label>
+    <div class="buttons">
+      <button type="button" class="link" id="dlg-copy">Copy only</button>
+      <span class="spacer"></span>
+      <button value="cancel">Cancel</button>
+      <button type="button" class="primary" id="dlg-open">Copy and open email</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toaster" id="toaster" aria-live="polite"></div>
+
+<h2>Paste test</h2>
+<p class="note">Copy, paste into a new message in each mail client, and send it to yourself: some clients keep a pasted
+  image in the draft and drop it on send. "Copy image only" is the fallback if the HTML copy loses the image: a
+  plain picture on the clipboard, which most clients take as an attachment or inline image.</p>
+<div class="actions">
+  <button class="primary" id="copy-open">Copy and open email</button>
+  <button id="copy">Copy email only</button>
+  <button id="copy-image">Copy image only</button>
+  <span class="status" id="status" role="status"></span>
+</div>
+<ol class="checks">
+  <li>Gmail (web): does the graph show in the draft? In the received message?</li>
+  <li>Outlook (web, and desktop if you have it): the same.</li>
+  <li>Apple Mail / Thunderbird, if handy.</li>
+  <li>In each: are headings, the list and links intact, and is the graph a sensible width?</li>
+</ol>
+
+<h2>The email</h2>
+<p class="note">Exactly the HTML that gets copied, shown as the recipient would see it.</p>
+<div class="mail">
+  <div class="mail-head"><span>To</span><span></span><span>Subject</span><span id="subject"></span></div>
+  <div class="mail-body" id="preview"></div>
+</div>
+
+<h2>The graphs, as drawn for capture</h2>
+<p class="note">Drawn by the app's own code in light colours, on white. The recipient's theme can't be known (many read
+  mail in dark mode) and a pasted email can't swap images by theme, so the graph is one image that reads in both: a
+  white figure, like a chart in a document. Force is deterministic: the same graph always gets the same layout, so a graph the user never
+  scrolled to can be drawn off screen and still match.</p>
+<div class="captures">
+  <div class="capture">Force<div class="kg" id="kg-force"></div></div>
+  <div class="capture">Flow<div class="kg flow" id="kg-flow"></div></div>
+</div>
+
+<script type="module">
+import { mountGraph, mountFlow, drawnGraph, studyList } from '/src/kg/index.ts'
+import graph from '/src/kg/fixtures/graph/concept_graph_2.json'
+
+const $ = (id) => document.getElementById(id)
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+
+// ---- draw the graphs (light colours: set on .kg) ----
+const force = mountGraph($('kg-force'), graph, { layout: 'force' })
+mountFlow($('kg-flow'), graph)
+
+const settle = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 300))))
+
+// Force: Cytoscape draws in a few stacked canvases; stack them onto one, over white
+async function forcePng() {
+  force.fit()
+  await settle()
+  const layers = [...$('kg-force').querySelectorAll('canvas')]
+  const { width, height } = layers[0]
+  const out = Object.assign(document.createElement('canvas'), { width, height })
+  const ctx = out.getContext('2d')
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, width, height)
+  for (const c of layers) ctx.drawImage(c, 0, 0)
+  return { url: out.toDataURL('image/png'), width: $('kg-force').clientWidth, height: $('kg-force').clientHeight }
+}
+
+// Flow: an SVG styled with var() and color-mix(); copy it with every computed paint inlined,
+// so it draws the same as a standalone image, then rasterize at 2x
+const PAINT = ['fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'opacity', 'font-size',
+  'font-weight', 'font-family', 'paint-order', 'stroke-linejoin', 'display', 'visibility']
+async function flowPng() {
+  const svg = $('kg-flow').querySelector('svg')
+  const copy = svg.cloneNode(true)
+  const from = [svg, ...svg.querySelectorAll('*')]
+  const to = [copy, ...copy.querySelectorAll('*')]
+  from.forEach((el, i) => {
+    const css = getComputedStyle(el)
+    to[i].setAttribute('style', PAINT.map((p) => `${p}:${css.getPropertyValue(p)}`).join(';'))
+  })
+  copy.querySelectorAll('title').forEach((t) => t.remove())
+  copy.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+  const width = Number(svg.getAttribute('width'))
+  const height = Number(svg.getAttribute('height'))
+  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+  Object.entries({ width, height, fill: '#ffffff' }).forEach(([k, v]) => bg.setAttribute(k, v))
+  copy.prepend(bg)
+  const blob = new Blob([new XMLSerializer().serializeToString(copy)], { type: 'image/svg+xml' })
+  const img = new Image()
+  img.src = URL.createObjectURL(blob)
+  await img.decode()
+  const out = Object.assign(document.createElement('canvas'), { width: width * 2, height: height * 2 })
+  const ctx = out.getContext('2d')
+  ctx.scale(2, 2)
+  ctx.drawImage(img, 0, 0)
+  URL.revokeObjectURL(img.src)
+  return { url: out.toDataURL('image/png'), width, height }
+}
+
+// ---- the sample conversation (the graph comes from the fixture) ----
+const drawn = drawnGraph(graph)
+const studies = studyList(drawn).filter((s) => s.study).sort((a, b) => b.variables.length - a.variables.length)
+const nVariables = drawn.nodes.filter((n) => n.type === 'variable').length
+const studyUrl = (id) => `https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=${encodeURIComponent(id)}`
+const TITLE = 'Studies with asthma and COPD variables'
+
+const turns = [
+  {
+    question: 'Which studies have variables about both asthma and COPD?',
+    answer: [
+      { p: `I found <b>${studies.length} studies</b> with variables linked to asthma or COPD (${nVariables} variables in all). The largest are:` },
+      { ul: studies.slice(0, 3).map((s) => `<a href="${studyUrl(s.study.id)}">${esc(s.study.label)}</a> (${esc(s.study.id)}): ${s.variables.length} variables`) },
+      { p: 'Access to individual-level data is requested through dbGaP; see <a href="https://biodatacatalyst.nhlbi.nih.gov/">BDC</a> for how to apply.' },
+    ],
+    graph: true,
+  },
+  {
+    question: 'How do those studies measure lung function?',
+    answer: [
+      { p: 'Mostly with spirometry. The variables cover:' },
+      { ul: ['FEV1 and FVC, before and after a bronchodilator', 'FEV1/FVC ratio', 'Percent predicted values, by reference equation'] },
+      { p: 'Some studies also record peak expiratory flow from home diaries.' },
+    ],
+  },
+]
+
+// ---- the email, as HTML (inline styles only: mail clients drop stylesheets) and plain text ----
+// No text or background colours: dark-mode clients (Yahoo) darken the background but keep a set
+// text colour, so near-black text went dark on dark, and a grey question box stayed a bright box.
+// Greys are mid-grey (#8a8a8a), which reads on white and on dark; the graph image keeps its white.
+const GREY = '#8a8a8a'
+const S = {
+  wrap: 'font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;max-width:680px',
+  h: 'font-size:16px;font-weight:bold;margin:0 0 12px',
+  q: `margin:16px 0 8px;padding:2px 0 2px 12px;border-left:3px solid ${GREY}`,
+  qLabel: `display:block;font-size:12px;color:${GREY}`,
+  p: 'margin:0 0 10px',
+  ul: 'margin:0 0 10px;padding-left:22px',
+  a: 'color:#00758D',
+  img: `display:block;max-width:100%;height:auto;border:1px solid ${GREY};border-radius:6px;margin:4px 0 12px`,
+  caption: `font-size:12px;color:${GREY};margin:0 0 12px`,
+  table: 'border-collapse:collapse;margin:4px 0 12px;font-size:13px',
+  td: `border:1px solid ${GREY};padding:4px 8px;text-align:left;vertical-align:top`,
+  foot: `margin-top:20px;padding-top:10px;border-top:1px solid ${GREY};font-size:12px;color:${GREY}`,
+}
+const styled = (html) => html.replace(/<a /g, `<a style="${S.a}" `)
+const date = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+
+function graphHtml(mode, image) {
+  const what = `${studies.length} studies, ${nVariables} variables (asthma, COPD)`
+  if (mode === 'line') return `<p style="${S.caption}">A knowledge graph of ${what} was shown here in BDC Assist.</p>`
+  if (mode === 'table') {
+    const rows = studies.map((s) => `<tr><td style="${S.td}">${esc(s.study.label)}<br><span style="color:${GREY}">${esc(s.study.id)}</span></td>`
+      + `<td style="${S.td}">${s.concepts.map((c) => esc(c.label)).join(', ')}</td><td style="${S.td};text-align:right">${s.variables.length}</td></tr>`)
+    return `<table style="${S.table}"><tr><th style="${S.td}">Study</th><th style="${S.td}">Concepts</th><th style="${S.td}">Variables</th></tr>${rows.join('')}</table>`
+  }
+  const w = Math.min(640, image.width)
+  return `<img src="${image.url}" width="${w}" alt="Knowledge graph: ${what}" style="${S.img}">`
+    + `<p style="${S.caption}">Knowledge graph (${mode === 'flow' ? 'Flow' : 'Force'} view): ${what}</p>`
+}
+
+// the turns an email holds: one (the answer clicked) or all of them
+const pick = (scope, index = 0, all = turns) => (scope === 'single' ? [all[index]] : all)
+
+function emailHtml(shown, mode, image) {
+  const body = shown.map((t) => {
+    const parts = t.answer.map((b) => b.p ? `<p style="${S.p}">${styled(b.p)}</p>`
+      : `<ul style="${S.ul}">${b.ul.map((li) => `<li>${styled(li)}</li>`).join('')}</ul>`)
+    return `<div style="${S.q}"><span style="${S.qLabel}">Question</span>${esc(t.question)}</div>`
+      + parts.join('') + (t.graph ? graphHtml(mode, image) : '')
+  }).join('')
+  return `<div style="${S.wrap}"><p style="${S.h}">BDC Assist · ${esc(TITLE)}</p>${body}`
+    + `<p style="${S.foot}">Generated by BDC Assist on ${date}.</p></div>`
+}
+
+function emailText(shown, mode) {
+  const plain = (h) => h.replace(/<a href="([^"]*)">([^<]*)<\/a>/g, '$2 ($1)').replace(/<[^>]+>/g, '')
+  const lines = [`BDC Assist · ${TITLE}`, '']
+  for (const t of shown) {
+    lines.push(`Question: ${t.question}`, '')
+    for (const b of t.answer) b.p ? lines.push(plain(b.p), '') : lines.push(...b.ul.map((li) => `- ${plain(li)}`), '')
+    if (t.graph) lines.push(mode === 'table'
+      ? studies.map((s) => `- ${s.study.label} (${s.study.id}): ${s.variables.length} variables`).join('\n')
+      : `[Knowledge graph: ${studies.length} studies, ${nVariables} variables, shown in BDC Assist]`, '')
+  }
+  lines.push(`Generated by BDC Assist on ${date}.`)
+  return lines.join('\n')
+}
+
+// ---- page wiring ----
+let image = null
+async function render() {
+  const scope = $('scope').value
+  const mode = $('graph').value
+  image = mode === 'force' ? await forcePng() : mode === 'flow' ? await flowPng() : null
+  $('subject').textContent = `BDC Assist: ${TITLE}`
+  $('preview').innerHTML = emailHtml(pick(scope), mode, image)
+}
+
+function status(text, ok = true, where = 'status') {
+  $(where).textContent = text
+  $(where).className = `status ${ok ? 'ok' : 'bad'}`
+}
+
+// copy `shown` as HTML + text; returns the HTML's size in KB
+async function copyEmail(shown, mode, img) {
+  const html = emailHtml(shown, mode, img)
+  await navigator.clipboard.write([new ClipboardItem({
+    'text/html': new Blob([html], { type: 'text/html' }),
+    'text/plain': new Blob([emailText(shown, mode)], { type: 'text/plain' }),
+  })])
+  return Math.round(html.length / 1024)
+}
+const copy = () => copyEmail(pick($('scope').value), $('graph').value, image)
+
+// ---- the control: envelope button → dialog ----
+const MAIL_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>'
+const COPY_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>'
+const REFRESH_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>'
+
+const remembered = () => { try { return JSON.parse(localStorage.getItem('bdc-email-design') ?? '{}') } catch { return {} } }
+const remember = (v) => { try { localStorage.setItem('bdc-email-design', JSON.stringify(v)) } catch { /* fine without */ } }
+
+const thread = () => turns.slice(0, Number($('length').value))
+let clicked = 0
+
+function drawThread() {
+  $('thread').innerHTML = thread().map((t, i) => `<div class="user">${esc(t.question)}</div>
+    <div class="answer">${t.answer.filter((b) => b.p).slice(0, 1).map((b) => `<p>${b.p}</p>`).join('')}
+      ${t.graph ? '<div class="graph-stub">knowledge graph</div>' : ''}
+      <div class="bar">
+        <button class="icon-btn" title="Copy">${COPY_ICON}</button>
+        <button class="icon-btn" title="Email" data-email="${i}">${MAIL_ICON}</button>
+        <button class="icon-btn" title="Refresh">${REFRESH_ICON}</button>
+      </div></div>`).join('')
+  $('thread').querySelectorAll('[data-email]').forEach((b) => (b.onclick = () => openDialog(Number(b.dataset.email))))
+}
+
+const chosenScope = () => document.querySelector('input[name="scope"]:checked').value
+// the dialog's rows follow the scope: "Whole conversation" only with more than one question;
+// the graph checkbox only when the chosen part has a graph
+function syncDialog() {
+  const all = thread()
+  $('scope-full').hidden = all.length < 2
+  if (all.length < 2) document.querySelector('input[name="scope"][value="single"]').checked = true
+  $('scope-full').querySelector('span').textContent = `Whole conversation (${all.length} questions)`
+  const graphs = pick(chosenScope(), clicked, all).filter((t) => t.graph).length
+  $('graph-row').hidden = graphs === 0
+  $('graph-row').querySelector('span').textContent = graphs > 1 ? `Include knowledge graphs (${graphs})` : 'Include knowledge graph'
+}
+
+function openDialog(index) {
+  clicked = index
+  const last = remembered()
+  document.querySelector(`input[name="scope"][value="${last.scope ?? 'single'}"]`).checked = true
+  $('with-graph').checked = last.graph ?? true
+  syncDialog()
+  $('email-dialog').showModal()
+}
+document.querySelectorAll('input[name="scope"]').forEach((r) => (r.onchange = syncDialog))
+
+async function send(open) {
+  const scope = chosenScope()
+  const withGraph = $('with-graph').checked
+  remember({ scope, graph: withGraph })
+  const shown = pick(scope, clicked, thread())
+  const hasGraph = shown.some((t) => t.graph)
+  // the view the graph shows in the app: Force here
+  const img = withGraph && hasGraph ? await forcePng() : null
+  try {
+    const kb = await copyEmail(shown, img ? 'force' : 'line', img)
+    $('email-dialog').close()
+    status(`Copied ${kb} KB of HTML.`, true, 'dlg-status')
+    confirmCopy(open ? 'Copied. Paste it into the new message.' : 'Copied. Paste it into an email.')
+    if (open) location.href = `mailto:?subject=${encodeURIComponent(`BDC Assist: ${TITLE}`)}`
+  } catch (e) {
+    status(`Copy failed: ${e.message}`, false, 'dlg-status')
+    if ($('confirm').value === 'toast') toast("Couldn't copy. Try again.", false)
+  }
+}
+
+const CHECK_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
+const ALERT_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>'
+
+function toast(text, ok = true) {
+  const el = document.createElement('div')
+  el.className = `toast ${ok ? '' : 'bad'}`
+  el.innerHTML = `${ok ? CHECK_ICON : ALERT_ICON}<span>${esc(text)}</span>`
+  $('toaster').append(el)
+  setTimeout(() => { el.classList.add('leaving'); setTimeout(() => el.remove(), 200) }, 4000)
+}
+
+// the toast, or the clicked answer's envelope turning into a check for 2 s (like Copy)
+function confirmCopy(text) {
+  if ($('confirm').value === 'toast') return toast(text)
+  const button = $('thread').querySelector(`[data-email="${clicked}"]`)
+  button.innerHTML = CHECK_ICON
+  button.title = 'Copied'
+  setTimeout(() => { button.innerHTML = MAIL_ICON; button.title = 'Email' }, 2000)
+}
+$('dlg-open').onclick = () => send(true)
+$('dlg-copy').onclick = () => send(false)
+$('length').onchange = drawThread
+drawThread()
+
+$('copy').onclick = async () => {
+  try { status(`Copied (${await copy()} KB of HTML). Paste into a new message.`) } catch (e) { status(`Copy failed: ${e.message}`, false) }
+}
+$('copy-open').onclick = async () => {
+  try {
+    const kb = await copy()
+    status(`Copied (${kb} KB of HTML). Paste into the message.`)
+    location.href = `mailto:?subject=${encodeURIComponent(`BDC Assist: ${TITLE}`)}`
+  } catch (e) { status(`Copy failed: ${e.message}`, false) }
+}
+$('copy-image').onclick = async () => {
+  try {
+    const shot = $('graph').value === 'flow' ? await flowPng() : await forcePng()
+    const blob = await (await fetch(shot.url)).blob()
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+    status(`Image copied (${Math.round(blob.size / 1024)} KB). Paste into a message.`)
+  } catch (e) { status(`Copy failed: ${e.message}`, false) }
+}
+
+$('scope').onchange = render
+$('graph').onchange = render
+$('theme').onchange = () => { document.documentElement.dataset.theme = $('theme').value }
+await settle()
+await render()
+</script>
+</body>
+</html>

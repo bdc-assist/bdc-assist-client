@@ -26,8 +26,8 @@ type StreamEvent =
     }
   | { type: 'error' } // the run failed; last event, no done
 
-/** What we keep on each assistant message as metadata.custom. Plain JSON,
- * so a thread can be persisted later as-is. */
+/** An answer's state while it streams; toContent turns it into the message's parts.
+ * Not stored on the message: the parts carry everything that's drawn or saved. */
 export type BdcMessageMeta = {
   node: string | null // graph node currently running; null once done
   label?: string // the server's text for that node, if it sent one
@@ -152,10 +152,7 @@ export function createBdcAdapter(
       const { meta } = state
       let failed = false // the server sent {"type": "error"}
       // the runtime replaces the message with each yield, so always send it all
-      const snapshot = () => ({
-        content: toContent(state, reveal),
-        metadata: { custom: { ...meta } },
-      })
+      const snapshot = () => ({ content: toContent(state, reveal) })
 
       let resp: Response
       try {
@@ -200,14 +197,16 @@ export function createBdcAdapter(
               meta.status = null // the tool finished
               break
             case 'sources':
-              // agent finished: sources and graphs are final
+              // agent finished: its sources and graphs, sent early. done may still
+              // add related papers to the sources (related_work) or clear both (a reject)
               meta.sources = ev.sources
               meta.graph = fromKgList(ev.kg)
               meta.graphParts = kgParts(ev.kg)
               break
             case 'done': {
               // authoritative: rejects, disclaimers and canned replies replace
-              // the streamed text, and a rejected answer has no sources or graph.
+              // the streamed text, a rejected answer has no sources or graph, and
+              // the sources gain any related papers (sources.artie) here.
               // blocked says which guardrail stopped it: the input one refused the
               // question; the output one rejected the streamed draft (a reject)
               meta.rejected = ev.blocked === 'output'

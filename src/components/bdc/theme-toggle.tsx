@@ -25,9 +25,9 @@ export function ThemeToggle() {
   return (
     <TooltipIconButton
       tooltip={dark ? 'Light mode' : 'Dark mode'}
-      side="left"
-      variant="outline"
-      className="absolute top-3 right-6 z-20 size-8 rounded-full p-2"
+      side="bottom"
+      variant="ghost"
+      className="size-8 p-2"
       onClick={() => {
         setDark(!dark)
         try {
