@@ -7,7 +7,7 @@ import { SidebarToggle } from '@/components/bdc/sidebar-toggle'
 import { ThemeToggle } from '@/components/bdc/theme-toggle'
 import { TOOLS_DEMO } from '@/components/bdc/tool-view'
 
-/** The bar above the thread: sidebar toggle and New conversation on the left, the open
+/** The bar across the top: sidebar toggle and New conversation on the left, the open
  * conversation's title in the middle (none for a new one; the browser tab shows it too), the
  * theme toggle on the right (with ?tools=demo, the Get help button before it).
  * The thread scrolls below it, so nothing sits over the text. */

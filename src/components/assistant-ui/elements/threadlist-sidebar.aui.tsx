@@ -1,6 +1,7 @@
 // bdc-assist local edits (redo after re-pulling): the header shows the app's favicon and
 // names BDC Assist instead of linking to assistant-ui, and the footer has Delete all conversations
 // and a "saved in this browser only" note instead of a GitHub link (its icon file is gone).
+// On desktop the sidebar starts below the app header (top-10 / height className on <Sidebar>).
 import type * as React from "react";
 import {
   Sidebar,
@@ -18,7 +19,8 @@ export function ThreadListSidebar({
   ...props
 }: React.ComponentProps<typeof Sidebar>) {
   return (
-    <Sidebar {...props}>
+    // desktop: starts below the app header (h-10) instead of at the top of the window
+    <Sidebar className="top-10 h-[calc(100svh-(--spacing(10)))]" {...props}>
       <SidebarHeader className="aui-sidebar-header mb-2 border-b">
         <div className="aui-sidebar-header-content flex items-center justify-between">
           <SidebarMenu>

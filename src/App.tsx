@@ -90,20 +90,27 @@ export default function App() {
       <BdcMessageParts />
       <Starters>
         <TooltipProvider>
-          <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
-            <ThreadListSidebar />
+          <SidebarProvider
+            open={sidebarOpen}
+            onOpenChange={setSidebarOpen}
+            className="h-dvh min-h-0 flex-col"
+          >
             <ConversationSwitch />
-            <SidebarInset className="h-dvh">
-              {/* the header opens a tool too (Get help) */}
-              <ToolViewProvider>
-                <ChatHeader />
-                <div className="min-h-0 flex-1">
-                  <ToolSplit>
-                    <Thread />
-                  </ToolSplit>
-                </div>
-              </ToolViewProvider>
-            </SidebarInset>
+            {/* the header opens a tool too (Get help) */}
+            <ToolViewProvider>
+              {/* full width; the sidebar slides in below it */}
+              <ChatHeader />
+              <div className="flex min-h-0 flex-1">
+                <ThreadListSidebar />
+                <SidebarInset className="min-h-0">
+                  <div className="min-h-0 flex-1">
+                    <ToolSplit>
+                      <Thread />
+                    </ToolSplit>
+                  </div>
+                </SidebarInset>
+              </div>
+            </ToolViewProvider>
             <StorageFullDialog storage={conversationStorage} />
             <EmailDialog />
           </SidebarProvider>
