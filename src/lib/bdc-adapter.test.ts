@@ -264,6 +264,20 @@ describe('data parts', () => {
     expect(names(yields[6])).not.toContain(STATUS_PART) // done
   })
 
+  it("passes on the server's label for a step, until the next step", async () => {
+    const { yields } = await run(
+      sse(
+        { type: 'node', node: 'related_work', label: 'Finding related papers…' },
+        { type: 'node', node: 'output_guardrail' },
+        done(),
+      ),
+    )
+    const statusOf = (y: ChatModelRunResult) => partsOf(y).find((p) => p.name === STATUS_PART)?.data
+    expect(statusOf(yields[0])).toEqual({ node: 'related_work', status: null, label: 'Finding related papers…' })
+    expect(statusOf(yields[1])).toEqual({ node: 'output_guardrail', status: null }) // none: the client's own
+    expect(metaOf(yields[2]).label).toBeUndefined()
+  })
+
   it('adds sources once known, and none for empty sources', async () => {
     const { yields } = await run(sse(done({ followups: [] })))
     expect(names(yields[0])).toEqual([SOURCES_PART])

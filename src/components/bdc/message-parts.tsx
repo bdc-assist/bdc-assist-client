@@ -66,12 +66,12 @@ const useRunning = () => useAuiState((s) => s.message.status?.type === 'running'
 
 const StatusUI = makeAssistantDataUI<StatusPartData>({
   name: STATUS_PART,
-  render: function StatusLine({ data: { node, status } }) {
+  render: function StatusLine({ data: { node, status, label } }) {
     if (!useRunning()) return null
     return (
       <p data-slot="bdc-status" className="text-muted-foreground my-2 flex items-center gap-1.5 text-sm">
         <LoaderCircleIcon className="size-3.5 animate-spin motion-reduce:animate-none" />
-        {status ? toolLabel(status) : (NODE_LABELS[node!] ?? `${node}…`)}
+        {status ? toolLabel(status) : (label ?? NODE_LABELS[node!] ?? `${node}…`)}
       </p>
     )
   },

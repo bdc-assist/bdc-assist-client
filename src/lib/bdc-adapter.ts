@@ -8,7 +8,7 @@ export type Source = { title: string; link: string; type: string }
 export type Sources = Record<string, Source[]> // {"bdc-doc": [...]}, deduplicated
 
 type StreamEvent =
-  | { type: 'node'; node: string }
+  | { type: 'node'; node: string; label?: string } // label: the server config's text for the step (a node's label in project.yaml)
   | { type: 'status'; text: string }
   | { type: 'token'; text: string }
   | { type: 'reset' }
@@ -30,6 +30,7 @@ type StreamEvent =
  * so a thread can be persisted later as-is. */
 export type BdcMessageMeta = {
   node: string | null // graph node currently running; null once done
+  label?: string // the server's text for that node, if it sent one
   status: string | null // latest tool-call status; cleared by reset and new nodes
   sources: Sources | null // null until the agent reports them
   graph: KgGraph | null // the knowledge graph (kg) merged; null when there is none (yet)
@@ -59,7 +60,7 @@ export type GraphPartData = { graph: KgGraph; parts: KgPart[] }
 export const FOLLOWUPS_PART = 'bdc-followups' // data: string[]
 export const UNAVAILABLE_PART = 'bdc-unavailable' // data: string[] (MCP server names)
 
-export type StatusPartData = { node: string | null; status: string | null }
+export type StatusPartData = { node: string | null; status: string | null; label?: string }
 export type DraftPartData = { words: number }
 
 type StreamState = {
@@ -88,7 +89,7 @@ export function toContent({ text, streaming, meta }: StreamState, reveal: Reveal
   // streamed tokens are the progress, so the node label steps aside for them;
   // with the text held back, the label stays
   if (meta.status || (meta.node && (hold || !streaming))) {
-    parts.push(data(STATUS_PART, { node: meta.node, status: meta.status } satisfies StatusPartData))
+    parts.push(data(STATUS_PART, { node: meta.node, status: meta.status, label: meta.label } satisfies StatusPartData))
   }
   if (!hold && meta.sources && Object.values(meta.sources).some((s) => s.length)) {
     parts.push(data(SOURCES_PART, meta.sources))
@@ -180,6 +181,7 @@ export function createBdcAdapter(
             case 'node':
               state.streaming = false
               meta.node = ev.node
+              meta.label = ev.label
               meta.status = null
               break
             case 'status':
@@ -217,6 +219,7 @@ export function createBdcAdapter(
               meta.unavailable = [...new Set((ev.mcp_errors ?? []).map((e) => e.split(':')[0].trim()))]
               meta.followups = ev.followups
               meta.node = null
+              meta.label = undefined
               meta.status = null
               meta.done = true
               break
