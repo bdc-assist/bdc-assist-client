@@ -80,6 +80,28 @@
   .disclose .chev { transition: transform 0.15s; }
   .disclose[aria-expanded="true"] .chev { transform: rotate(90deg); }
   .block.indent ul { padding-left: 20px; margin-top: 2px; }
+  .ghost-btn { align-self: flex-start; border: 1px solid var(--line); border-radius: 6px; background: transparent;
+    padding: 2px 10px; font-size: 13px; }
+  .ghost-btn:hover { background: var(--muted-bg); }
+  .demo-controls { display: flex; gap: 14px; align-items: center; font-size: 13px; color: var(--muted); }
+  .demo-controls label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+
+  /* the app's ToolCard (feature/form-filler), roughly: my-3 rounded-lg border, h-9 header, xs summary */
+  .tool-card { margin: 12px 0; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; overflow: hidden; }
+  .tc-head { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 4px 0 12px; }
+  .tc-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .foldable { cursor: pointer; user-select: none; }
+  .tc-open { display: flex; align-items: center; gap: 2px; height: 24px; padding: 0 6px 0 8px; border: 1px solid var(--line);
+    border-radius: 6px; background: var(--bg); font-size: 12px; font-weight: 500; }
+  .tc-open:hover { background: var(--muted-bg); }
+  .tc-summary { margin: -6px 0 0; padding: 0 12px 8px; color: var(--muted); font-size: 12px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .graph-view { display: block; width: 100%; height: 220px; border-top: 1px solid var(--line); }
+  .graph-view line { stroke: var(--line); stroke-width: 0.3; vector-effect: non-scaling-stroke; }
+  .graph-view ellipse { stroke: none; }
+  .graph-view .seed { fill: #b91c1c; }
+  .graph-view .concept { fill: #2563eb; }
+  .graph-view .var { fill: var(--muted); opacity: 0.6; }
 </style>
 </head>
 <body>
@@ -95,7 +117,8 @@
 import { createElement as h, Fragment, useState, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
-  BookMarkedIcon, BookOpenIcon, ChevronDownIcon, ChevronRightIcon, CopyIcon, CornerDownRightIcon, DatabaseIcon,
+  BookMarkedIcon, BookOpenIcon, ChevronDownIcon, ChevronRightIcon, ChevronsDownUpIcon, ChevronsUpDownIcon,
+  ClipboardPenIcon, createLucideIcon, CopyIcon, CornerDownRightIcon, DatabaseIcon,
   ExternalLinkIcon, LibraryBigIcon, RefreshCwIcon,
 } from 'lucide-react'
 
@@ -155,13 +178,65 @@ const citedGroup = (open, setOpen, cited, label = 'Publication') => cited.length
   h(Group, { key: 'cited', id: 'cited', open, setOpen, Icon: BookMarkedIcon, count: cited.length, tip: label },
     simplePop(plural(cited.length, label, `${label}s`), cited))
 
-function Answer({ toolbar, below, followups = true }) {
+// lucide's graph-star (newer than our lucide-react), as the app's tool-view/tools.ts draws it
+const GraphStarIcon = createLucideIcon('graph-star', [
+  ['path', { d: 'm12.342 9.316 1.764-3.527', key: 'a' }], ['path', { d: 'm12.59 14.545 2.35 3.759', key: 'b' }],
+  ['path', { d: 'm13.982 12.332 4.03.447', key: 'c' }], ['path', { d: 'M5.414 17.586 8.88 14.12', key: 'd' }],
+  ['path', { d: 'M9.025 9.742 5.317 5.505', key: 'e' }], ['circle', { cx: '11', cy: '12', r: '3', key: 'f' }],
+  ['circle', { cx: '15', cy: '4', r: '2', key: 'g' }], ['circle', { cx: '16', cy: '20', r: '2', key: 'h' }],
+  ['circle', { cx: '20', cy: '13', r: '2', key: 'i' }], ['circle', { cx: '4', cy: '19', r: '2', key: 'j' }],
+  ['circle', { cx: '4', cy: '4', r: '2', key: 'k' }],
+])
+
+// a placeholder graph: a few concepts round a seed, variables round them
+const NODES = (() => {
+  const out = [{ x: 50, y: 50, r: 9, seed: true }]
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * 2 * Math.PI, cx = 50 + 22 * Math.cos(a), cy = 50 + 30 * Math.sin(a)
+    const concept = out.push({ x: cx, y: cy, r: 6, from: 0 }) - 1
+    for (let j = 0; j < 3; j++) {
+      const b = a + (j - 1) * 0.35
+      out.push({ x: 50 + 38 * Math.cos(b), y: 50 + 44 * Math.sin(b), r: 3, from: concept })
+    }
+  }
+  return out
+})()
+const GraphView = () => h('svg', { className: 'graph-view', viewBox: '0 0 100 100', preserveAspectRatio: 'none' },
+  NODES.map((n, i) => n.from != null && h('line', { key: `l${i}`, x1: NODES[n.from].x, y1: NODES[n.from].y, x2: n.x, y2: n.y })),
+  NODES.map((n, i) => h('ellipse', { key: i, cx: n.x, cy: n.y, rx: n.r * 0.6, ry: n.r, className: n.seed ? 'seed' : n.r > 4 ? 'concept' : 'var' })))
+
+/** The app's ToolCard (feature/form-filler tool-view/card.tsx), roughly: header row (icon, name, open button,
+ * a fold chevron for one with an inline view), a summary line, then the inline view. */
+function ToolCard({ Icon, name, summary, open, children }) {
+  const [folded, setFolded] = useState(false)
+  const fold = children ? () => setFolded(!folded) : undefined
+  return h('div', { className: 'tool-card' },
+    h('div', { className: `tc-head${fold ? ' foldable' : ''}`, onClick: fold },
+      h(Icon, { className: 'i', style: { color: 'var(--muted)' } }),
+      h('span', { className: 'tc-name' }, name),
+      h('span', { style: { flex: 1 } }),
+      fold && h('button', { type: 'button', className: 'tb square', title: folded ? 'Expand' : 'Collapse',
+        onClick: (e) => { e.stopPropagation(); setFolded(!folded) } },
+        h(folded ? ChevronsUpDownIcon : ChevronsDownUpIcon, { className: 'i' })),
+      h('button', { type: 'button', className: 'tc-open', onClick: (e) => e.stopPropagation() },
+        open, h(ChevronRightIcon, { className: 'i s' }))),
+    h('p', { className: `tc-summary${fold ? ' foldable' : ''}`, onClick: fold }, summary),
+    children && !folded && children)
+}
+
+const graphCard = () => h(ToolCard, { key: 'graph', Icon: GraphStarIcon, name: 'COPD concept graph',
+  summary: '7 concepts · 18 variables · 8 studies', open: 'Explore graph' }, h(GraphView))
+const formCard = () => h(ToolCard, { key: 'form', Icon: ClipboardPenIcon, name: 'Get Help form',
+  summary: 'Request: access to COPDGene lung-function data', open: 'Edit form' })
+
+function Answer({ toolbar, below, followups = true, cards }) {
   return h(Fragment, null,
     h('div', { className: 'user' }, 'Which BDC studies measured lung function in people with COPD?'),
     h('div', { className: 'answer' },
       h('p', null, 'Several BDC studies include spirometry (FEV1, FVC) for participants with COPD, among them ',
         h('a', { className: 'cite', href: '#' }, 'COPDGene'), ' and SPIROMICS. You can find their lung-function variables with ',
         'the semantic search, then build a cohort in PIC-SURE.'),
+      cards,
       below,
       followups && h('div', { className: 'block' }, h('ul', null, FOLLOWUPS.map((f) =>
         h('li', { key: f }, h('button', { type: 'button' }, h(CornerDownRightIcon, { className: 'i m' }), f))))),
@@ -220,6 +295,42 @@ function Option3a({ c }) {
 }
 
 // ── Option 3b: one collapsed line in the answer, opening in place ──────────────────────────
+// ── Chosen: 3b, open on the latest answer ─────────────────────────────────────────────────
+/** Open while its answer is the latest, unless toggled; collapses (toggle forgotten) once a new
+ * question is sent, and can be reopened there. In the app: the user's toggle ?? message.isLast. */
+function RelatedLine({ items, last }) {
+  const [toggled, setToggled] = useState(null)
+  useEffect(() => { if (!last) setToggled(null) }, [last])
+  const shown = toggled ?? last
+  const n = items.length
+  return n > 0 && h('div', { className: 'block indent' },
+    h('button', { type: 'button', className: 'disclose', 'aria-expanded': shown, onClick: () => setToggled(!shown) },
+      h(ChevronRightIcon, { className: 'i m chev' }), h(BookMarkedIcon, { className: 'i m' }),
+      n > 1 ? `${n} related publications` : '1 related publication'),
+    shown && h('ul', null, items.map((s, i) => h('li', { key: i },
+      h('a', { href: s.link, target: '_blank', rel: 'noreferrer' }, s.title, h(ExternalLinkIcon, { className: 'i s ext' }))))))
+}
+
+function ThreadAnswer({ c, last, graph, form }) {
+  const [open, setOpen] = useState(null)
+  return h(Answer, { followups: last, below: h(RelatedLine, { items: c.related, last }),
+    cards: [graph && graphCard(), form && formCard()],
+    toolbar: baseGroups(open, setOpen, citedGroup(open, setOpen, c.cited)) })
+}
+
+function Chosen({ c }) {
+  const [count, setCount] = useState(1)
+  const [graph, setGraph] = useState(true)
+  const [form, setForm] = useState(true)
+  const check = (label, value, set) =>
+    h('label', null, h('input', { type: 'checkbox', checked: value, onChange: (e) => set(e.target.checked) }), label)
+  return h(Fragment, null,
+    h('div', { className: 'demo-controls' }, 'In the answer: ', check('Graph', graph, setGraph), check('Form', form, setForm)),
+    Array.from({ length: count }, (_, i) => h(ThreadAnswer, { key: i, c, last: i === count - 1, graph, form })),
+    h('button', { type: 'button', className: 'ghost-btn', onClick: () => setCount(count + 1) }, 'Send another question'),
+    count > 1 && h('button', { type: 'button', className: 'ghost-btn', onClick: () => setCount(1) }, 'Reset'))
+}
+
 function Option3b({ c }) {
   const [open, setOpen] = useState(null)
   const [shown, setShown] = useState(false)
@@ -244,6 +355,10 @@ function Option3c({ c }) {
 }
 
 const OPTIONS = [
+  ['Chosen · 3b, open on the latest answer', Chosen, [
+    'The collapsible line, open on the latest answer. Sending a new question collapses it; older answers can reopen theirs.',
+    'Try it: "Send another question" adds an answer. Cited papers stay in the source row ("Publication").',
+  ]],
   ['1 · Same row, two sections in the popover', Option1, [
     'One publications icon, counting both. The popover splits "Used in the answer" from "Related, not used in the answer".',
     'With related only, the popover is titled "Related publications" and says so in one line.',
