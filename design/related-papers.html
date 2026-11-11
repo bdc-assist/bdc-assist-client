@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Related papers</title>
+<!-- Design scratch page, not part of the app build. Open via the dev server:
+     npm run dev, then /design/related-papers.html.
+     bdc-assist #73: related_work's papers come back in done's `related` ({"artie": [...]} or null), beside
+     `sources`, not in them: the answer isn't based on them. Papers the agent found itself (search_publications
+     while answering) stay in sources.artie. The two lists never overlap (related skips papers already cited).
+     Options for showing the difference. Paper titles are placeholders. The source row copies SourceGroup in
+     src/components/bdc/message-parts.tsx (icons from source-types.ts). -->
+<style>
+  :root { --bg: #ffffff; --fg: #0a0a0a; --muted: #737373; --muted-bg: #f5f5f5; --line: #e5e5e5; --pop: #ffffff;
+    --bdc-link: #b91c1c; }
+  :root[data-theme="dark"] { --bg: #0a0a0a; --fg: #fafafa; --muted: #a1a1a1; --muted-bg: #262626;
+    --line: rgb(255 255 255 / 0.1); --pop: #171717; --bdc-link: #f87171; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px 24px 48px; background: var(--bg); color: var(--fg);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 32px 0 4px; }
+  .note { color: var(--muted); font-size: 13px; margin: 2px 0 10px; max-width: 760px; }
+  .note ul { margin: 4px 0; padding-left: 18px; }
+  code { font-size: 12px; background: var(--muted-bg); padding: 1px 4px; border-radius: 4px; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  a { color: inherit; text-decoration: none; }
+  .controls { position: sticky; top: 0; z-index: 40; display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center;
+    padding: 10px 0; background: var(--bg); border-bottom: 1px solid var(--line); font-size: 13px; }
+  .controls label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .controls select { font: inherit; }
+
+  /* the thread column, roughly: the app's 44rem; room below for an open popover */
+  .demo { max-width: 44rem; border: 1px solid var(--line); border-radius: 10px; padding: 16px 16px 260px;
+    display: flex; flex-direction: column; gap: 14px; }
+  .user { align-self: flex-end; max-width: 85%; background: var(--muted-bg); border-radius: 18px; padding: 8px 14px; }
+  .answer p { margin: 0 0 8px; }
+  .answer a.cite { color: var(--bdc-link); text-decoration: underline; text-underline-offset: 3px; }
+
+  /* the footer: Copy · Refresh left, source groups right, 24px buttons, muted until hovered */
+  .toolbar { display: flex; align-items: center; gap: 2px; min-height: 30px; padding-top: 6px; margin-left: -4px;
+    color: var(--muted); }
+  .toolbar .grow { flex: 1; }
+  .tb { display: flex; align-items: center; justify-content: center; gap: 2px; min-width: 24px; height: 24px;
+    padding: 0 2px 0 4px; border: 0; border-radius: 6px; background: transparent; color: inherit; font-size: 12px; }
+  .tb.square { padding: 0; }
+  .tb:hover, .tb[aria-expanded="true"] { background: var(--muted-bg); color: var(--fg); }
+  .tb.text { padding: 0 2px 0 6px; gap: 4px; }
+  .divider { width: 1px; height: 16px; background: var(--line); margin: 0 4px; }
+  .i { width: 16px; height: 16px; flex: none; }
+  .i.s { width: 12px; height: 12px; }
+  .i.m { width: 14px; height: 14px; }
+
+  /* shadcn's popover, roughly: w-80, a header, a list of links */
+  .pop-wrap { position: relative; display: flex; }
+  .pop { position: absolute; top: calc(100% + 4px); right: 0; z-index: 30; width: 320px; background: var(--pop);
+    color: var(--fg); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgb(0 0 0 / 0.12); }
+  .pop-head { padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 14px; font-weight: 500; }
+  .pop-sec { padding: 8px 12px 0; font-size: 12px; color: var(--muted); }
+  .pop-sec + ul { padding-top: 2px; }
+  .pop-sec.rule { border-top: 1px solid var(--line); margin-top: 4px; }
+  .pop-hint { padding: 0 12px; font-size: 12px; color: var(--muted); }
+  .links { list-style: none; margin: 0; padding: 4px; font-size: 14px; }
+  .links a { display: flex; align-items: flex-start; gap: 8px; padding: 6px 8px; border-radius: 6px; }
+  .links a:hover { background: var(--muted-bg); }
+  .links a span { flex: 1; }
+  .links a .i { margin-top: 4px; color: var(--muted); }
+
+  /* in the answer's body: a small block like the follow-ups (muted, hover lights a line) */
+  .block { margin: 12px 0 0; }
+  .block-head { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+  .block ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+  .block li a, .block li button, .disclose { display: flex; align-items: center; gap: 6px; margin: 0 -6px; padding: 2px 6px;
+    border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 14px; text-align: start; }
+  .block li a:hover, .block li button:hover, .disclose:hover { background: var(--muted-bg); color: var(--fg); }
+  .block li a .ext { opacity: 0; }
+  .block li a:hover .ext { opacity: 1; }
+  .disclose { font-size: 13px; }
+  .disclose .chev { transition: transform 0.15s; }
+  .disclose[aria-expanded="true"] .chev { transform: rotate(90deg); }
+  .block.indent ul { padding-left: 20px; margin-top: 2px; }
+  .ghost-btn { align-self: flex-start; border: 1px solid var(--line); border-radius: 6px; background: transparent;
+    padding: 2px 10px; font-size: 13px; }
+  .ghost-btn:hover { background: var(--muted-bg); }
+  .demo-controls { display: flex; gap: 14px; align-items: center; font-size: 13px; color: var(--muted); }
+  .demo-controls label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+
+  /* the app's ToolCard (feature/form-filler), roughly: my-3 rounded-lg border, h-9 header, xs summary */
+  .tool-card { margin: 12px 0; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; overflow: hidden; }
+  .tc-head { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 4px 0 12px; }
+  .tc-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .foldable { cursor: pointer; user-select: none; }
+  .tc-open { display: flex; align-items: center; gap: 2px; height: 24px; padding: 0 6px 0 8px; border: 1px solid var(--line);
+    border-radius: 6px; background: var(--bg); font-size: 12px; font-weight: 500; }
+  .tc-open:hover { background: var(--muted-bg); }
+  .tc-summary { margin: -6px 0 0; padding: 0 12px 8px; color: var(--muted); font-size: 12px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .graph-view { display: block; width: 100%; height: 220px; border-top: 1px solid var(--line); }
+  .graph-view line { stroke: var(--line); stroke-width: 0.3; vector-effect: non-scaling-stroke; }
+  .graph-view ellipse { stroke: none; }
+  .graph-view .seed { fill: #b91c1c; }
+  .graph-view .concept { fill: #2563eb; }
+  .graph-view .var { fill: var(--muted); opacity: 0.6; }
+</style>
+</head>
+<body>
+<h1>Related papers</h1>
+<p class="note">Since bdc-assist #73 an answer can come with two kinds of paper. <b>Cited</b>: the agent searched
+  artie itself while answering, so the answer is based on them (<code>sources.artie</code>, as before).
+  <b>Related</b>: a separate step searches afterwards and keeps up to 3 that fit; the answer isn't based on them
+  (<code>related.artie</code>, new). They never overlap. Most answers will have related papers only; a question
+  about papers can have both. Click the icons to open their lists. Titles are placeholders.</p>
+<div id="root"></div>
+
+<script type="module">
+import { createElement as h, Fragment, useState, useEffect } from 'react'
+import { createRoot } from 'react-dom/client'
+import {
+  BookMarkedIcon, BookOpenIcon, ChevronDownIcon, ChevronRightIcon, ChevronsDownUpIcon, ChevronsUpDownIcon,
+  ClipboardPenIcon, createLucideIcon, CopyIcon, CornerDownRightIcon, DatabaseIcon,
+  ExternalLinkIcon, LibraryBigIcon, RefreshCwIcon,
+} from 'lucide-react'
+
+const paper = (t, n) => ({ title: t, link: `https://example.org/paper-${n}` })
+const CITED = [
+  paper('Placeholder: Spirometry decline across pooled COPD cohorts in BDC', 1),
+  paper('Placeholder: Harmonizing lung-function variables from TOPMed studies', 2),
+]
+const RELATED = [
+  paper('Placeholder: Airflow obstruction and smoking history in a multi-ethnic cohort', 3),
+  paper('Placeholder: Genome-wide association of FEV1/FVC in TOPMed', 4),
+  paper('Placeholder: Emphysema on CT and lung-function trajectories', 5),
+]
+const DOCS = [{ title: 'Finding studies in BDC', link: '#' }, { title: 'Dug semantic search', link: '#' }]
+const STUDIES = Array.from({ length: 8 }, (_, i) => ({ title: `Placeholder study ${i + 1} (phs00${i + 1})`, link: '#' }))
+const FOLLOWUPS = ['Which of these studies have imaging data?', 'How do I request access to COPDGene?']
+
+const CASES = {
+  related: { label: 'Related only (most answers)', cited: [], related: RELATED },
+  both: { label: 'Cited and related (a question about papers)', cited: CITED, related: RELATED.slice(0, 2) },
+  cited: { label: 'Cited only (related found nothing new)', cited: CITED, related: [] },
+  none: { label: 'No papers', cited: [], related: [] },
+}
+
+const plural = (n, one, many) => (n > 1 ? `${many} (${n})` : one)
+
+function Links({ items }) {
+  return h('ul', { className: 'links' }, items.map((s, i) =>
+    h('li', { key: i }, h('a', { href: s.link, target: '_blank', rel: 'noreferrer' },
+      h('span', null, s.title), h(ExternalLinkIcon, { className: 'i s' })))))
+}
+
+/** A source-row button and its popover. `text`: a word beside the icon (option 3a). */
+function Group({ id, open, setOpen, Icon, count, tip, text, children }) {
+  const isOpen = open === id
+  return h('div', { className: 'pop-wrap' },
+    h('button', { type: 'button', className: `tb${text ? ' text' : ''}`, title: tip, 'aria-expanded': isOpen,
+      onClick: () => setOpen(isOpen ? null : id) },
+      h(Icon, { className: 'i' }), text, count > 1 && count, h(ChevronDownIcon, { className: 'i s' })),
+    isOpen && h('div', { className: 'pop' }, children))
+}
+
+const simplePop = (title, items) => h(Fragment, null, h('div', { className: 'pop-head' }, title), h(Links, { items }))
+
+/** The groups every option shares: docs first, then (cited papers), then studies last. */
+function baseGroups(open, setOpen, papers) {
+  return [
+    h(Group, { key: 'docs', id: 'docs', open, setOpen, Icon: BookOpenIcon, count: DOCS.length, tip: 'Documentation' },
+      simplePop(plural(DOCS.length, 'Documentation', 'Documentation'), DOCS)),
+    papers,
+    h(Group, { key: 'studies', id: 'studies', open, setOpen, Icon: DatabaseIcon, count: STUDIES.length, tip: 'dbGaP studies' },
+      simplePop(plural(STUDIES.length, 'dbGaP study', 'dbGaP studies'), STUDIES)),
+  ]
+}
+
+const citedGroup = (open, setOpen, cited, label = 'Publication') => cited.length > 0 &&
+  h(Group, { key: 'cited', id: 'cited', open, setOpen, Icon: BookMarkedIcon, count: cited.length, tip: label },
+    simplePop(plural(cited.length, label, `${label}s`), cited))
+
+// lucide's graph-star (newer than our lucide-react), as the app's tool-view/tools.ts draws it
+const GraphStarIcon = createLucideIcon('graph-star', [
+  ['path', { d: 'm12.342 9.316 1.764-3.527', key: 'a' }], ['path', { d: 'm12.59 14.545 2.35 3.759', key: 'b' }],
+  ['path', { d: 'm13.982 12.332 4.03.447', key: 'c' }], ['path', { d: 'M5.414 17.586 8.88 14.12', key: 'd' }],
+  ['path', { d: 'M9.025 9.742 5.317 5.505', key: 'e' }], ['circle', { cx: '11', cy: '12', r: '3', key: 'f' }],
+  ['circle', { cx: '15', cy: '4', r: '2', key: 'g' }], ['circle', { cx: '16', cy: '20', r: '2', key: 'h' }],
+  ['circle', { cx: '20', cy: '13', r: '2', key: 'i' }], ['circle', { cx: '4', cy: '19', r: '2', key: 'j' }],
+  ['circle', { cx: '4', cy: '4', r: '2', key: 'k' }],
+])
+
+// a placeholder graph: a few concepts round a seed, variables round them
+const NODES = (() => {
+  const out = [{ x: 50, y: 50, r: 9, seed: true }]
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * 2 * Math.PI, cx = 50 + 22 * Math.cos(a), cy = 50 + 30 * Math.sin(a)
+    const concept = out.push({ x: cx, y: cy, r: 6, from: 0 }) - 1
+    for (let j = 0; j < 3; j++) {
+      const b = a + (j - 1) * 0.35
+      out.push({ x: 50 + 38 * Math.cos(b), y: 50 + 44 * Math.sin(b), r: 3, from: concept })
+    }
+  }
+  return out
+})()
+const GraphView = () => h('svg', { className: 'graph-view', viewBox: '0 0 100 100', preserveAspectRatio: 'none' },
+  NODES.map((n, i) => n.from != null && h('line', { key: `l${i}`, x1: NODES[n.from].x, y1: NODES[n.from].y, x2: n.x, y2: n.y })),
+  NODES.map((n, i) => h('ellipse', { key: i, cx: n.x, cy: n.y, rx: n.r * 0.6, ry: n.r, className: n.seed ? 'seed' : n.r > 4 ? 'concept' : 'var' })))
+
+/** The app's ToolCard (feature/form-filler tool-view/card.tsx), roughly: header row (icon, name, open button,
+ * a fold chevron for one with an inline view), a summary line, then the inline view. */
+function ToolCard({ Icon, name, summary, open, children }) {
+  const [folded, setFolded] = useState(false)
+  const fold = children ? () => setFolded(!folded) : undefined
+  return h('div', { className: 'tool-card' },
+    h('div', { className: `tc-head${fold ? ' foldable' : ''}`, onClick: fold },
+      h(Icon, { className: 'i', style: { color: 'var(--muted)' } }),
+      h('span', { className: 'tc-name' }, name),
+      h('span', { style: { flex: 1 } }),
+      fold && h('button', { type: 'button', className: 'tb square', title: folded ? 'Expand' : 'Collapse',
+        onClick: (e) => { e.stopPropagation(); setFolded(!folded) } },
+        h(folded ? ChevronsUpDownIcon : ChevronsDownUpIcon, { className: 'i' })),
+      h('button', { type: 'button', className: 'tc-open', onClick: (e) => e.stopPropagation() },
+        open, h(ChevronRightIcon, { className: 'i s' }))),
+    h('p', { className: `tc-summary${fold ? ' foldable' : ''}`, onClick: fold }, summary),
+    children && !folded && children)
+}
+
+const graphCard = () => h(ToolCard, { key: 'graph', Icon: GraphStarIcon, name: 'COPD concept graph',
+  summary: '7 concepts · 18 variables · 8 studies', open: 'Explore graph' }, h(GraphView))
+const formCard = () => h(ToolCard, { key: 'form', Icon: ClipboardPenIcon, name: 'Get Help form',
+  summary: 'Request: access to COPDGene lung-function data', open: 'Edit form' })
+
+function Answer({ toolbar, below, followups = true, cards }) {
+  return h(Fragment, null,
+    h('div', { className: 'user' }, 'Which BDC studies measured lung function in people with COPD?'),
+    h('div', { className: 'answer' },
+      h('p', null, 'Several BDC studies include spirometry (FEV1, FVC) for participants with COPD, among them ',
+        h('a', { className: 'cite', href: '#' }, 'COPDGene'), ' and SPIROMICS. You can find their lung-function variables with ',
+        'the semantic search, then build a cohort in PIC-SURE.'),
+      cards,
+      below,
+      followups && h('div', { className: 'block' }, h('ul', null, FOLLOWUPS.map((f) =>
+        h('li', { key: f }, h('button', { type: 'button' }, h(CornerDownRightIcon, { className: 'i m' }), f))))),
+      h('div', { className: 'toolbar' },
+        h('button', { type: 'button', className: 'tb square', title: 'Copy' }, h(CopyIcon, { className: 'i' })),
+        h('button', { type: 'button', className: 'tb square', title: 'Refresh' }, h(RefreshCwIcon, { className: 'i' })),
+        h('span', { className: 'grow' }),
+        toolbar)))
+}
+
+// ── Option 1: one publications icon; its popover has two sections ──────────────────────────
+function Option1({ c }) {
+  const [open, setOpen] = useState('pubs')
+  const { cited, related } = c
+  const n = cited.length + related.length
+  let pop = null
+  if (cited.length && related.length) {
+    pop = h(Fragment, null,
+      h('div', { className: 'pop-head' }, `Publications (${n})`),
+      h('div', { className: 'pop-sec' }, 'Used in the answer'), h(Links, { items: cited }),
+      h('div', { className: 'pop-sec rule' }, 'Related, not used in the answer'), h(Links, { items: related }))
+  } else if (related.length) {
+    pop = h(Fragment, null,
+      h('div', { className: 'pop-head' }, plural(related.length, 'Related publication', 'Related publications')),
+      h('div', { className: 'pop-sec' }, 'Found after answering; the answer isn’t based on these.'),
+      h(Links, { items: related }))
+  } else if (cited.length) pop = simplePop(plural(cited.length, 'Publication', 'Publications'), cited)
+  const tip = cited.length ? 'Publications' : 'Related publications'
+  const pubs = n > 0 && h(Group, { key: 'pubs', id: 'pubs', open, setOpen, Icon: BookMarkedIcon, count: n, tip }, pop)
+  return h(Answer, { toolbar: baseGroups(open, setOpen, pubs) })
+}
+
+// ── Option 2: related papers as their own block in the answer, above the follow-ups ──────
+function Option2({ c }) {
+  const [open, setOpen] = useState(null)
+  const below = c.related.length > 0 && h('div', { className: 'block' },
+    h('div', { className: 'block-head' }, h(BookMarkedIcon, { className: 'i m' }), 'Related publications'),
+    h('ul', null, c.related.map((s, i) => h('li', { key: i },
+      h('a', { href: s.link, target: '_blank', rel: 'noreferrer' }, s.title, h(ExternalLinkIcon, { className: 'i s ext' }))))))
+  return h(Answer, { below, toolbar: baseGroups(open, setOpen, citedGroup(open, setOpen, c.cited)) })
+}
+
+// ── Option 3a: same footer line, after a divider, with a word ─────────────────────────────
+function Option3a({ c }) {
+  const [open, setOpen] = useState(c.related.length ? 'related' : null)
+  const related = c.related.length > 0 && [
+    h('span', { key: 'div', className: 'divider' }),
+    h(Group, { key: 'related', id: 'related', open, setOpen, Icon: LibraryBigIcon, count: c.related.length,
+      tip: 'Related publications', text: 'Related' },
+      h(Fragment, null,
+        h('div', { className: 'pop-head' }, plural(c.related.length, 'Related publication', 'Related publications')),
+        h('div', { className: 'pop-sec' }, 'Found after answering; the answer isn’t based on these.'),
+        h(Links, { items: c.related }))),
+  ]
+  return h(Answer, { toolbar: [...baseGroups(open, setOpen, citedGroup(open, setOpen, c.cited)), related] })
+}
+
+// ── Option 3b: one collapsed line in the answer, opening in place ──────────────────────────
+// ── Chosen: 3b, open on the latest answer ─────────────────────────────────────────────────
+/** Open while its answer is the latest, unless toggled; collapses (toggle forgotten) once a new
+ * question is sent, and can be reopened there. In the app: the user's toggle ?? message.isLast. */
+function RelatedLine({ items, last }) {
+  const [toggled, setToggled] = useState(null)
+  useEffect(() => { if (!last) setToggled(null) }, [last])
+  const shown = toggled ?? last
+  const n = items.length
+  return n > 0 && h('div', { className: 'block indent' },
+    h('button', { type: 'button', className: 'disclose', 'aria-expanded': shown, onClick: () => setToggled(!shown) },
+      h(ChevronRightIcon, { className: 'i m chev' }), h(BookMarkedIcon, { className: 'i m' }),
+      n > 1 ? `${n} related publications that use BDC` : '1 related publication that uses BDC'),
+    shown && h('ul', null, items.map((s, i) => h('li', { key: i },
+      h('a', { href: s.link, target: '_blank', rel: 'noreferrer' }, s.title, h(ExternalLinkIcon, { className: 'i s ext' }))))))
+}
+
+function ThreadAnswer({ c, last, graph, form }) {
+  const [open, setOpen] = useState(null)
+  return h(Answer, { followups: last, below: h(RelatedLine, { items: c.related, last }),
+    cards: [graph && graphCard(), form && formCard()],
+    toolbar: baseGroups(open, setOpen, citedGroup(open, setOpen, c.cited)) })
+}
+
+function Chosen({ c }) {
+  const [count, setCount] = useState(1)
+  const [graph, setGraph] = useState(true)
+  const [form, setForm] = useState(true)
+  const check = (label, value, set) =>
+    h('label', null, h('input', { type: 'checkbox', checked: value, onChange: (e) => set(e.target.checked) }), label)
+  return h(Fragment, null,
+    h('div', { className: 'demo-controls' }, 'In the answer: ', check('Graph', graph, setGraph), check('Form', form, setForm)),
+    Array.from({ length: count }, (_, i) => h(ThreadAnswer, { key: i, c, last: i === count - 1, graph, form })),
+    h('button', { type: 'button', className: 'ghost-btn', onClick: () => setCount(count + 1) }, 'Send another question'),
+    count > 1 && h('button', { type: 'button', className: 'ghost-btn', onClick: () => setCount(1) }, 'Reset'))
+}
+
+function Option3b({ c }) {
+  const [open, setOpen] = useState(null)
+  const [shown, setShown] = useState(false)
+  const n = c.related.length
+  const below = n > 0 && h('div', { className: 'block indent' },
+    h('button', { type: 'button', className: 'disclose', 'aria-expanded': shown, onClick: () => setShown(!shown) },
+      h(ChevronRightIcon, { className: 'i m chev' }), h(BookMarkedIcon, { className: 'i m' }),
+      n > 1 ? `${n} related publications` : '1 related publication'),
+    shown && h('ul', null, c.related.map((s, i) => h('li', { key: i },
+      h('a', { href: s.link, target: '_blank', rel: 'noreferrer' }, s.title, h(ExternalLinkIcon, { className: 'i s ext' }))))))
+  return h(Answer, { below, toolbar: baseGroups(open, setOpen, citedGroup(open, setOpen, c.cited)) })
+}
+
+// ── Option 3c: "keep exploring": follow-up questions and related papers in one list ────────
+function Option3c({ c }) {
+  const [open, setOpen] = useState(null)
+  const below = h('div', { className: 'block' }, h('ul', null,
+    FOLLOWUPS.map((f) => h('li', { key: f }, h('button', { type: 'button' }, h(CornerDownRightIcon, { className: 'i m' }), f))),
+    c.related.map((s, i) => h('li', { key: i }, h('a', { href: s.link, target: '_blank', rel: 'noreferrer' },
+      h(BookMarkedIcon, { className: 'i m' }), s.title, h(ExternalLinkIcon, { className: 'i s ext' }))))))
+  return h(Answer, { below, followups: false, toolbar: baseGroups(open, setOpen, citedGroup(open, setOpen, c.cited)) })
+}
+
+const OPTIONS = [
+  ['Chosen · 3b, open on the latest answer', Chosen, [
+    'The collapsible line, open on the latest answer. Sending a new question collapses it; older answers can reopen theirs.',
+    'Try it: "Send another question" adds an answer. Cited papers stay in the source row ("Publication").',
+  ]],
+  ['1 · Same row, two sections in the popover', Option1, [
+    'One publications icon, counting both. The popover splits "Used in the answer" from "Related, not used in the answer".',
+    'With related only, the popover is titled "Related publications" and says so in one line.',
+    '+ No new UI; the row stays as it is. − The difference shows only once it’s opened; the row still reads as "sources".',
+  ]],
+  ['2 · Separate block in the answer', Option2, [
+    'Related papers listed under the answer, above the follow-ups, titles visible. Cited papers stay in the row as "Publication".',
+    'Kept on every answer (saved with it), unlike follow-ups, which only the last answer shows.',
+    '+ Clearest split, and the titles are seen without a click. − Up to 3 more lines on most answers.',
+  ]],
+  ['3a · Same footer line, after a divider, with a word', Option3a, [
+    'Sources, a divider, then "Related" with its own icon (LibraryBigIcon) and count; its popover as in option 1.',
+    '+ Compact; the word and divider make the difference visible without opening. − Shown with the toolbar only (last answer, or on hover).',
+  ]],
+  ['3b · One collapsed line in the answer', Option3b, [
+    '"▸ 3 related publications" under the answer; it opens in place. Cited papers stay in the row.',
+    '+ Separate and always visible, but only one line. − One more click than option 2.',
+  ]],
+  ['3c · "Keep exploring": with the follow-ups', Option3c, [
+    'Related papers join the follow-up questions in one list: both are "where to go next". Papers open a link; questions ask.',
+    '+ Reads naturally as a suggestion, not a source. − Follow-ups show only on the last answer: older answers would need the papers on their own (as option 2), and mixing links with ask-buttons in one list may confuse.',
+  ]],
+]
+
+function Page() {
+  const [theme, setTheme] = useState('light')
+  const [caseKey, setCaseKey] = useState('related')
+  useEffect(() => { document.documentElement.dataset.theme = theme }, [theme])
+  const c = CASES[caseKey]
+  return h(Fragment, null,
+    h('div', { className: 'controls' },
+      h('label', null, 'Papers ', h('select', { value: caseKey, onChange: (e) => setCaseKey(e.target.value) },
+        Object.entries(CASES).map(([k, v]) => h('option', { key: k, value: k }, v.label)))),
+      h('label', null, h('input', { type: 'checkbox', checked: theme === 'dark',
+        onChange: (e) => setTheme(e.target.checked ? 'dark' : 'light') }), 'Dark')),
+    OPTIONS.map(([title, Option, notes]) => h(Fragment, { key: title },
+      h('h2', null, title),
+      h('div', { className: 'note' }, h('ul', null, notes.map((n, i) => h('li', { key: i }, n)))),
+      // remount on a case change, so each option opens its own default popover again
+      h('div', { className: 'demo' }, h(Option, { key: caseKey, c })))))
+}
+
+createRoot(document.getElementById('root')).render(h(Page))
+</script>
+</body>
+</html>

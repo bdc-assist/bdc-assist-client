@@ -18,8 +18,9 @@ import type { Source, Sources } from '@/lib/bdc-adapter'
 // How the source row under an answer shows each source type (design/source-icons.html
 // draws them all: keep the two in step).
 // doc_type values come from bdc-doc-mcp's ingest (SOURCE_DOC_TYPES); dbgap-study from
-// Dug (the studies behind a graph); publication from artie-mcp (papers that used BDC, cited
-// or added by related_work: the server merges them, so all are "related"); predefined from
+// Dug (the studies behind a graph); publication from artie-mcp (papers that used BDC, found by
+// the agent itself, so the answer is based on them; related_work's come apart, in done's
+// `related`, and show under the answer: RelatedUI in message-parts.tsx); predefined from
 // bdc-assist itself (a canned answer or disclaimer it showed, from predefined_responses.yaml).
 // `many`: the label for several.
 export type SourceType = { label: string; many: string; Icon: LucideIcon }
@@ -34,7 +35,7 @@ export const SOURCE_TYPES: Record<string, SourceType> = {
   'dbgap-study': { label: 'dbGaP study', many: 'dbGaP studies', Icon: DatabaseIcon },
   // approved wording, not a document: a badge, not a plain check (the copy button turns into one)
   predefined: { label: 'Predefined response', many: 'Predefined responses', Icon: BadgeCheckIcon },
-  publication: { label: 'Related publication', many: 'Related publications', Icon: BookMarkedIcon },
+  publication: { label: 'Publication', many: 'Publications', Icon: BookMarkedIcon },
 }
 export const OTHER_SOURCE: SourceType = { label: 'Source', many: 'Sources', Icon: FileTextIcon }
 
