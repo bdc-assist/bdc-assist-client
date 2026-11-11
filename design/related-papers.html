@@ -304,7 +304,8 @@ function RelatedLine({ items, last }) {
   const shown = toggled ?? last
   const n = items.length
   return n > 0 && h('div', { className: 'block indent' },
-    h('button', { type: 'button', className: 'disclose', 'aria-expanded': shown, onClick: () => setToggled(!shown) },
+    h('button', { type: 'button', className: 'disclose', 'aria-expanded': shown, onClick: () => setToggled(!shown),
+      title: 'Found after answering; the answer isn\u2019t based on these' },
       h(ChevronRightIcon, { className: 'i m chev' }), h(BookMarkedIcon, { className: 'i m' }),
       n > 1 ? `${n} related publications` : '1 related publication'),
     shown && h('ul', null, items.map((s, i) => h('li', { key: i },

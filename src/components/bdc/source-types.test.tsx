@@ -42,13 +42,13 @@ describe('SourceGroup', () => {
     const html = render([src('publication')])
     expect(html).toContain('aria-haspopup="dialog"') // a popover trigger, not a link
     expect(html).not.toContain('href=')
-    expect(html).toContain('aria-label="Related publication"')
+    expect(html).toContain('aria-label="Publication"')
     expect(html).not.toMatch(/<\/svg>\d/)
   })
 
   it('shows the count for several', () => {
     const html = render([src('publication'), src('publication', 2), src('publication', 3)])
-    expect(html).toContain('aria-label="Related publications (3)"')
+    expect(html).toContain('aria-label="Publications (3)"')
     expect(html).toMatch(/<\/svg>3<svg/)
   })
 })

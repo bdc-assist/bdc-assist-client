@@ -63,7 +63,7 @@ const TYPES = [
   ['fellow', 'Fellow', 'Fellows', UserRoundIcon, 'UserRoundIcon'],
   ['dbgap-study', 'dbGaP study', 'dbGaP studies', DatabaseIcon, 'DatabaseIcon'],
   ['predefined', 'Predefined response', 'Predefined responses', BadgeCheckIcon, 'BadgeCheckIcon'],
-  ['publication', 'Related publication', 'Related publications', BookMarkedIcon, 'BookMarkedIcon'],
+  ['publication', 'Publication', 'Publications', BookMarkedIcon, 'BookMarkedIcon'],
   ['(any other)', 'Source', 'Sources', FileTextIcon, 'FileTextIcon'],
 ]
 
@@ -109,7 +109,7 @@ function Panel({ dark }) {
       small(BookOpenIcon, 'Documentation'),
       small(CircleHelpIcon, 'FAQ'),
       small(BadgeCheckIcon, 'Predefined response'),
-      group(BookMarkedIcon, 3, 'Related publications'),
+      group(BookMarkedIcon, 3, 'Publications'),
       group(DatabaseIcon, 12, 'dbGaP studies'),
     ),
   )
@@ -130,13 +130,13 @@ function Candidates({ dark }) {
           h('td', null, h('div', { className: 'row' },
             small(BookOpenIcon, 'Documentation'),
             small(GlobeIcon, 'BDC website'),
-            small(Icon, 'Related publication'),
+            small(Icon, 'Publication'),
             group(DatabaseIcon, 12, 'dbGaP studies'),
           )),
           h('td', null, h('div', { className: 'row' },
             small(BookOpenIcon, 'Documentation'),
             small(NewspaperIcon, 'Update'),
-            group(Icon, 3, 'Related publications'),
+            group(Icon, 3, 'Publications'),
             group(DatabaseIcon, 12, 'dbGaP studies'),
           )),
         ))),

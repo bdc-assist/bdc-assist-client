@@ -23,6 +23,9 @@ type StreamEvent =
       sources_md: string
       kg?: unknown
       mcp_errors?: string[] // "server: error" per MCP server currently unavailable
+      // related_work's papers ({"artie": [...]}): found after answering, so not among the sources (the
+      // answer isn't based on them) and never one it cites; null when none, or on a reject; older servers omit it
+      related?: Sources | null
     }
   | { type: 'error' } // the run failed; last event, no done
 
@@ -37,6 +40,7 @@ export type BdcMessageMeta = {
   graphParts: KgPart[] // the same per tool call, labelled, to show one on its own
   unavailable: string[] // MCP servers that were down, by name (from mcp_errors)
   followups: string[]
+  related: Source[] // related papers (done's related), all keys in one list
   blocked: boolean // input guardrail refused the question
   rejected: boolean // output guardrail replaced the streamed draft
   done: boolean
@@ -59,6 +63,7 @@ export const GRAPH_PART = 'bdc-graph' // data: GraphPartData
 export type GraphPartData = { graph: KgGraph; parts: KgPart[] }
 export const FOLLOWUPS_PART = 'bdc-followups' // data: string[]
 export const UNAVAILABLE_PART = 'bdc-unavailable' // data: string[] (MCP server names)
+export const RELATED_PART = 'bdc-related' // data: Source[]
 
 export type StatusPartData = { node: string | null; status: string | null; label?: string }
 export type DraftPartData = { words: number }
@@ -98,7 +103,9 @@ export function toContent({ text, streaming, meta }: StreamState, reveal: Reveal
   if (reveal === 'stream' && meta.rejected) parts.push(data(REJECTED_PART, {}))
   if (meta.blocked) parts.push(data(BLOCKED_PART, {}))
   if (meta.done && meta.unavailable.length) parts.push(data(UNAVAILABLE_PART, meta.unavailable))
-  // the server sends none for a blocked question; checked anyway, they'd make no sense there
+  // the server sends neither for a blocked question; checked anyway, they'd make no sense there.
+  // Related papers just before the follow-ups: background reading, with the next questions last
+  if (meta.done && !meta.blocked && meta.related.length) parts.push(data(RELATED_PART, meta.related))
   if (meta.done && !meta.blocked && meta.followups.length) parts.push(data(FOLLOWUPS_PART, meta.followups))
   return parts
 }
@@ -144,6 +151,7 @@ export function createBdcAdapter(
           graphParts: [],
           unavailable: [],
           followups: [],
+          related: [],
           blocked: false,
           rejected: false,
           done: false,
@@ -198,7 +206,7 @@ export function createBdcAdapter(
               break
             case 'sources':
               // agent finished: its sources and graphs, sent early. done may still
-              // add related papers to the sources (related_work) or clear both (a reject)
+              // clear both (a reject); related papers come only with done
               meta.sources = ev.sources
               meta.graph = fromKgList(ev.kg)
               meta.graphParts = kgParts(ev.kg)
@@ -206,7 +214,7 @@ export function createBdcAdapter(
             case 'done': {
               // authoritative: rejects, disclaimers and canned replies replace
               // the streamed text, a rejected answer has no sources or graph, and
-              // the sources gain any related papers (sources.artie) here.
+              // related papers (related_work's, beside the sources) arrive here.
               // blocked says which guardrail stopped it: the input one refused the
               // question; the output one rejected the streamed draft (a reject)
               meta.rejected = ev.blocked === 'output'
@@ -217,6 +225,7 @@ export function createBdcAdapter(
               meta.graphParts = kgParts(ev.kg)
               meta.unavailable = [...new Set((ev.mcp_errors ?? []).map((e) => e.split(':')[0].trim()))]
               meta.followups = ev.followups
+              meta.related = Object.values(ev.related ?? {}).flat()
               meta.node = null
               meta.label = undefined
               meta.status = null
