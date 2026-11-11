@@ -281,16 +281,11 @@ const RelatedUI = makeAssistantDataUI<Source[]>({
     const n = data.length
     return (
       <Collapsible open={toggled ?? isLast} onOpenChange={setToggled} className="mt-3">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <CollapsibleTrigger className="group text-muted-foreground hover:text-foreground hover:bg-muted -mx-1.5 flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm transition-colors">
-              <ChevronRightIcon className="size-3.5 transition-transform group-data-[state=open]:rotate-90 motion-reduce:transition-none" />
-              <BookMarkedIcon className="size-3.5" />
-              {n > 1 ? `${n} related publications` : '1 related publication'}
-            </CollapsibleTrigger>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">Found after answering; the answer isn't based on these</TooltipContent>
-        </Tooltip>
+        <CollapsibleTrigger className="group text-muted-foreground hover:text-foreground hover:bg-muted -mx-1.5 flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm transition-colors">
+          <ChevronRightIcon className="size-3.5 transition-transform group-data-[state=open]:rotate-90 motion-reduce:transition-none" />
+          <BookMarkedIcon className="size-3.5" />
+          {n > 1 ? `${n} related publications that use BDC` : '1 related publication that uses BDC'}
+        </CollapsibleTrigger>
         <CollapsibleContent>
           <ul aria-label="Related publications" className="mt-0.5 flex flex-col items-start gap-0.5 pl-5">
             {data.map((s, i) => (
