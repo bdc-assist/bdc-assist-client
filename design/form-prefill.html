@@ -192,6 +192,20 @@
   .btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
   .btn.primary:hover { opacity: 0.85; }
   .btn:disabled { opacity: 0.5; cursor: default; }
+  /* Open form's colour (the Open button control): the app's BDC red, #ac3041, as answer text's BDC links use it.
+     Filled keeps #ac3041 in dark mode too (white on it is about 6.5:1 on either page); the text styles use the
+     app's dark-mode lightening (#e0717f), as #ac3041 is about 3:1 on the dark background */
+  :root { --bdc-red: #ac3041; --bdc-red-text: #ac3041; --bdc-red-bg: #f8e9eb; }
+  :root[data-theme="dark"] { --bdc-red-text: #e0717f; --bdc-red-bg: #2a1418; }
+  :root[data-open="red"] :is(.open-form, #url-open) { background: var(--bdc-red); border-color: var(--bdc-red);
+    color: #fff; }
+  :root[data-open="tint"] :is(.open-form, #url-open) { background: var(--bdc-red-bg); border-color: var(--bdc-red-bg);
+    color: var(--bdc-red-text); }
+  :root[data-open="outline"] :is(.open-form, #url-open) { background: var(--bg); border-color: var(--bdc-red-text);
+    color: var(--bdc-red-text); }
+  :root[data-open="red"] :is(.open-form, #url-open):hover,
+  :root[data-open="tint"] :is(.open-form, #url-open):hover { opacity: 0.85; }
+  :root[data-open="outline"] :is(.open-form, #url-open):hover { background: var(--bdc-red-bg); }
 
   /* the draft card */
   .card { margin-top: 10px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
@@ -264,6 +278,14 @@
       <option value="lifebuoy">LifeBuoy</option>
       <option value="circlehelp">CircleHelp (?)</option>
       <option value="ticket">Ticket</option>
+    </select>
+  </label>
+  <label>Open button
+    <select id="open-style">
+      <option value="primary">Primary (as now)</option>
+      <option value="red">BDC red, filled</option>
+      <option value="tint">BDC red on its tint</option>
+      <option value="outline">BDC red outline</option>
     </select>
   </label>
   <label>Page theme
@@ -878,6 +900,7 @@ function helpIcon() {
 $('help-icon').addEventListener('change', helpIcon)
 helpIcon()
 $('theme').addEventListener('change', (e) => { document.documentElement.dataset.theme = e.target.value })
+$('open-style').addEventListener('change', (e) => { document.documentElement.dataset.open = e.target.value })
 
 render()
 </script>

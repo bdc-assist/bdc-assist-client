@@ -65,13 +65,13 @@ export function FormDraftTool({ form, d }: { form: FormDef; d: FormDraftState })
   )
 }
 
-// Open on BDC in the tool's header (not "Open form": the card's Edit form opens the draft); on a narrow tool view
-// just its icon (the header is a container)
+// Open on BDC in the tool's header (not "Open form": the card's Edit form opens the draft), filled in the BDC red
+// (design/form-prefill.html's Open button options); on a narrow tool view just its icon (the header is a container)
 function OpenOnBdc({ href }: { href: string }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <a href={href} target="_blank" rel="noopener" className={cn(buttonVariants({ size: 'sm' }), 'mx-0.5')}>
+        <a href={href} target="_blank" rel="noopener" className={cn(buttonVariants({ size: 'sm' }), 'mx-0.5 bg-(--bdc-button) text-white hover:bg-(--bdc-button)/85')}>
           <span className="@max-md:sr-only">Open on BDC</span>
           <ExternalLinkIcon />
         </a>

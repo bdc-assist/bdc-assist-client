@@ -198,10 +198,13 @@
 }
 
 /* BDC links in answer text (src/components/bdc/markdown-link.tsx): docs in this red, tools
-   also on its tint. #ac3041 is about 3:1 on the dark background, so dark mode lightens it. */
+   also on its tint. #ac3041 is about 3:1 on the dark background, so dark mode lightens it.
+   --bdc-button: a filled button into BDC (the form tool's Open on BDC), the same red in both themes:
+   white on it is about 6.5:1 on either background. */
 :root {
   --bdc-link: #ac3041;
   --bdc-link-bg: #f8e9eb;
+  --bdc-button: #ac3041;
 }
 
 .dark {

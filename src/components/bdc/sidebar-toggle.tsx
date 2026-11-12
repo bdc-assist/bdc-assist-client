@@ -1,4 +1,4 @@
-import { PanelLeftIcon } from 'lucide-react'
+import { PanelLeftCloseIcon, PanelLeftOpenIcon } from 'lucide-react'
 import { useState } from 'react'
 
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
@@ -30,7 +30,7 @@ export function useSidebarOpen(): [boolean, (open: boolean) => void] {
   ]
 }
 
-/** Opens and closes the conversations sidebar (Ctrl/⌘+B does too). */
+/** Opens and closes the conversations sidebar (Ctrl/⌘+B does too). Its icon shows which it will do. */
 export function SidebarToggle() {
   const { open, openMobile, isMobile, toggleSidebar } = useSidebar()
   const shown = isMobile ? openMobile : open
@@ -42,7 +42,7 @@ export function SidebarToggle() {
       className="size-8 p-2"
       onClick={toggleSidebar}
     >
-      <PanelLeftIcon />
+      {shown ? <PanelLeftCloseIcon /> : <PanelLeftOpenIcon />}
     </TooltipIconButton>
   )
 }
