@@ -1,7 +1,9 @@
 import { makeAssistantDataUI, useAui, useAuiState } from '@assistant-ui/react'
 import { lazy, Suspense, useState } from 'react'
 import {
+  BookMarkedIcon,
   ChevronDownIcon,
+  ChevronRightIcon,
   CornerDownRightIcon,
   ExternalLinkIcon,
   LoaderCircleIcon,
@@ -10,6 +12,7 @@ import {
   TriangleAlertIcon,
 } from 'lucide-react'
 
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Popover, PopoverContent, PopoverHeader, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { KgGraph } from '@/kg'
@@ -25,6 +28,7 @@ import {
   GRAPH_PART,
   type GraphPartData,
   REJECTED_PART,
+  RELATED_PART,
   SOURCES_PART,
   UNAVAILABLE_PART,
   STATUS_PART,
@@ -45,6 +49,7 @@ const NODE_LABELS: Record<string, string> = {
   contextualize: 'Reading the conversation…',
   classify: 'Checking known topics…',
   main_agent: 'Thinking…',
+  agent: 'Thinking…', // bdc-assist before its agent step became main_agent
   output_guardrail: 'Reviewing the answer…',
   output_reject: 'Answer rejected…',
   append_disclaimer: 'Adding disclaimers…',
@@ -61,12 +66,12 @@ const useRunning = () => useAuiState((s) => s.message.status?.type === 'running'
 
 const StatusUI = makeAssistantDataUI<StatusPartData>({
   name: STATUS_PART,
-  render: function StatusLine({ data: { node, status } }) {
+  render: function StatusLine({ data: { node, status, label } }) {
     if (!useRunning()) return null
     return (
       <p data-slot="bdc-status" className="text-muted-foreground my-2 flex items-center gap-1.5 text-sm">
         <LoaderCircleIcon className="size-3.5 animate-spin motion-reduce:animate-none" />
-        {status ? toolLabel(status) : (NODE_LABELS[node!] ?? `${node}…`)}
+        {status ? toolLabel(status) : (label ?? NODE_LABELS[node!] ?? `${node}…`)}
       </p>
     )
   },
@@ -263,6 +268,56 @@ const GraphUI = makeAssistantDataUI<GraphPartData | KgGraph>({
   },
 })
 
+// Related papers (bdc-assist's related_work, after answering): not sources, since the answer isn't based on
+// them, so not in the source row. One line under the answer, before the follow-ups, opening to the list
+// (design/related-papers.html). Open on the latest answer; once a new question is sent it folds away, and
+// can be reopened there. A toggle on the latest answer holds until then.
+const RelatedUI = makeAssistantDataUI<Source[]>({
+  name: RELATED_PART,
+  render: function Related({ data }: { data: Source[] }) {
+    const isLast = useAuiState((s) => s.message.isLast)
+    const [toggled, setToggled] = useState<boolean | null>(null)
+    // no longer the latest (a new question was sent): forget the toggle, so it folds away
+    const [wasLast, setWasLast] = useState(isLast)
+    if (wasLast !== isLast) {
+      setWasLast(isLast)
+      if (!isLast) setToggled(null)
+    }
+    const n = data.length
+    return (
+      <Collapsible open={toggled ?? isLast} onOpenChange={setToggled} className="mt-3">
+        <CollapsibleTrigger className="group text-muted-foreground hover:text-foreground hover:bg-muted -mx-1.5 flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm transition-colors">
+          <ChevronRightIcon className="size-3.5 transition-transform group-data-[state=open]:rotate-90 motion-reduce:transition-none" />
+          <BookMarkedIcon className="size-3.5" />
+          {n > 1 ? `${n} related publications that use BDC` : '1 related publication that uses BDC'}
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <ul aria-label="Related publications" className="mt-0.5 flex flex-col items-start gap-0.5 pl-5">
+            {data.map((s, i) => (
+              // by position: links can be empty, so they aren't unique
+              <li key={i}>
+                {s.link ? (
+                  <a
+                    href={s.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group/link text-muted-foreground hover:text-foreground hover:bg-muted -mx-1.5 flex items-baseline gap-1.5 rounded-md px-1.5 py-0.5 text-sm transition-colors"
+                  >
+                    {s.title}
+                    <ExternalLinkIcon className="size-3 shrink-0 self-center opacity-0 group-hover/link:opacity-100 group-focus-visible/link:opacity-100" />
+                  </a>
+                ) : (
+                  <span className="text-muted-foreground px-1.5 py-0.5 text-sm">{s.title}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </CollapsibleContent>
+      </Collapsible>
+    )
+  },
+})
+
 // Some MCP servers (e.g. the knowledge graph) were down: the answer had to do without
 // them. The server names are for whoever runs it, so they're only in the tooltip.
 // an answer citing a form's page offers to fill it in; ?tools=demo only for now
@@ -296,6 +351,7 @@ export function BdcMessageParts() {
       <UnavailableUI />
       <GraphUI />
       <FormUI />
+      <RelatedUI />
       <FollowupsUI />
     </>
   )

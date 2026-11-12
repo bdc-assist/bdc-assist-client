@@ -9,7 +9,7 @@ export type Source = { title: string; link: string; type: string }
 export type Sources = Record<string, Source[]> // {"bdc-doc": [...]}, deduplicated
 
 type StreamEvent =
-  | { type: 'node'; node: string }
+  | { type: 'node'; node: string; label?: string } // label: the server config's text for the step (a node's label in project.yaml)
   | { type: 'status'; text: string }
   | { type: 'token'; text: string }
   | { type: 'reset' }
@@ -24,6 +24,9 @@ type StreamEvent =
       sources_md: string
       kg?: unknown
       mcp_errors?: string[] // "server: error" per MCP server currently unavailable
+      // related_work's papers ({"artie": [...]}): found after answering, so not among the sources (the
+      // answer isn't based on them) and never one it cites; null when none, or on a reject; older servers omit it
+      related?: Sources | null
     }
   | { type: 'error' } // the run failed; last event, no done
 
@@ -31,12 +34,14 @@ type StreamEvent =
  * Not stored on the message: the parts carry everything that's drawn or saved. */
 export type BdcMessageMeta = {
   node: string | null // graph node currently running; null once done
+  label?: string // the server's text for that node, if it sent one
   status: string | null // latest tool-call status; cleared by reset and new nodes
   sources: Sources | null // null until the agent reports them
   graph: KgGraph | null // the knowledge graph (kg) merged; null when there is none (yet)
   graphParts: KgPart[] // the same per tool call, labelled, to show one on its own
   unavailable: string[] // MCP servers that were down, by name (from mcp_errors)
   followups: string[]
+  related: Source[] // related papers (done's related), all keys in one list
   blocked: boolean // input guardrail refused the question
   rejected: boolean // output guardrail replaced the streamed draft
   done: boolean
@@ -59,12 +64,13 @@ export const GRAPH_PART = 'bdc-graph' // data: GraphPartData
 export type GraphPartData = { graph: KgGraph; parts: KgPart[] }
 export const FOLLOWUPS_PART = 'bdc-followups' // data: string[]
 export const UNAVAILABLE_PART = 'bdc-unavailable' // data: string[] (MCP server names)
+export const RELATED_PART = 'bdc-related' // data: Source[]
 export const FORM_PART = 'bdc-form' // data: FormPartData
 
 /** The form part's data: a BDC site form the answer cites, which it offers to fill in (lib/forms.ts). */
 export type FormPartData = { form: string }
 
-export type StatusPartData = { node: string | null; status: string | null }
+export type StatusPartData = { node: string | null; status: string | null; label?: string }
 export type DraftPartData = { words: number }
 
 type StreamState = {
@@ -93,7 +99,7 @@ export function toContent({ text, streaming, meta }: StreamState, reveal: Reveal
   // streamed tokens are the progress, so the node label steps aside for them;
   // with the text held back, the label stays
   if (meta.status || (meta.node && (hold || !streaming))) {
-    parts.push(data(STATUS_PART, { node: meta.node, status: meta.status } satisfies StatusPartData))
+    parts.push(data(STATUS_PART, { node: meta.node, status: meta.status, label: meta.label } satisfies StatusPartData))
   }
   if (!hold && meta.sources && Object.values(meta.sources).some((s) => s.length)) {
     parts.push(data(SOURCES_PART, meta.sources))
@@ -105,7 +111,9 @@ export function toContent({ text, streaming, meta }: StreamState, reveal: Reveal
   // an answer citing a form's page offers to fill it in (shown only with ?tools=demo for now)
   const form = meta.done && !meta.blocked ? formForSources(meta.sources) : null
   if (form) parts.push(data(FORM_PART, { form: form.id } satisfies FormPartData))
-  // the server sends none for a blocked question; checked anyway, they'd make no sense there
+  // the server sends neither for a blocked question; checked anyway, they'd make no sense there.
+  // Related papers just before the follow-ups: background reading, with the next questions last
+  if (meta.done && !meta.blocked && meta.related.length) parts.push(data(RELATED_PART, meta.related))
   if (meta.done && !meta.blocked && meta.followups.length) parts.push(data(FOLLOWUPS_PART, meta.followups))
   return parts
 }
@@ -151,6 +159,7 @@ export function createBdcAdapter(
           graphParts: [],
           unavailable: [],
           followups: [],
+          related: [],
           blocked: false,
           rejected: false,
           done: false,
@@ -185,6 +194,7 @@ export function createBdcAdapter(
             case 'node':
               state.streaming = false
               meta.node = ev.node
+              meta.label = ev.label
               meta.status = null
               break
             case 'status':
@@ -204,7 +214,7 @@ export function createBdcAdapter(
               break
             case 'sources':
               // agent finished: its sources and graphs, sent early. done may still
-              // add related papers to the sources (related_work) or clear both (a reject)
+              // clear both (a reject); related papers come only with done
               meta.sources = ev.sources
               meta.graph = fromKgList(ev.kg)
               meta.graphParts = kgParts(ev.kg)
@@ -212,7 +222,7 @@ export function createBdcAdapter(
             case 'done': {
               // authoritative: rejects, disclaimers and canned replies replace
               // the streamed text, a rejected answer has no sources or graph, and
-              // the sources gain any related papers (sources.artie) here.
+              // related papers (related_work's, beside the sources) arrive here.
               // blocked says which guardrail stopped it: the input one refused the
               // question; the output one rejected the streamed draft (a reject)
               meta.rejected = ev.blocked === 'output'
@@ -223,7 +233,9 @@ export function createBdcAdapter(
               meta.graphParts = kgParts(ev.kg)
               meta.unavailable = [...new Set((ev.mcp_errors ?? []).map((e) => e.split(':')[0].trim()))]
               meta.followups = ev.followups
+              meta.related = Object.values(ev.related ?? {}).flat()
               meta.node = null
+              meta.label = undefined
               meta.status = null
               meta.done = true
               break

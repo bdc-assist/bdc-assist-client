@@ -9,6 +9,7 @@ import {
   FORM_PART,
   GRAPH_PART,
   REJECTED_PART,
+  RELATED_PART,
   SOURCES_PART,
   STATUS_PART,
   toRequest,
@@ -261,6 +262,20 @@ describe('data parts', () => {
     expect(names(yields[6])).not.toContain(STATUS_PART) // done
   })
 
+  it("passes on the server's label for a step, until the next step", async () => {
+    const { yields } = await run(
+      sse(
+        { type: 'node', node: 'related_work', label: 'Finding related papers…' },
+        { type: 'node', node: 'output_guardrail' },
+        done(),
+      ),
+    )
+    const statusOf = (y: ChatModelRunResult) => partsOf(y).find((p) => p.name === STATUS_PART)?.data
+    expect(statusOf(yields[0])).toEqual({ node: 'related_work', status: null, label: 'Finding related papers…' })
+    expect(statusOf(yields[1])).toEqual({ node: 'output_guardrail', status: null }) // none: the client's own
+    expect(statusOf(yields[2])).toBeUndefined() // done: no status line, label and all
+  })
+
   it('adds sources once known, and none for empty sources', async () => {
     const { yields } = await run(sse(done({ followups: [] })))
     expect(names(yields[0])).toEqual([SOURCES_PART])
@@ -322,6 +337,27 @@ describe('data parts', () => {
     expect(names(yields[0])).not.toContain(FOLLOWUPS_PART)
     const last = partsOf(yields.at(-1)!)
     expect(last.at(-1)).toEqual({ type: 'data', name: FOLLOWUPS_PART, data: ['A?', 'B?'] })
+  })
+
+  it('adds related papers once done, apart from the sources, just before the follow-ups', async () => {
+    const paper = (n: number) => ({ title: `P${n}`, link: `https://p/${n}`, type: 'publication' })
+    const related = { artie: [paper(1), paper(2)] }
+    const { yields } = await run(
+      sse({ type: 'sources', sources: {}, sources_md: '' }, done({ related, followups: ['A?'] })),
+    )
+    expect(names(yields[0])).not.toContain(RELATED_PART) // not on the early sources event
+    const last = yields.at(-1)!
+    expect(dataOf(last, RELATED_PART)).toEqual([paper(1), paper(2)])
+    expect(names(last).slice(-2)).toEqual([RELATED_PART, FOLLOWUPS_PART])
+    expect(dataOf(last, SOURCES_PART)).not.toHaveProperty('artie')
+  })
+
+  it('adds no related papers when there are none, the server omits them, or the question was blocked', async () => {
+    const related = { artie: [{ title: 'P', link: 'https://p', type: 'publication' }] }
+    expect(names((await run(sse(done({ related: null })))).yields[0])).not.toContain(RELATED_PART)
+    expect(names((await run(sse(done({ related: { artie: [] } })))).yields[0])).not.toContain(RELATED_PART)
+    expect(names((await run(sse(done()))).yields[0])).not.toContain(RELATED_PART)
+    expect(names((await run(sse(done({ blocked: 'input', related })))).yields[0])).not.toContain(RELATED_PART)
   })
 
   it('adds no follow-ups when there are none, or for a blocked question', async () => {
