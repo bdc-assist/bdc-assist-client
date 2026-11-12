@@ -1,6 +1,6 @@
 import { edgeId, fromKgList, type KgEdge, type KgGraph, type KgNode } from '@/kg'
 
-// ?tools=demo only: a stand-in for the agent that would change a graph from the tool view's chat. It knows one
+// A stand-in for the agent that would change a graph from the tool view's chat. It knows one
 // edit, "expand asthma": add asthma's related concepts, from the stub server's concept_connections fixture (a
 // real Dug result). Loaded on first use. A test fixture, not src/kg's API, hence the relative import.
 

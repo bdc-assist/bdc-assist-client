@@ -23,8 +23,8 @@ import type { ViewMode } from './shared'
 import { StudyList } from './study-list'
 
 /** Legend, graph and the clicked node's details: one mountGraph view. Rendered
- * inline and, separately, in the maximized dialog. Carries the --kg-* colours
- * (index.css), so they apply in the dialog's portal too. */
+ * in the answer's card and, separately, in the tool view. Carries the --kg-* colours
+ * (index.css), so they apply in the tool view's portal too. */
 export type GraphBodyProps = {
   raw: KgGraph // the graph as the answer has it; a new one (by content) remounts the views
   shown: KgGraph
@@ -43,12 +43,10 @@ export type GraphBodyProps = {
   sources: string[] // the per-call graphs' labels (none: nothing to pick)
   source: number // which one is shown; -1: all merged
   onSource: (i: number) => void
-  focus: KgFocus | null // what's picked, the same in every view, and inline and maximized
+  focus: KgFocus | null // what's picked, the same in every view, and in the card and the tool view
   onFocus: (f: KgFocus | null) => void
   zoomGestures: boolean | 'modifier' // see mountGraph: 'modifier' where the chat scrolls around the graph
-  forcePositions: Map<string, { x: number; y: number }> // see mountGraph: shared by the panel and the dialog
-  covered?: boolean // the maximized dialog is over it: when it closes, show what was moved there
-  detailsBeside?: boolean // details in a column on the right, not below: picking a node never resizes the views
+  forcePositions: Map<string, { x: number; y: number }> // see mountGraph: shared by the card and the tool view
   detailsStrip?: boolean // details below in a short strip that scrolls, its height set by the view's, not the details
 }
 
@@ -57,7 +55,7 @@ const ZOOM_KEY = /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl'
 
 export function GraphBody(props: GraphBodyProps) {
   const { raw, shown, canvasClass, choice, onChoice, views, sharedOnly, onSharedOnly, canShare, zoomGestures } = props
-  const { sources, source, onSource, grouped, onGrouped, canGroup, forcePositions, covered, detailsBeside } = props
+  const { sources, source, onSource, grouped, onGrouped, canGroup, forcePositions } = props
   const { detailsStrip } = props
   const { focus, onFocus } = props
   const { variables, onVariables } = props
@@ -93,8 +91,8 @@ export function GraphBody(props: GraphBodyProps) {
       onFocus, // the host keeps it, and the other views follow (below)
     })
     view.current = v
-    // the container's size can change without the window's (details reopened,
-    // dialog opening animation): keep the graph fitted to it
+    // the container's size can change without the window's (the tool view's divider
+    // dragged): keep the graph fitted to it
     const observer = new ResizeObserver(() => v.resize())
     observer.observe(container.current!)
     return () => {
@@ -128,12 +126,8 @@ export function GraphBody(props: GraphBodyProps) {
     if (layout) view.current?.setOptions({ layout })
   }, [layout])
   useEffect(() => view.current?.setOptions({ variables }), [variables])
-  // nodes dragged in the maximized dialog moved in forcePositions only: catch up on closing
-  useEffect(() => {
-    if (!covered) view.current?.restorePositions()
-  }, [covered])
-  // the focus, picked here or in the other copy (inline or maximized): every view shows it,
-  // also when just mounted (the dialog opening)
+  // the focus, picked here or in the other copy (card or tool view): every view shows it,
+  // also when just mounted (the tool view opening)
   useEffect(() => {
     view.current?.focus(focus)
     flowView.current?.focus(focus)
@@ -213,65 +207,58 @@ export function GraphBody(props: GraphBodyProps) {
           <ViewPicker choice={choice} views={views} onChoice={onChoice} />
         </div>
       </div>
-      {/* beside: the views in a column, the details next to it; below: no wrappers */}
-      <div className={detailsBeside ? 'flex min-h-0 flex-1' : 'contents'}>
-        <div className={detailsBeside ? 'flex min-w-0 flex-1 flex-col' : 'contents'}>
-          {mode === 'list' && (
-            <div className={`overflow-y-auto border-t ${canvasClass}`}>
-              <StudyList graph={shown} focus={focus} onPick={pickFromList} />
-            </div>
-          )}
-          {/* the flow's own box (mountFlow fills it) */}
-          <div className={`relative border-t ${canvasClass} ${mode === 'flow' ? '' : 'hidden'}`}>
-            <div
-              ref={flowContainer}
-              className="h-full w-full"
-              aria-label="Knowledge graph as flows from concepts to studies. The List view shows the same as text."
-            />
-          </div>
-          {/* kept mounted while another view shows, so the graph keeps its layout and zoom */}
-          <div className={`relative border-t ${canvasClass} ${mode === 'graph' ? '' : 'hidden'}`}>
-            {/* sized by height, not `absolute inset-0`: Cytoscape gives its container
-                `position: relative` from an unlayered style sheet, which beats Tailwind's
-                layered utilities, so `absolute` would be dropped and the box collapse */}
-            <div
-              ref={container}
-              className="h-full w-full"
-              role="img"
-              aria-label="Knowledge graph. The List view shows the same studies and variables as text."
-            />
-            <p
-              aria-hidden
-              className={`bg-foreground/75 text-background pointer-events-none absolute inset-x-0 top-1/2 mx-auto w-fit -translate-y-1/2 rounded-md px-3 py-1.5 transition-opacity ${zoomHint ? 'opacity-100' : 'opacity-0'}`}
-            >
-              Hold {ZOOM_KEY} and scroll to zoom
-            </p>
-            <div className="bg-background/80 absolute right-1.5 bottom-1.5 flex rounded-md border">
-              <TooltipIconButton tooltip="Zoom in" side="top" onClick={() => view.current?.zoomBy(ZOOM_STEP)}>
-                <PlusIcon />
-              </TooltipIconButton>
-              <TooltipIconButton tooltip="Zoom out" side="top" onClick={() => view.current?.zoomBy(1 / ZOOM_STEP)}>
-                <MinusIcon />
-              </TooltipIconButton>
-              <TooltipIconButton tooltip="Show all" side="top" onClick={() => view.current?.fit()}>
-                <ScanIcon />
-              </TooltipIconButton>
-            </div>
-          </div>
+      {mode === 'list' && (
+        <div className={`overflow-y-auto border-t ${canvasClass}`}>
+          <StudyList graph={shown} focus={focus} onPick={pickFromList} />
         </div>
+      )}
+      {/* the flow's own box (mountFlow fills it) */}
+      <div className={`relative border-t ${canvasClass} ${mode === 'flow' ? '' : 'hidden'}`}>
         <div
-          className={
-            detailsBeside
-              ? 'w-80 shrink-0 overflow-y-auto border-t border-l px-3 py-2'
-              : detailsStrip
-                ? // 30% of the graph view, at most 5.5rem (4 rows of details): short windows keep more graph. Never depends on what's
-                  // selected, so selecting doesn't resize (and jump) the graph
-                  'shrink-0 grow-0 basis-[min(5.5rem,30%)] overflow-y-auto border-t px-3 py-2'
-                : 'border-t px-3 py-2'
-          }
+          ref={flowContainer}
+          className="h-full w-full"
+          aria-label="Knowledge graph as flows from concepts to studies. The List view shows the same as text."
+        />
+      </div>
+      {/* kept mounted while another view shows, so the graph keeps its layout and zoom */}
+      <div className={`relative border-t ${canvasClass} ${mode === 'graph' ? '' : 'hidden'}`}>
+        {/* sized by height, not `absolute inset-0`: Cytoscape gives its container
+            `position: relative` from an unlayered style sheet, which beats Tailwind's
+            layered utilities, so `absolute` would be dropped and the box collapse */}
+        <div
+          ref={container}
+          className="h-full w-full"
+          role="img"
+          aria-label="Knowledge graph. The List view shows the same studies and variables as text."
+        />
+        <p
+          aria-hidden
+          className={`bg-foreground/75 text-background pointer-events-none absolute inset-x-0 top-1/2 mx-auto w-fit -translate-y-1/2 rounded-md px-3 py-1.5 transition-opacity ${zoomHint ? 'opacity-100' : 'opacity-0'}`}
         >
-          <FocusDetails focus={focus} graph={shown} />
+          Hold {ZOOM_KEY} and scroll to zoom
+        </p>
+        <div className="bg-background/80 absolute right-1.5 bottom-1.5 flex rounded-md border">
+          <TooltipIconButton tooltip="Zoom in" side="top" onClick={() => view.current?.zoomBy(ZOOM_STEP)}>
+            <PlusIcon />
+          </TooltipIconButton>
+          <TooltipIconButton tooltip="Zoom out" side="top" onClick={() => view.current?.zoomBy(1 / ZOOM_STEP)}>
+            <MinusIcon />
+          </TooltipIconButton>
+          <TooltipIconButton tooltip="Show all" side="top" onClick={() => view.current?.fit()}>
+            <ScanIcon />
+          </TooltipIconButton>
         </div>
+      </div>
+      <div
+        className={
+          detailsStrip
+            ? // 30% of the graph view, at most 5.5rem (4 rows of details): short windows keep more graph. Never depends on what's
+              // selected, so selecting doesn't resize (and jump) the graph
+              'shrink-0 grow-0 basis-[min(5.5rem,30%)] overflow-y-auto border-t px-3 py-2'
+            : 'border-t px-3 py-2'
+        }
+      >
+        <FocusDetails focus={focus} graph={shown} />
       </div>
     </div>
   )

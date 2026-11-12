@@ -1,10 +1,5 @@
 import { ClipboardPenIcon, createLucideIcon, type LucideIcon } from 'lucide-react'
 
-// Demo only for now: ?tools=demo turns the tool view on; without it the graph keeps its maximize dialog.
-// typeof: read on import, which also happens outside a browser (tests under Node have no location)
-export const TOOLS_DEMO =
-  typeof location !== 'undefined' && new URLSearchParams(location.search).get('tools') === 'demo'
-
 // lucide's graph-star, newer than our lucide-react (1.50.0): drawn from its SVG until we upgrade, then import it
 const GraphStarIcon = createLucideIcon('graph-star', [
   ['path', { d: 'm12.342 9.316 1.764-3.527', key: 'a' }],

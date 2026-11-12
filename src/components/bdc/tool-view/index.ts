@@ -1,7 +1,6 @@
 // The tool view (design/form-prefill.html, design/tool-view.html): an object from an answer (a graph, a form draft)
 // opens beside the conversation in a split, with a draggable divider, or full screen on a narrow window. Every tool
-// looks the same: the same card in the answer, the same header here (TOOLS gives each its icon and name). Demo only
-// for now: ?tools=demo turns it on; without it the graph keeps its maximize dialog.
+// looks the same: the same card in the answer, the same header here (TOOLS gives each its icon and name).
 // Whatever owns the object (an answer, or the header's Get help button, which stands in for a card) renders it
 // into the tool view through a portal (useToolView), so its state stays where it is, and the tool view sits
 // outside the message (whose content-visibility clips painting).
@@ -16,4 +15,4 @@ export type { ToolChatProps, ToolMessage } from './chat'
 export { useToolView } from './context'
 export { ToolViewFrame } from './frame'
 export { ToolSplit, ToolViewProvider } from './split'
-export { TOOLS, TOOLS_DEMO, type ToolKind } from './tools'
+export { TOOLS, type ToolKind } from './tools'

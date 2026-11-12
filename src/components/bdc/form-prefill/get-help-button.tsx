@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 import { FormDraftTool } from './draft-tool'
 import { useFormDraft } from './use-form-draft'
 
-/** The header's Get help button (?tools=demo only): a stand-in for a form card, with its own Get Help draft,
+/** The header's Get help button: a stand-in for a form card, with its own Get Help draft,
  * separate from any answer's. The first click drafts it in the side panel from the conversation (blank in an
  * empty one); later clicks open and close it. Pressed while its draft is open; a dot once it has one. Another
  * conversation starts over (the draft is dropped, as an answer's is). */

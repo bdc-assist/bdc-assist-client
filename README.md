@@ -37,13 +37,12 @@ page, for the form demo below). A Dug tool's name picks its real graph:
 search); several combine, e.g. `concept_graph_2 concept_connections`. Anything else gets a docs answer
 with a small graph.
 
-### Tool view demo
+### Tool view
 
-Add `?tools=demo` to the page URL to try the tool view, a mock-up for bdc-assist#64 faked in the
-client (no API changes). An object from an answer opens in a side panel beside the conversation,
-with its own chat that changes it in place; the answer keeps a small card for it. Drag the divider
-to resize (remembered per tool in this browser); on a narrow window the panel is full screen.
-Without the flag, graphs keep their maximize dialog.
+The tool view is a mock-up for bdc-assist#64 faked in the client (no API changes). An object from
+an answer opens in a side panel beside the conversation, with its own chat that changes it in
+place; the answer keeps a small card for it. Drag the divider to resize (remembered per tool in
+this browser); on a narrow window the panel is full screen.
 
 - **Knowledge graph**: ask the stub `concept_graph_2` and open the graph's side panel. The panel's
   chat understands one request, expanding asthma, which merges in the `concept_connections` graph.

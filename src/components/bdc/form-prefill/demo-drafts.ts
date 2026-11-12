@@ -1,6 +1,6 @@
 import type { FormValues } from '@/lib/forms'
 
-// ?tools=demo only: a stand-in for the agent that would draft the form from the conversation. Canned, for the
+// A stand-in for the agent that would draft the form from the conversation. Canned, for the
 // stub's get_help answer (an eRA Commons login loop), as in design/form-prefill.html.
 
 /** The first draft, and what the agent says about it. `blank`: nothing to draft from (the header's Get help in an

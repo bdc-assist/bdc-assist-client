@@ -38,7 +38,6 @@ import {
   type StatusPartData,
 } from '@/lib/bdc-adapter'
 import { FormPrefill } from '@/components/bdc/form-prefill'
-import { TOOLS_DEMO } from '@/components/bdc/tool-view'
 import { formById } from '@/lib/forms'
 
 // Renderers for the `data` parts bdc-adapter appends after the answer text.
@@ -320,12 +319,12 @@ const RelatedUI = makeAssistantDataUI<Source[]>({
 
 // Some MCP servers (e.g. the knowledge graph) were down: the answer had to do without
 // them. The server names are for whoever runs it, so they're only in the tooltip.
-// an answer citing a form's page offers to fill it in; ?tools=demo only for now
+// an answer citing a form's page offers to fill it in
 const FormUI = makeAssistantDataUI<FormPartData>({
   name: FORM_PART,
   render: ({ data }) => {
     const form = formById(data.form)
-    return TOOLS_DEMO && form ? <FormPrefill form={form} /> : null
+    return form ? <FormPrefill form={form} /> : null
   },
 })
 

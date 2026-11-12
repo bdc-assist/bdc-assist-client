@@ -108,7 +108,7 @@ export function toContent({ text, streaming, meta }: StreamState, reveal: Reveal
   if (reveal === 'stream' && meta.rejected) parts.push(data(REJECTED_PART, {}))
   if (meta.blocked) parts.push(data(BLOCKED_PART, {}))
   if (meta.done && meta.unavailable.length) parts.push(data(UNAVAILABLE_PART, meta.unavailable))
-  // an answer citing a form's page offers to fill it in (shown only with ?tools=demo for now)
+  // an answer citing a form's page offers to fill it in
   const form = meta.done && !meta.blocked ? formForSources(meta.sources) : null
   if (form) parts.push(data(FORM_PART, { form: form.id } satisfies FormPartData))
   // the server sends neither for a blocked question; checked anyway, they'd make no sense there.
