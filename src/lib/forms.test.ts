@@ -75,4 +75,10 @@ describe('formUrl', () => {
     const url = formUrl(GET_HELP, { ticket_type: 'Publishing Research', cf_journal_name: 'Circulation' })
     expect(params(url)).toEqual({ ticket_type: 'Publishing Research', cf_journal_name: 'Circulation' })
   })
+
+  it('goes to another site when given one, keeping the path', () => {
+    const site = 'https://staging.biodatacatalyst.nhlbi.nih.gov'
+    expect(formUrl(GET_HELP, {}, site)).toBe(`${site}/help/get-help/`)
+    expect(formUrl(GET_HELP, { cf_subject: 'Hi' }, `${site}/`)).toBe(`${site}/help/get-help/?cf_subject=Hi`)
+  })
 })

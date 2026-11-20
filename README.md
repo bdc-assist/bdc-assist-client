@@ -50,7 +50,8 @@ this browser); on a narrow window the panel is full screen.
 - **Get Help form**: ask the stub `get_help`. The answer offers to fill in the BDC Get Help form;
   opening it drafts the form in the side panel. Refine it by its chat (suggestion buttons give the
   scripted messages) or by clicking a value, then *Open form* goes to the BDC page with the values
-  as URL parameters (whether the site will read them isn't decided yet).
+  as URL parameters. Only the staging site reads them so far: run with
+  `VITE_FORMS_SITE=https://staging.biodatacatalyst.nhlbi.nih.gov` to send *Open form* there.
 - **Get help button** in the header: its own Get Help draft, separate from any answer's, drafted
   from the conversation (blank in a new one).
 

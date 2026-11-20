@@ -2,7 +2,9 @@ import type { Sources } from '@/lib/bdc-adapter'
 
 // BDC site forms the client can prefill (bdc-assist#64). Stand-in for the form definitions the issue proposes for
 // bdc-llm's frontmatter: the Get Help form as the live page builds it (its Freshdesk field list, 2026-11-03).
-// Whether the URL parameters will use these input names isn't decided.
+// The page prefills from URL parameters named after its inputs: works on staging for every field (2026-11-20)
+// except the publication date, which rejected both 2027-03-01 and 03/01/2027 (asked the web team; sent as
+// YYYY-MM-DD meanwhile). Production doesn't read them yet; VITE_FORMS_SITE points Open form elsewhere.
 
 export type FormField = {
   name: string // the form's input name
@@ -49,7 +51,11 @@ export const GET_HELP: FormDef = {
       required: true,
       when: 'Publishing Research',
     },
-    { name: 'cf_expected_date_of_publication_if_known', label: 'Expected date of publication', when: 'Publishing Research' },
+    {
+      name: 'cf_expected_date_of_publication_if_known', // YYYY-MM-DD for now: the page's format is still unknown
+      label: 'Expected date of publication',
+      when: 'Publishing Research',
+    },
     { name: 'cf_journal_name', label: 'Journal name', when: 'Publishing Research' },
     { name: 'cf_link_to_the_manuscript_if_available', label: 'Link to the manuscript', when: 'Publishing Research' },
     { name: 'cf_submitted_description', label: 'Description', required: true },
@@ -96,10 +102,19 @@ export type FormValues = Record<string, string>
 export const shownFields = (form: FormDef, values: FormValues) =>
   form.fields.filter((f) => !f.when || values.ticket_type === f.when)
 
-/** The form's page with the values as URL parameters; blank fields and confirmations left out. */
-export function formUrl(form: FormDef, values: FormValues): string {
-  const params = new URLSearchParams()
-  for (const f of shownFields(form, values)) if (!f.confirm && values[f.name]) params.set(f.name, values[f.name])
-  const query = params.toString()
-  return query ? `${form.url}?${query}` : form.url
+// The site Open form goes to, e.g. https://staging.biodatacatalyst.nhlbi.nih.gov; unset = the form's own site.
+// Only the link: an answer's sources still cite the production page.
+const FORMS_SITE: string | undefined = import.meta.env.VITE_FORMS_SITE
+
+/** The form's page on `site` (scheme and host; default the form's own) with the values as URL parameters;
+ * blank fields and confirmations left out. */
+export function formUrl(form: FormDef, values: FormValues, site = FORMS_SITE): string {
+  const url = new URL(form.url)
+  if (site) {
+    const to = new URL(site)
+    url.protocol = to.protocol
+    url.host = to.host
+  }
+  for (const f of shownFields(form, values)) if (!f.confirm && values[f.name]) url.searchParams.set(f.name, values[f.name])
+  return url.toString()
 }
