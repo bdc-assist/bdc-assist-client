@@ -17,6 +17,8 @@ Needs Node 20+ and a running bdc-assist server.
 npm install                                       # once
 npm run dev                                       # http://localhost:5173, API on :8010
 VITE_API_URL=http://127.0.0.1:8011 npm run dev    # against bdc-assist's stub server instead
+VITE_SIDE_PANEL_URL=http://127.0.0.1:8012 npm run dev   # with form prefill (bdc-side-panel, below)
+# Open on BDC links staging.biodatacatalyst.nhlbi.nih.gov for now; VITE_FORMS_SITE_URL= (empty) links the live site
 npm test                                          # unit tests, no server needed
 npm run build                                     # production build in dist/
 ```
@@ -31,7 +33,7 @@ checkout: `uv run python tests/_stub_stream_server.py` (port 8011), then run thi
 `VITE_API_URL=http://127.0.0.1:8011`. A keyword in the question picks a path: `block` (input
 guardrail refuses), `reject` (output guardrail replaces the draft), `canned` (predefined reply),
 `nosources`, `crash` (the stream ends with an error), `get_help` (an answer citing the Get Help
-page, for the form demo below). A Dug tool's name picks its real graph:
+page; the stub sends no `form_offer`, so it shows no form card). A Dug tool's name picks its real graph:
 `concept_graph` (congenital heart disease), `concept_graph_2` (asthma and COPD), `concept_connections`
 (asthma's related concepts), `cohort_variables` (asthma + COPD search words), `search_concepts` (a BMI
 search); several combine, e.g. `concept_graph_2 concept_connections`. Anything else gets a docs answer
@@ -39,27 +41,41 @@ with a small graph.
 
 ### Tool view
 
-The tool view is a mock-up for bdc-assist#64 faked in the client (no API changes). An object from
-an answer opens in a side panel beside the conversation, with its own chat that changes it in
+The tool view (bdc-assist#64): an object from an answer (a graph, a form draft) opens in a side panel beside the conversation, with its own chat that changes it in
 place; the answer keeps a small card for it. Drag the divider to resize (remembered per tool in
-this browser); on a narrow window the panel is full screen.
+this browser); on a narrow window the panel is full screen. Forms: see Form prefill below. The graph's
+panel is still a mock-up faked in the client:
 
 - **Knowledge graph**: ask the stub `concept_graph_2` and open the graph's side panel. The panel's
   chat understands one request, expanding asthma, which merges in the `concept_connections` graph.
   Undo and Redo step through changes; *Edited* has *Reset to original*.
-- **Get Help form**: ask the stub `get_help`. The answer offers to fill in the BDC Get Help form;
-  opening it drafts the form in the side panel. Refine it by its chat (suggestion buttons give the
-  scripted messages) or by clicking a value, then *Open form* goes to the BDC page with the values
-  as URL parameters. Only the staging site reads them so far: run with
-  `VITE_FORMS_SITE=https://staging.biodatacatalyst.nhlbi.nih.gov` to send *Open form* there.
-- **Get help button** in the header: its own Get Help draft, separate from any answer's, drafted
-  from the conversation (blank in a new one).
 
-Drafting and the chats are canned (`src/components/bdc/knowledge-graph/demo-edits.ts`,
-`src/components/bdc/form-prefill/demo-drafts.ts`), so they work against the stub only, and edits
-are kept in memory, not saved with the conversation. The form's fields are a local stand-in
-(`src/lib/forms.ts`) for definitions the BDC docs would provide. Code: `src/components/bdc/tool-view/`
-(the panel, card and chat every tool shares) and `src/components/bdc/form-prefill/`.
+Graph edits are canned (`src/components/bdc/knowledge-graph/demo-edits.ts`), so they work against the stub
+only, and are kept in memory, not saved with the conversation. Code: `src/components/bdc/tool-view/` (the panel,
+card and chat every tool shares).
+
+## Form prefill
+
+With `VITE_SIDE_PANEL_URL` set (bdc-side-panel, its own service: drafts the BDC site's forms), an answer the
+server offers a form under gets the form's card (bdc-assist's BDC config, `form_offer` in the `done` event:
+`{question, forms: [{id, title, url}]}`). Opening it drafts the form in the side panel, from the conversation up
+to that answer and its question. Refine the draft by its chat or by clicking a value; *Open on BDC* goes to the
+BDC staging site's page for now (`VITE_FORMS_SITE_URL`) with the values as URL parameters, where the user checks
+and submits. The header's **Get help** button has a Get Help draft of its own, drafted from the whole
+conversation (blank in a new one).
+
+- The form definitions come from bdc-side-panel's `GET /tools`, loaded once at startup (`src/lib/side-panel.ts`,
+  `src/lib/forms.ts`). If it's down then, there are no form cards and no Get help button.
+- The panel chat is its own conversation: its first draft gets the main chat up to the answer, later turns a
+  summary of it (from the first draft) and the question, never the main chat itself.
+- **Personal fields** (name, email) are filled in by hand only: their values never leave the browser except in the
+  Open on BDC link, and the drafter never fills them. Fields the user completes on the real form (consent) aren't
+  in the definitions at all.
+- Drafts are kept in memory, not saved with the conversation; the cards are (they're message parts).
+- Busy or failing, bdc-side-panel says so in the panel chat; the fields still work by hand.
+
+Code: `src/components/bdc/form-prefill/` (`use-form-draft.ts`: a draft and its turns; `draft-tool.tsx`: the draft
+in the tool view).
 
 ## Saved conversations
 

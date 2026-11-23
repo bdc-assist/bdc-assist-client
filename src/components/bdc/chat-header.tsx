@@ -5,10 +5,11 @@ import { GetHelpButton } from '@/components/bdc/form-prefill/get-help-button'
 import { NewConversation } from '@/components/bdc/new-conversation'
 import { SidebarToggle } from '@/components/bdc/sidebar-toggle'
 import { ThemeToggle } from '@/components/bdc/theme-toggle'
+import { SIDE_PANEL_URL } from '@/lib/side-panel'
 
-/** The bar across the top: sidebar toggle and New conversation on the left, the open
+/** The bar above the thread: sidebar toggle and New conversation on the left, the open
  * conversation's title in the middle (none for a new one; the browser tab shows it too), the
- * Get help button and the theme toggle on the right.
+ * theme toggle on the right (with bdc-side-panel, the Get help button before it).
  * The thread scrolls below it, so nothing sits over the text. */
 export function ChatHeader() {
   const title = useAuiState(
@@ -27,7 +28,7 @@ export function ChatHeader() {
       </div>
       <h1 className="min-w-0 flex-1 truncate text-center text-sm font-medium">{title}</h1>
       <div className="flex w-18 justify-end gap-1">
-        <GetHelpButton />
+        {SIDE_PANEL_URL && <GetHelpButton />}
         <ThemeToggle />
       </div>
     </header>

@@ -12,11 +12,11 @@ import {
   RELATED_PART,
   SOURCES_PART,
   STATUS_PART,
+  toHistory,
   toRequest,
   UNAVAILABLE_PART,
   type Reveal,
 } from '@/lib/bdc-adapter'
-import { GET_HELP } from '@/lib/forms'
 import { streamOf } from '@/lib/test-utils'
 
 const msg = (role: 'user' | 'assistant', text: string) =>
@@ -77,6 +77,16 @@ describe('toRequest', () => {
   it('drops empty turns (e.g. a cancelled reply)', () => {
     const req = toRequest([msg('user', 'q1'), msg('assistant', ''), msg('user', 'q2')])
     expect(req.chat_history).toEqual([{ role: 'user', content: 'q1' }])
+  })
+})
+
+describe('toHistory', () => {
+  it('is every text turn, empty ones dropped', () => {
+    expect(toHistory([msg('user', 'q1'), msg('assistant', ''), msg('assistant', 'a1'), msg('user', 'q2')])).toEqual([
+      { role: 'user', content: 'q1' },
+      { role: 'assistant', content: 'a1' },
+      { role: 'user', content: 'q2' },
+    ])
   })
 })
 
@@ -315,21 +325,29 @@ describe('data parts', () => {
     ])
   })
 
-  it('offers a form once done, when the sources cite its page, before the follow-ups', async () => {
-    const sources = { 'bdc-doc': [{ title: 'Get Help', link: GET_HELP.url, type: 'page' }] }
-    const { yields } = await run(
-      sse({ type: 'sources', sources, sources_md: '' }, { type: 'node', node: 'output_guardrail' }, done({ sources })),
-    )
-    expect(names(yields[0])).not.toContain(FORM_PART) // sources known, not done yet
+  it('offers each form in form_offer once done, with its question, before the follow-ups', async () => {
+    const form_offer = {
+      question: 'Who fixes my login loop?',
+      forms: [
+        { id: 'get-help', title: 'Get Help', url: 'https://bdc/help/get-help/' },
+        { id: 'contact-bdc', title: 'Contact BDC', url: 'https://bdc/help/contact-bdc/' },
+      ],
+    }
+    const { yields } = await run(sse({ type: 'node', node: 'output_guardrail' }, done({ form_offer })))
+    expect(names(yields[0])).not.toContain(FORM_PART) // not done yet
     const last = partsOf(yields.at(-1)!)
-    expect(last.find((p) => p.name === FORM_PART)?.data).toEqual({ form: 'get-help' })
-    expect(last.map((p) => p.name).slice(-2)).toEqual([FORM_PART, FOLLOWUPS_PART])
+    expect(last.filter((p) => p.name === FORM_PART).map((p) => p.data)).toEqual([
+      { form: 'get-help', question: 'Who fixes my login loop?' },
+      { form: 'contact-bdc', question: 'Who fixes my login loop?' },
+    ])
+    expect(last.map((p) => p.name).slice(-3)).toEqual([FORM_PART, FORM_PART, FOLLOWUPS_PART])
   })
 
-  it('offers no form for other sources, or a refused question', async () => {
+  it('offers no form without form_offer, or for a refused question', async () => {
     expect(names((await run(sse(done()))).yields[0])).not.toContain(FORM_PART)
-    const sources = { 'bdc-doc': [{ title: 'Get Help', link: GET_HELP.url, type: 'page' }] }
-    expect(names((await run(sse(done({ sources, blocked: 'input' })))).yields[0])).not.toContain(FORM_PART)
+    expect(names((await run(sse(done({ form_offer: null })))).yields[0])).not.toContain(FORM_PART)
+    const form_offer = { question: 'Q', forms: [{ id: 'get-help', title: 'Get Help', url: 'https://bdc/help/get-help/' }] }
+    expect(names((await run(sse(done({ form_offer, blocked: 'input' })))).yields[0])).not.toContain(FORM_PART)
   })
 
   it('adds the follow-ups last, once done', async () => {

@@ -1,12 +1,13 @@
 import type { ChatModelAdapter, ThreadMessage } from '@assistant-ui/react'
 
 import { fromKgList, kgParts, type KgGraph, type KgPart } from '@/kg'
-import { formForSources } from '@/lib/forms'
 import { readSSE } from '@/lib/sse'
 
 // Wire format of POST /chat/stream (bdc-assist: stream_chat in r_assist/api.py; its README's API section).
 export type Source = { title: string; link: string; type: string }
 export type Sources = Record<string, Source[]> // {"bdc-doc": [...]}, deduplicated
+/** BDC site forms the answer offers to prefill in the side panel, and the question (contextualized) to draft from. */
+export type FormOffer = { question: string; forms: { id: string; title: string; url: string }[] }
 
 type StreamEvent =
   | { type: 'node'; node: string; label?: string } // label: the server config's text for the step (a node's label in project.yaml)
@@ -27,6 +28,7 @@ type StreamEvent =
       // related_work's papers ({"artie": [...]}): found after answering, so not among the sources (the
       // answer isn't based on them) and never one it cites; null when none, or on a reject; older servers omit it
       related?: Sources | null
+      form_offer?: FormOffer | null // BDC config's form_offer node: forms to offer to prefill (bdc-side-panel)
     }
   | { type: 'error' } // the run failed; last event, no done
 
@@ -42,6 +44,7 @@ export type BdcMessageMeta = {
   unavailable: string[] // MCP servers that were down, by name (from mcp_errors)
   followups: string[]
   related: Source[] // related papers (done's related), all keys in one list
+  offer: FormOffer | null // forms the answer offers to prefill; null until done, or none
   blocked: boolean // input guardrail refused the question
   rejected: boolean // output guardrail replaced the streamed draft
   done: boolean
@@ -67,8 +70,9 @@ export const UNAVAILABLE_PART = 'bdc-unavailable' // data: string[] (MCP server 
 export const RELATED_PART = 'bdc-related' // data: Source[]
 export const FORM_PART = 'bdc-form' // data: FormPartData
 
-/** The form part's data: a BDC site form the answer cites, which it offers to fill in (lib/forms.ts). */
-export type FormPartData = { form: string }
+/** The form part's data: a BDC site form the answer offers to fill in (lib/forms.ts), and the question its draft
+ * starts from. Conversations saved before the offer came from the server have no question. */
+export type FormPartData = { form: string; question?: string | null }
 
 export type StatusPartData = { node: string | null; status: string | null; label?: string }
 export type DraftPartData = { words: number }
@@ -108,9 +112,10 @@ export function toContent({ text, streaming, meta }: StreamState, reveal: Reveal
   if (reveal === 'stream' && meta.rejected) parts.push(data(REJECTED_PART, {}))
   if (meta.blocked) parts.push(data(BLOCKED_PART, {}))
   if (meta.done && meta.unavailable.length) parts.push(data(UNAVAILABLE_PART, meta.unavailable))
-  // an answer citing a form's page offers to fill it in
-  const form = meta.done && !meta.blocked ? formForSources(meta.sources) : null
-  if (form) parts.push(data(FORM_PART, { form: form.id } satisfies FormPartData))
+  // forms the server offers to fill in (bdc-assist's BDC config: form_offer), one card each
+  if (meta.done && !meta.blocked && meta.offer)
+    for (const f of meta.offer.forms)
+      parts.push(data(FORM_PART, { form: f.id, question: meta.offer.question } satisfies FormPartData))
   // the server sends neither for a blocked question; checked anyway, they'd make no sense there.
   // Related papers just before the follow-ups: background reading, with the next questions last
   if (meta.done && !meta.blocked && meta.related.length) parts.push(data(RELATED_PART, meta.related))
@@ -124,17 +129,20 @@ const textOf = (m: ThreadMessage) =>
     .map((p) => p.text)
     .join('')
 
+/** The messages as the server's chat history: every text turn, empty ones dropped. */
+export function toHistory(messages: readonly ThreadMessage[]): { role: 'user' | 'assistant'; content: string }[] {
+  return messages
+    .filter((m) => m.role === 'user' || m.role === 'assistant')
+    .map((m) => ({ role: m.role as 'user' | 'assistant', content: textOf(m) }))
+    .filter((m) => m.content)
+}
+
 /** The server is stateless: send the last user message as `input` and every
  * earlier text turn as `chat_history`. */
 export function toRequest(messages: readonly ThreadMessage[]) {
   const last = messages.at(-1)
   if (last?.role !== 'user') throw new Error('last message must be from the user')
-  const chat_history = messages
-    .slice(0, -1)
-    .filter((m) => m.role === 'user' || m.role === 'assistant')
-    .map((m) => ({ role: m.role, content: textOf(m) }))
-    .filter((m) => m.content)
-  return { input: textOf(last), chat_history }
+  return { input: textOf(last), chat_history: toHistory(messages.slice(0, -1)) }
 }
 
 export type BdcAdapterOptions = {
@@ -160,6 +168,7 @@ export function createBdcAdapter(
           unavailable: [],
           followups: [],
           related: [],
+          offer: null,
           blocked: false,
           rejected: false,
           done: false,
@@ -222,7 +231,7 @@ export function createBdcAdapter(
             case 'done': {
               // authoritative: rejects, disclaimers and canned replies replace
               // the streamed text, a rejected answer has no sources or graph, and
-              // related papers (related_work's, beside the sources) arrive here.
+              // related papers (related_work's, beside the sources) and form offers arrive here.
               // blocked says which guardrail stopped it: the input one refused the
               // question; the output one rejected the streamed draft (a reject)
               meta.rejected = ev.blocked === 'output'
@@ -234,6 +243,7 @@ export function createBdcAdapter(
               meta.unavailable = [...new Set((ev.mcp_errors ?? []).map((e) => e.split(':')[0].trim()))]
               meta.followups = ev.followups
               meta.related = Object.values(ev.related ?? {}).flat()
+              meta.offer = ev.form_offer ?? null
               meta.node = null
               meta.label = undefined
               meta.status = null

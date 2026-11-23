@@ -1,17 +1,36 @@
 import { useState } from 'react'
 
 import { useToolView, type ToolMessage } from '@/components/bdc/tool-view'
-import type { FormValues } from '@/lib/forms'
-
-import { demoFirstDraft, demoRevise } from './demo-drafts'
+import { draftSummary, mergeReply, withoutPersonal, type FormDef, type FormValues } from '@/lib/forms'
+import { Busy, openDraft, reviseDraft, type MainMessage } from '@/lib/side-panel'
 
 // one state of the draft: its values, which fields the agent's last change touched, and which the user edited
 export type Draft = { values: FormValues; changed: string[]; edited: string[] }
 
+// what every later turn carries instead of the main chat: its summary (from the first draft) and the question
+export type DraftContext = { summary: string; question: string | null }
+
+const personal = (form: FormDef, name: string) => form.fields.some((f) => f.name === name && f.personal)
+
+/** A turn's request: the draft without personal values or names (those stay in the browser). */
+export const chatBody = (form: FormDef, draft: Draft, messages: ToolMessage[], context: DraftContext) => ({
+  values: withoutPersonal(form, draft.values),
+  edited: draft.edited.filter((n) => !personal(form, n)),
+  messages,
+  summary: context.summary,
+  question: context.question,
+})
+
+/** The panel chat's line when bdc-side-panel can't help: busy, or failed. The fields still work by hand. */
+export function failureText(err: unknown, first: boolean): string {
+  const what = err instanceof Busy ? 'The form helper is busy right now.' : "The form helper couldn't do that."
+  return first ? `${what} Fill in the fields yourself, or ask again below.` : `${what} Please try again in a moment.`
+}
+
 /** One draft of a form and its tool: whoever owns it (an answer's card, the header's Get help button) shows its
- * own way in, and FormDraftTool while it's open. Drafting and the chat's changes are canned (demo-drafts.ts);
- * state is in memory. */
-export function useFormDraft() {
+ * own way in, and FormDraftTool while it's open. bdc-side-panel drafts it (lib/side-panel.ts); personal fields
+ * are the user's alone. State is in memory. */
+export function useFormDraft(form: FormDef) {
   const tool = useToolView('form')
   const [stage, setStage] = useState<'none' | 'drafting' | 'draft'>('none')
   // Undo and Redo move `at`; a new change drops what was undone
@@ -21,26 +40,46 @@ export function useFormDraft() {
     setDrafts((d) => ({ states: [...d.states.slice(0, d.at + 1), next], at: d.at + 1 }))
   const [chat, setChat] = useState<ToolMessage[]>([])
   const [busy, setBusy] = useState(false)
+  const [context, setContext] = useState<DraftContext>({ summary: '', question: null })
 
-  /** Opens the tool and makes the first draft: from the conversation, or `blank` when there's nothing to go on. */
-  const prefill = async (blank = false) => {
+  /** Opens the tool and makes the first draft from the main chat (history) and the question it was offered for. */
+  const prefill = async (start: { history: MainMessage[]; question: string | null }) => {
     setStage('drafting')
     tool.open()
-    const first = await demoFirstDraft(blank)
-    change({ values: first.values, changed: [], edited: [] })
-    setChat([{ role: 'tool', text: first.reply }])
+    try {
+      const first = await openDraft(form.id, start)
+      setContext({ summary: first.summary, question: start.question })
+      change({ values: first.values, changed: [], edited: [] })
+      setChat([{ role: 'tool', text: first.reply }])
+    } catch (err) {
+      console.error('bdc-side-panel open failed', err)
+      setContext({ summary: '', question: start.question })
+      change({ values: {}, changed: [], edited: [] })
+      setChat([{ role: 'tool', text: failureText(err, true) }])
+    }
     setStage('draft')
   }
   const send = async (text: string) => {
     if (!draft) return
-    setChat((c) => [...c, { role: 'user', text }])
+    const messages: ToolMessage[] = [...chat, { role: 'user', text }]
+    setChat(messages)
     setBusy(true)
-    const result = await demoRevise(text, draft.values, draft.edited)
-    const changed = Object.keys({ ...draft.values, ...result.values }).filter(
-      (k) => (result.values[k] ?? '') !== (draft.values[k] ?? ''),
-    )
-    if (changed.length) change({ values: result.values, changed, edited: draft.edited.filter((k) => !changed.includes(k)) })
-    setChat((c) => [...c, { role: 'tool', text: result.reply }])
+    try {
+      const result = await reviseDraft(form.id, chatBody(form, draft, messages, context))
+      // applied to the draft as it is now, not as it was sent: its personal values are the user's latest
+      setDrafts((d) => {
+        const now = d.states[d.at]
+        const values = mergeReply(form, now.values, result.values)
+        const changed = Object.keys({ ...now.values, ...values }).filter((k) => (values[k] ?? '') !== (now.values[k] ?? ''))
+        if (!changed.length) return d
+        const next = { values, changed, edited: now.edited.filter((k) => !changed.includes(k)) }
+        return { states: [...d.states.slice(0, d.at + 1), next], at: d.at + 1 }
+      })
+      setChat((c) => [...c, { role: 'tool', text: result.reply }])
+    } catch (err) {
+      console.error('bdc-side-panel chat failed', err)
+      setChat((c) => [...c, { role: 'tool', text: failureText(err, false) }])
+    }
     setBusy(false)
   }
   const edit = (name: string, value: string) => {
@@ -55,19 +94,14 @@ export function useFormDraft() {
   // changed since the first draft (the agent's), by chat or by hand; Reset goes back to it
   const first = drafts.states[0]
   const edited = Boolean(draft && first && JSON.stringify(draft.values) !== JSON.stringify(first.values))
-  // the card's and the tool header's summary line
-  const summary = draft
-    ? `${draft.values.ticket_type || 'No type chosen'} · ${draft.values.cf_subject || 'No subject'}`
-    : null
   return {
     tool,
     stage,
     draft,
-    at: drafts.at, // which state is shown: keys the fields, so Undo resets them
     chat,
     busy,
     edited,
-    summary,
+    summary: draft ? (draftSummary(form, draft.values) ?? 'Nothing filled in yet') : null, // the card's and header's line
     prefill,
     send,
     edit,

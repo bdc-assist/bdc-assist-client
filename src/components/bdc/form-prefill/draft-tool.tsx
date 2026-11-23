@@ -1,5 +1,5 @@
 import { ExternalLinkIcon, LoaderIcon, Redo2Icon, Undo2Icon } from 'lucide-react'
-import type { ReactNode } from 'react'
+import type { KeyboardEvent, ReactNode } from 'react'
 
 import { TooltipIconButton } from '@/components/assistant-ui/elements/tooltip-icon-button'
 import { ToolViewFrame } from '@/components/bdc/tool-view'
@@ -8,7 +8,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { formUrl, shownFields, type FormDef, type FormField } from '@/lib/forms'
 import { cn } from '@/lib/utils'
 
-import { demoFormSuggestion } from './demo-drafts'
 import type { Draft, FormDraftState } from './use-form-draft'
 
 /** A form draft in the tool view (`d` from useFormDraft): its fields, Undo/Redo, Open on BDC and its chat. Render it
@@ -21,14 +20,13 @@ export function FormDraftTool({ form, d }: { form: FormDef; d: FormDraftState })
       chat={{
         what: 'draft',
         messages: d.chat,
-        suggestion: draft && demoFormSuggestion(draft.values),
         busy: d.busy || d.stage === 'drafting',
         onSend: (t) => void d.send(t),
       }}
       name={form.title}
       summary={d.summary ?? undefined}
       edited={d.edited}
-      onReset={d.reset}
+      onReset={() => !d.busy && d.reset()} // not while a reply is pending: it would land on top
       actions={
         <>
           <TooltipIconButton tooltip="Undo" side="bottom" className="size-7 p-1.5" disabled={!d.canUndo} onClick={d.undo}>
@@ -44,11 +42,7 @@ export function FormDraftTool({ form, d }: { form: FormDef; d: FormDraftState })
       <div className="@container min-h-0 flex-1 overflow-y-auto px-3 py-3">
         {draft ? (
           <>
-            <dl className="grid grid-cols-[minmax(8rem,max-content)_1fr] text-sm @max-sm:grid-cols-1">
-              {shownFields(form, draft.values).map((f) => (
-                <FieldRow key={`${d.at}-${f.name}`} field={f} draft={draft} onEdit={d.edit} />
-              ))}
-            </dl>
+            <FieldList form={form} draft={draft} onEdit={d.edit} busy={d.busy} />
             <p className="text-muted-foreground mt-2 text-xs">
               Open on BDC goes to the form on the BDC site with these values. You can change anything there before you
               submit. Click a value to edit it, or ask for changes below.
@@ -57,11 +51,25 @@ export function FormDraftTool({ form, d }: { form: FormDef; d: FormDraftState })
         ) : (
           <p className="text-muted-foreground flex items-center gap-2 text-sm">
             <LoaderIcon className="size-4 animate-spin" />
-            Drafting the {form.title}…
+            Drafting the {form.title} form…
           </p>
         )}
       </div>
     </ToolViewFrame>
+  )
+}
+
+type FieldProps = { draft: Draft; onEdit: (name: string, v: string) => void; busy?: boolean }
+
+/** The draft's shown fields, each editable in place; locked while a reply is pending (busy), which would otherwise
+ * land on top of an edit made meanwhile. */
+export function FieldList({ form, ...props }: FieldProps & { form: FormDef }) {
+  return (
+    <dl className="grid grid-cols-[minmax(8rem,max-content)_1fr] text-sm @max-sm:grid-cols-1">
+      {shownFields(form, props.draft.values).map((f) => (
+        <FieldRow key={f.name} field={f} {...props} />
+      ))}
+    </dl>
   )
 }
 
@@ -91,55 +99,88 @@ function Tag({ kind }: { kind: keyof typeof TAGS }) {
   return <span className={cn('shrink-0 rounded-full px-1.5 text-[11px] leading-[18px]', TAGS[kind])}>{kind}</span>
 }
 
-// a field's label and value. Text values edit in place (Enter or leaving the field keeps the edit, Escape drops
-// it); dropdowns edit as dropdowns; consent is done on the form. Keyed by the draft state, so Undo resets it
-function FieldRow({ field: f, draft, onEdit }: { field: FormField; draft: Draft; onEdit: (name: string, v: string) => void }) {
+// a field's label and value, edited in place by its kind. Text, numbers and dates keep an edit on Enter or on leaving
+// the field (Escape drops it); dropdowns and checkboxes right away. Personal fields are the user's to fill. The
+// typed-in controls are keyed by their value, so Undo, Reset and a reply reset them; rows aren't remounted, so
+// dropdowns and checkboxes keep the keyboard focus
+function FieldRow({ field: f, draft, onEdit, busy = false }: FieldProps & { field: FormField }) {
   const value = draft.values[f.name] ?? ''
   const tag = draft.edited.includes(f.name) ? (
     <Tag kind="edited" />
   ) : draft.changed.includes(f.name) ? (
     <Tag kind="updated" />
-  ) : !value && f.required && !f.personal && !f.confirm ? (
+  ) : !value && f.required && !f.personal ? (
     <Tag kind="needed" />
   ) : null
   const empty = f.personal ? 'Left for you to fill in' : f.required ? 'Not filled in yet' : 'Optional, left blank'
+  const inPlace = 'hover:bg-muted focus:bg-muted -mx-1 rounded bg-transparent px-1 outline-none'
+  // Enter keeps the edit, Escape drops it; either way the field is left, which commits through onBlur
+  const keys = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      e.currentTarget.blur()
+    }
+    if (e.key === 'Escape') {
+      e.currentTarget.value = value
+      e.currentTarget.blur()
+    }
+  }
   let control: ReactNode
-  if (f.confirm) control = <span className="text-muted-foreground px-1 italic">You tick this on the form</span>
-  else if (f.choices)
+  if (f.kind === 'dropdown')
     control = (
       <select
         value={value}
+        aria-label={f.label}
+        disabled={busy}
         onChange={(e) => onEdit(f.name, e.target.value)}
-        className={cn(
-          'hover:bg-muted focus:bg-muted -mx-1 max-w-full min-w-0 rounded bg-transparent px-1 outline-none',
-          !value && 'text-muted-foreground italic',
-        )}
+        className={cn(inPlace, 'max-w-full min-w-0', !value && 'text-muted-foreground italic')}
       >
         <option value="">{f.required ? 'Not chosen yet' : 'Optional, left blank'}</option>
-        {f.choices.map((c) => (
+        {(f.choices ?? []).map((c) => (
           <option key={c}>{c}</option>
         ))}
       </select>
     )
+  else if (f.kind === 'checkbox')
+    control = (
+      <input
+        type="checkbox"
+        checked={value === 'true'}
+        aria-label={f.label}
+        disabled={busy}
+        onChange={(e) => onEdit(f.name, e.target.checked ? 'true' : '')}
+        className="mt-1 size-4 accent-current"
+      />
+    )
+  else if (f.kind === 'date' || f.kind === 'number')
+    control = (
+      <input
+        key={value}
+        type={f.kind}
+        defaultValue={value}
+        aria-label={f.label}
+        placeholder={empty}
+        disabled={busy}
+        onBlur={(e) => onEdit(f.name, e.target.value.trim())}
+        onKeyDown={keys}
+        className={cn(inPlace, 'placeholder:text-muted-foreground min-w-0 placeholder:italic', !value && 'text-muted-foreground')}
+      />
+    )
   else
     control = (
       <textarea
+        key={value}
         rows={1}
         defaultValue={value}
         placeholder={empty}
         aria-label={f.label}
+        disabled={busy}
         onBlur={(e) => onEdit(f.name, e.target.value.trim())}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault()
-            e.currentTarget.blur()
-          }
-          if (e.key === 'Escape') {
-            e.currentTarget.value = value
-            e.currentTarget.blur()
-          }
-        }}
-        className="hover:bg-muted focus:bg-muted placeholder:text-muted-foreground -mx-1 field-sizing-content min-w-0 flex-1 cursor-text resize-none rounded bg-transparent px-1 outline-none placeholder:italic"
+        onKeyDown={keys}
+        className={cn(
+          inPlace,
+          'placeholder:text-muted-foreground field-sizing-content min-w-0 flex-1 cursor-text resize-none placeholder:italic',
+        )}
       />
     )
   return (

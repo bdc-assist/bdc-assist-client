@@ -38,7 +38,7 @@ import {
   type StatusPartData,
 } from '@/lib/bdc-adapter'
 import { FormPrefill } from '@/components/bdc/form-prefill'
-import { formById } from '@/lib/forms'
+import { useForm } from '@/lib/forms'
 
 // Renderers for the `data` parts bdc-adapter appends after the answer text.
 // Each makeAssistantDataUI component registers its renderer while mounted.
@@ -319,13 +319,15 @@ const RelatedUI = makeAssistantDataUI<Source[]>({
 
 // Some MCP servers (e.g. the knowledge graph) were down: the answer had to do without
 // them. The server names are for whoever runs it, so they're only in the tooltip.
-// an answer citing a form's page offers to fill it in
+// a form the server offers to fill in (bdc-side-panel drafts it); none until bdc-side-panel lists it
+function FormOffer({ data }: { data: FormPartData }) {
+  const form = useForm(data.form)
+  return form && <FormPrefill form={form} question={data.question ?? null} />
+}
+
 const FormUI = makeAssistantDataUI<FormPartData>({
   name: FORM_PART,
-  render: ({ data }) => {
-    const form = formById(data.form)
-    return form ? <FormPrefill form={form} /> : null
-  },
+  render: ({ data }) => <FormOffer data={data} />,
 })
 
 const UnavailableUI = makeAssistantDataUI<string[]>({
