@@ -5,6 +5,7 @@ import {
   CalendarDaysIcon,
   CircleHelpIcon,
   CirclePlayIcon,
+  ClipboardPenIcon,
   DatabaseIcon,
   FileTextIcon,
   GlobeIcon,
@@ -22,6 +23,8 @@ import type { Source, Sources } from '@/lib/bdc-adapter'
 // the agent itself, so the answer is based on them; related_work's come apart, in done's
 // `related`, and show under the answer: RelatedUI in message-parts.tsx); predefined from
 // bdc-assist itself (a canned answer or disclaimer it showed, from predefined_responses.yaml).
+// form: a BDC site form's field list (bdc-doc-mcp's `form` doc type), linking to the form's page; the same icon as
+// the form's card in the answer (tool-view/tools.ts).
 // `many`: the label for several.
 export type SourceType = { label: string; many: string; Icon: LucideIcon }
 export const SOURCE_TYPES: Record<string, SourceType> = {
@@ -32,6 +35,7 @@ export const SOURCE_TYPES: Record<string, SourceType> = {
   event: { label: 'Event', many: 'Events', Icon: CalendarDaysIcon },
   update: { label: 'Update', many: 'Updates', Icon: NewspaperIcon },
   fellow: { label: 'Fellow', many: 'Fellows', Icon: UserRoundIcon },
+  form: { label: 'BDC form', many: 'BDC forms', Icon: ClipboardPenIcon },
   'dbgap-study': { label: 'dbGaP study', many: 'dbGaP studies', Icon: DatabaseIcon },
   // approved wording, not a document: a badge, not a plain check (the copy button turns into one)
   predefined: { label: 'Predefined response', many: 'Predefined responses', Icon: BadgeCheckIcon },
