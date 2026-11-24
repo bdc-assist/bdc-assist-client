@@ -21,7 +21,7 @@ import {
 
 import { setShownGraph } from '@/lib/shown-graphs'
 
-import { demoEdit, demoSuggestion } from './demo-edits'
+import { demoEdit, demoSuggestion, GRAPH_CHAT } from './demo-edits'
 import { GraphBody } from './graph-body'
 
 // The demo's wrapper around src/kg (loaded on demand: see GraphUI in message-parts.tsx):
@@ -147,37 +147,44 @@ export function KnowledgeGraph({ graph, parts }: { graph: KgGraph; parts: KgPart
   const toolFrame = tool.isOpen && (
     <ToolViewFrame
       kind="graph"
-      chat={{
-        what: 'graph',
-        messages: chat,
-        suggestion: edited ? null : demoSuggestion(current),
-        busy,
-        onSend: (t) => void send(t),
-      }}
+      // the canned demo chat only with ?graph-chat=demo; without a chat nothing edits the graph, so no Undo/Redo
+      chat={
+        GRAPH_CHAT
+          ? {
+              what: 'graph',
+              messages: chat,
+              suggestion: edited ? null : demoSuggestion(current),
+              busy,
+              onSend: (t) => void send(t),
+            }
+          : undefined
+      }
       summary={summaryLine}
       edited={Boolean(edited)}
       onReset={() => change(null)}
       actions={
-        <>
-          <TooltipIconButton
-            tooltip="Undo"
-            side="bottom"
-            className="size-7 p-1.5"
-            disabled={edits.at === 0 || busy}
-            onClick={() => setEdits((e) => ({ ...e, at: e.at - 1 }))}
-          >
-            <Undo2Icon />
-          </TooltipIconButton>
-          <TooltipIconButton
-            tooltip="Redo"
-            side="bottom"
-            className="size-7 p-1.5"
-            disabled={edits.at === edits.states.length - 1 || busy}
-            onClick={() => setEdits((e) => ({ ...e, at: e.at + 1 }))}
-          >
-            <Redo2Icon />
-          </TooltipIconButton>
-        </>
+        GRAPH_CHAT && (
+          <>
+            <TooltipIconButton
+              tooltip="Undo"
+              side="bottom"
+              className="size-7 p-1.5"
+              disabled={edits.at === 0 || busy}
+              onClick={() => setEdits((e) => ({ ...e, at: e.at - 1 }))}
+            >
+              <Undo2Icon />
+            </TooltipIconButton>
+            <TooltipIconButton
+              tooltip="Redo"
+              side="bottom"
+              className="size-7 p-1.5"
+              disabled={edits.at === edits.states.length - 1 || busy}
+              onClick={() => setEdits((e) => ({ ...e, at: e.at + 1 }))}
+            >
+              <Redo2Icon />
+            </TooltipIconButton>
+          </>
+        )
       }
     >
       <GraphBody

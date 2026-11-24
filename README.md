@@ -48,8 +48,9 @@ scripted LLM; `block` and `reject` in a panel message show the blocked and rejec
 
 The tool view (bdc-assist#64): an object from an answer (a graph, a form draft) opens in a side panel beside the conversation, with its own chat that changes it in
 place; the answer keeps a small card for it. Drag the divider to resize (remembered per tool in
-this browser); on a narrow window the panel is full screen. Forms: see Form prefill below. The graph's
-panel is still a mock-up faked in the client:
+this browser); on a narrow window the panel is full screen. A tool's chat is optional: a tool without one
+fills the panel. Forms: see Form prefill below. The graph's panel has no chat yet (bdc-side-panel plans one); a
+mock-up faked in the client shows with `?graph-chat=demo` in the page URL:
 
 - **Knowledge graph**: ask the stub `concept_graph_2` and open the graph's side panel. The panel's
   chat understands one request, expanding asthma, which merges in the `concept_connections` graph.

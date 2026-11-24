@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Form picker</title>
+<!-- Design scratch page, not part of the app build. Open via the dev server:
+     npm run dev, then /design/form-picker.html. The header's Get help button
+     (src/components/bdc/form-prefill/get-help-button.tsx) choosing among bdc-side-panel's forms instead of
+     always Get Help. The header copies chat-header.tsx; the icons are the app's own (lucide-react). -->
+<style>
+  * { box-sizing: border-box; }
+  :root { --fg: #0a0a0a; --muted: #737373; --hover: #f5f5f5; --accent: #f5f5f5; --line: #e5e5e5; --bg: #ffffff;
+    --pop: #ffffff; --primary: #171717; }
+  :root.dark { --fg: #fafafa; --muted: #a1a1a1; --hover: #262626; --accent: #262626; --line: #262626; --bg: #0a0a0a;
+    --pop: #171717; --primary: #e5e5e5; }
+  body { margin: 0; padding: 16px 24px 64px; background: var(--bg); color: var(--fg);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 36px 0 2px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 16px; margin: 12px 0; font-size: 13px; }
+  .frames { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; margin-top: 8px; }
+  .frame { border: 1px solid var(--line); border-radius: 8px; overflow: visible; background: var(--bg); }
+  .frame-label { font-size: 12px; color: var(--muted); margin: 0 0 4px; }
+
+  /* chat-header.tsx: h-10, border-b, px-2, sides of equal width so the title stays centred */
+  header { display: flex; align-items: center; gap: 4px; height: 40px; padding: 0 8px; border-bottom: 1px solid var(--line); }
+  .side { display: flex; gap: 4px; align-items: center; }
+  .side.right { justify-content: flex-end; }
+  header h1 { flex: 1; min-width: 0; margin: 0; font-size: 14px; font-weight: 500; text-align: center;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .icon { position: relative; display: inline-flex; align-items: center; justify-content: center; height: 32px;
+    min-width: 32px; padding: 0 8px; border: 0; border-radius: 6px; background: none; color: var(--fg); cursor: pointer; }
+  .icon:hover, .icon[aria-pressed=true], .icon[aria-expanded=true] { background: var(--accent); }
+  .icon.narrow { min-width: 18px; padding: 0 2px; }
+  .split { display: inline-flex; border-radius: 6px; }
+  .split .icon:first-child { border-radius: 6px 0 0 6px; padding-right: 4px; }
+  .split .icon:last-child { border-radius: 0 6px 6px 0; }
+  .dot { position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 999px; background: var(--primary); }
+
+  .anchor { position: relative; }
+  .menu { position: absolute; right: 0; top: 36px; z-index: 5; width: 280px; padding: 4px; border: 1px solid var(--line);
+    border-radius: 8px; background: var(--pop); box-shadow: 0 6px 20px rgb(0 0 0 / .12); }
+  .menu .label { padding: 6px 8px 4px; font-size: 12px; color: var(--muted); }
+  .menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+  .item { display: flex; gap: 8px; align-items: flex-start; width: 100%; padding: 6px 8px; border: 0; border-radius: 6px;
+    background: none; color: var(--fg); text-align: left; font: inherit; font-size: 13px; cursor: pointer; }
+  .item:hover { background: var(--hover); }
+  .item .text { flex: 1; min-width: 0; }
+  .item .desc { display: block; color: var(--muted); font-size: 12px; }
+  .item .mark { flex-shrink: 0; width: 16px; display: inline-flex; justify-content: center; margin-top: 2px; color: var(--muted); }
+  .item .mark .dot { position: static; display: inline-block; }
+
+  /* stand-in for the side panel */
+  .body { display: flex; height: 170px; }
+  .thread { flex: 1; padding: 12px; color: var(--muted); font-size: 12px; }
+  .panel { width: 40%; border-left: 1px solid var(--line); padding: 10px 12px; font-size: 12px; }
+  .panel b { display: block; font-size: 13px; color: var(--fg); margin-bottom: 4px; }
+  ul.notes { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); }
+  ul.notes li { margin: 2px 0; }
+</style>
+</head>
+<body>
+<h1>Form picker</h1>
+<p class="muted">The header's Get help button choosing among bdc-side-panel's five forms instead of always Get Help.
+  Click the buttons: picking a form opens its draft in the side panel (a stand-in here); a dot marks a form that has a
+  draft in this conversation. Each form keeps one header draft, separate from any answer's card, as Get Help's does today.</p>
+<div class="controls">
+  <label><input id="desc" type="checkbox" checked /> One-line descriptions</label>
+  <label><input id="dark" type="checkbox" /> Dark</label>
+</div>
+<div id="root"></div>
+
+<script type="module">
+import { createElement as h, Fragment, useEffect, useRef, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import {
+  CheckIcon, ChevronDownIcon, ClipboardPenIcon, MessageCircleQuestionMarkIcon, MoonIcon, PanelLeftIcon, SquarePenIcon, XIcon,
+} from 'lucide-react'
+
+// bdc-side-panel's /tools order; the descriptions are hand-written here (the form data has none)
+const FORMS = [
+  ['get-help', 'Get Help', 'A help desk ticket: access, login, data, platforms'],
+  ['contact-bdc', 'Contact BDC', 'General questions and feedback'],
+  ['costs', 'Usage Costs', 'Request cloud credits or pilot funding'],
+  ['publication-submission', 'Submit BDC-Enabled Research', 'Tell BDC about a paper that used it'],
+  ['stay-connected', 'Stay Connected', 'Sign up for the newsletter'],
+]
+const title = (id) => FORMS.find((f) => f[0] === id)[1]
+
+/** Shared state of one mock: which form's draft is open, which have drafts, whether the menu is open. */
+function useMock() {
+  const [open, setOpen] = useState(null)
+  const [drafted, setDrafted] = useState(new Set())
+  const [menu, setMenu] = useState(false)
+  const pick = (id) => {
+    setDrafted((s) => new Set(s).add(id))
+    setOpen((o) => (o === id ? null : id))
+    setMenu(false)
+  }
+  return { open, setOpen, drafted, menu, setMenu, pick }
+}
+
+// closes the menu on a click outside it
+function useOutside(ref, onOut) {
+  useEffect(() => {
+    const f = (e) => ref.current && !ref.current.contains(e.target) && onOut()
+    document.addEventListener('mousedown', f)
+    return () => document.removeEventListener('mousedown', f)
+  })
+}
+
+// which forms count as help (grouped option): not in the form data, so a hand-kept list or a field Steven adds
+const HELP = ['get-help', 'contact-bdc']
+
+function Item({ m, form: [id, name, desc], showDesc }) {
+  return h('button', { className: 'item', role: 'menuitem', onClick: () => m.pick(id) },
+    h('span', { className: 'mark' },
+      m.open === id ? h(CheckIcon, { size: 14 }) : m.drafted.has(id) ? h('span', { className: 'dot', title: 'Has a draft' }) : null),
+    h('span', { className: 'text' }, name, showDesc && h('span', { className: 'desc' }, desc)))
+}
+
+function Menu({ m, forms, label, showDesc, grouped }) {
+  const groups = grouped
+    ? [['Get help', forms.filter(([id]) => HELP.includes(id))], ['Other BDC forms', forms.filter(([id]) => !HELP.includes(id))]]
+    : null
+  return h('div', { className: 'menu', role: 'menu' },
+    groups
+      ? groups.map(([name, fs], i) => h(Fragment, { key: name },
+          i > 0 && h('hr'),
+          h('div', { className: 'label' }, name),
+          fs.map((f) => h(Item, { key: f[0], m, form: f, showDesc }))))
+      : h(Fragment, null,
+          label && h('div', { className: 'label' }, label),
+          forms.map((f, i) => h(Fragment, { key: f[0] },
+            // Get Help apart from the rest: the usual reason to press the button
+            i === 1 && forms[0][0] === 'get-help' && h('hr'),
+            h(Item, { m, form: f, showDesc })))),
+    m.open && h(Fragment, null, h('hr'),
+      h('button', { className: 'item', onClick: () => { m.setOpen(null); m.setMenu(false) } },
+        h('span', { className: 'mark' }, h(XIcon, { size: 14 })), h('span', { className: 'text' }, `Close ${title(m.open)}`))),
+  )
+}
+
+const Dot = ({ show }) => show && h('span', { className: 'dot' })
+
+// A. one button, always a menu (grouped: help forms, then the rest)
+function PickerA({ m, showDesc, grouped = false }) {
+  const ref = useRef(null)
+  useOutside(ref, () => m.setMenu(false))
+  return h('span', { className: 'anchor', ref },
+    h('button', { className: 'icon', title: 'Get help or fill in a BDC form', 'aria-expanded': m.menu, 'aria-pressed': !!m.open,
+      onClick: () => m.setMenu(!m.menu) },
+      h(MessageCircleQuestionMarkIcon, { size: 16 }), h(Dot, { show: m.drafted.size > 0 })),
+    m.menu && h(Menu, { m, forms: FORMS, label: 'Fill in a BDC form', showDesc, grouped }))
+}
+const PickerAGrouped = (props) => h(PickerA, { ...props, grouped: true })
+
+// B. split: the icon is today's Get help button, the chevron opens the menu of every form
+function PickerB({ m, showDesc }) {
+  const ref = useRef(null)
+  useOutside(ref, () => m.setMenu(false))
+  return h('span', { className: 'anchor split', ref },
+    h('button', { className: 'icon', title: m.open === 'get-help' ? 'Close the Get Help form' : 'Get help from the BDC help desk',
+      'aria-pressed': m.open === 'get-help', onClick: () => m.pick('get-help') },
+      h(MessageCircleQuestionMarkIcon, { size: 16 }), h(Dot, { show: m.drafted.has('get-help') })),
+    h('button', { className: 'icon narrow', title: 'Other BDC forms', 'aria-expanded': m.menu,
+      'aria-pressed': !!m.open && m.open !== 'get-help', onClick: () => m.setMenu(!m.menu) },
+      h(ChevronDownIcon, { size: 14 })),
+    m.menu && h(Menu, { m, forms: FORMS, label: 'Fill in a BDC form', showDesc }))
+}
+
+// C. two buttons: Get help as today, plus a forms button (the form card's icon) for the other four
+function PickerC({ m, showDesc }) {
+  const ref = useRef(null)
+  useOutside(ref, () => m.setMenu(false))
+  const others = FORMS.slice(1)
+  const otherOpen = !!m.open && m.open !== 'get-help'
+  return h(Fragment, null,
+    h('button', { className: 'icon', title: m.open === 'get-help' ? 'Close the Get Help form' : 'Get help from the BDC help desk',
+      'aria-pressed': m.open === 'get-help', onClick: () => m.pick('get-help') },
+      h(MessageCircleQuestionMarkIcon, { size: 16 }), h(Dot, { show: m.drafted.has('get-help') })),
+    h('span', { className: 'anchor', ref },
+      h('button', { className: 'icon', title: 'Fill in a BDC form', 'aria-expanded': m.menu, 'aria-pressed': otherOpen,
+        onClick: () => m.setMenu(!m.menu) },
+        h(ClipboardPenIcon, { size: 16 }), h(Dot, { show: others.some(([id]) => m.drafted.has(id)) })),
+      m.menu && h(Menu, { m, forms: others, label: 'Fill in a BDC form', showDesc })))
+}
+
+function Mock({ Picker, width, sideWidth, showDesc }) {
+  const m = useMock()
+  return h('div', null,
+    h('p', { className: 'frame-label' }, `${width}px wide`),
+    h('div', { className: 'frame', style: { width } },
+      h('header', null,
+        h('div', { className: 'side', style: { width: sideWidth } },
+          h('button', { className: 'icon', title: 'Conversations' }, h(PanelLeftIcon, { size: 16 })),
+          h('button', { className: 'icon', title: 'New conversation' }, h(SquarePenIcon, { size: 16 }))),
+        h('h1', null, 'How do I get access to TOPMed data?'),
+        h('div', { className: 'side right', style: { width: sideWidth } },
+          h(Picker, { m, showDesc }),
+          h('button', { className: 'icon', title: 'Theme' }, h(MoonIcon, { size: 16 })))),
+      h('div', { className: 'body' },
+        h('div', { className: 'thread' }, 'The conversation…'),
+        m.open && h('div', { className: 'panel' }, h('b', null, title(m.open)), 'The draft, its chat, Open on BDC…'))))
+}
+
+const OPTIONS = [
+  ['A. One button, a menu', PickerA, 72, [
+    'Same icon and place as today; a click always opens the menu, Get Help first and set apart.',
+    'One more click for Get Help, the usual reason to press it.',
+    'Pressed while any form is open; the dot means "a draft somewhere". The menu says which (✓ open, dot drafted) and can close the open one.',
+    'Header unchanged in width.',
+  ]],
+  ['A2. One button, grouped', PickerAGrouped, 72, [
+    'As A, with the menu in two groups: "Get help" (Get Help, Contact BDC) and "Other BDC forms" (the rest).',
+    'Keeps the button\'s help meaning on top, the other forms below for visibility.',
+    'The grouping isn\'t in the form data: a hand-kept list of help forms in the client, or a field from bdc-side-panel; a new unknown form goes under "Other".',
+    'Tooltip "Get help or fill in a BDC form".',
+  ]],
+  ['B. Split button', PickerB, 92, [
+    'The icon does exactly what it does today (Get Help, one click); the chevron opens every form.',
+    'Two targets, the chevron small (18px wide): easy to miss, fiddly on touch.',
+    'Pressed states split: the icon for Get Help, the chevron for any other form.',
+    'Header right side grows by about 20px (the title has less room).',
+  ]],
+  ['C. Two buttons', PickerC, 108, [
+    'Get help untouched; a second button with the form card\'s icon (ClipboardPen) for the other four.',
+    'Each button says what it is; both one click away.',
+    'A third icon in the header, and two "help-ish" buttons side by side.',
+    'Header right side grows by about 36px.',
+  ]],
+]
+
+function App() {
+  const [showDesc, setShowDesc] = useState(true)
+  useEffect(() => {
+    const el = document.getElementById('desc')
+    const f = () => setShowDesc(el.checked)
+    el.addEventListener('change', f)
+    return () => el.removeEventListener('change', f)
+  }, [])
+  return OPTIONS.map(([name, Picker, side, notes]) => h('section', { key: name },
+    h('h2', null, name),
+    h('ul', { className: 'notes' }, notes.map((n) => h('li', { key: n }, n))),
+    h('div', { className: 'frames' },
+      h(Mock, { Picker, width: 760, sideWidth: side, showDesc }),
+      h(Mock, { Picker, width: 380, sideWidth: side, showDesc }))))
+}
+
+createRoot(document.getElementById('root')).render(h(App))
+
+const dark = document.getElementById('dark')
+dark.checked = matchMedia('(prefers-color-scheme: dark)').matches
+const setDark = () => document.documentElement.classList.toggle('dark', dark.checked)
+dark.onchange = setDark
+setDark()
+</script>
+</body>
+</html>

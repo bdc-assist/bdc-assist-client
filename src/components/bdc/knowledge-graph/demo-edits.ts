@@ -4,6 +4,10 @@ import { edgeId, fromKgList, type KgEdge, type KgGraph, type KgNode } from '@/kg
 // edit, "expand asthma": add asthma's related concepts, from the stub server's concept_connections fixture (a
 // real Dug result). Loaded on first use. A test fixture, not src/kg's API, hence the relative import.
 
+/** The graph's side panel has this chat only with ?graph-chat=demo in the page URL, until a real one exists
+ * (bdc-side-panel's planned /tools/kg/); without it, no chat and no Undo/Redo, as nothing changes the graph. */
+export const GRAPH_CHAT = new URLSearchParams(location.search).get('graph-chat') === 'demo'
+
 const ASTHMA = 'MONDO:0004979'
 export const EXPAND_ASTHMA = 'Expand asthma to related concepts'
 
