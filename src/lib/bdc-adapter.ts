@@ -86,8 +86,8 @@ type StreamState = {
 const data = (name: string, data: object) => ({ type: 'data' as const, name, data })
 
 /** The message content for the current state: the text first, then data parts
- * for message-parts.tsx to draw. History only sends text parts, so the data
- * parts never reach the server. */
+ * for message-parts.tsx to draw. History only sends text parts; of the data
+ * parts, only the form offers reach the server (toClientState). */
 export function toContent({ text, streaming, meta }: StreamState, reveal: Reveal) {
   const hold = reveal === 'after-check' && !meta.done
   const parts = []
@@ -137,12 +137,37 @@ export function toHistory(messages: readonly ThreadMessage[]): { role: 'user' | 
     .filter((m) => m.content)
 }
 
-/** The server is stateless: send the last user message as `input` and every
- * earlier text turn as `chat_history`. */
+/** What the client sends back about itself (the request's `client_state`), for bdc-assist's config nodes. Each key
+ * is one node's, documented with it in bdc-assist's README; the server keeps nothing between requests.
+ * - offered_forms (BDC config's form_offer): the forms earlier answers offered, in order, with the question each
+ *   was offered for (null in conversations saved before the server sent it); one offered before is offered again
+ *   only for a new request. The header's Get help draft is not an offer, so not here. */
+export type ClientState = { offered_forms?: { id: string; question: string | null }[] }
+
+export function toClientState(messages: readonly ThreadMessage[]): ClientState {
+  const offered_forms = messages
+    .filter((m) => m.role === 'assistant')
+    .flatMap((m) => m.content)
+    .filter((p) => p.type === 'data' && p.name === FORM_PART)
+    .map((p) => {
+      const { form, question } = (p as { data: FormPartData }).data
+      return { id: form, question: question ?? null }
+    })
+  return offered_forms.length ? { offered_forms } : {}
+}
+
+/** The server is stateless: send the last user message as `input`, every earlier text turn as `chat_history`, and
+ * what the client knows about itself as `client_state` (left out when there's nothing to say). */
 export function toRequest(messages: readonly ThreadMessage[]) {
   const last = messages.at(-1)
   if (last?.role !== 'user') throw new Error('last message must be from the user')
-  return { input: textOf(last), chat_history: toHistory(messages.slice(0, -1)) }
+  const earlier = messages.slice(0, -1)
+  const client_state = toClientState(earlier)
+  return {
+    input: textOf(last),
+    chat_history: toHistory(earlier),
+    ...(Object.keys(client_state).length ? { client_state } : {}),
+  }
 }
 
 export type BdcAdapterOptions = {

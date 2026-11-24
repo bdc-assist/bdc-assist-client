@@ -12,6 +12,7 @@ import {
   RELATED_PART,
   SOURCES_PART,
   STATUS_PART,
+  toClientState,
   toHistory,
   toRequest,
   UNAVAILABLE_PART,
@@ -77,6 +78,60 @@ describe('toRequest', () => {
   it('drops empty turns (e.g. a cancelled reply)', () => {
     const req = toRequest([msg('user', 'q1'), msg('assistant', ''), msg('user', 'q2')])
     expect(req.chat_history).toEqual([{ role: 'user', content: 'q1' }])
+  })
+
+  it('sends the forms earlier answers offered as client_state', () => {
+    const req = toRequest([msg('user', 'q1'), offering('a1', { form: 'get-help', question: 'Login loop?' }), msg('user', 'q2')])
+    expect(req.client_state).toEqual({ offered_forms: [{ id: 'get-help', question: 'Login loop?' }] })
+  })
+})
+
+/** An answer with form offer parts (FormPartData). */
+const offering = (text: string, ...forms: object[]) =>
+  ({
+    role: 'assistant',
+    content: [{ type: 'text', text }, ...forms.map((data) => ({ type: 'data', name: FORM_PART, data }))],
+  }) as unknown as ThreadMessage
+
+describe('toClientState', () => {
+  it('is empty without offers', () => {
+    expect(toClientState([msg('user', 'q1'), msg('assistant', 'a1')])).toEqual({})
+  })
+
+  it('lists every offer in order, the same form twice too', () => {
+    expect(
+      toClientState([
+        msg('user', 'q1'),
+        offering('a1', { form: 'get-help', question: 'Q1' }),
+        msg('user', 'q2'),
+        offering('a2', { form: 'costs', question: 'Q2' }),
+        msg('user', 'q3'),
+        offering('a3', { form: 'get-help', question: 'Q3' }),
+      ]),
+    ).toEqual({
+      offered_forms: [
+        { id: 'get-help', question: 'Q1' },
+        { id: 'costs', question: 'Q2' },
+        { id: 'get-help', question: 'Q3' },
+      ],
+    })
+  })
+
+  it('sends a null question for offers saved before the server sent one', () => {
+    expect(toClientState([offering('a1', { form: 'get-help' })])).toEqual({
+      offered_forms: [{ id: 'get-help', question: null }],
+    })
+  })
+
+  it('ignores other data parts', () => {
+    const assistant = {
+      role: 'assistant',
+      content: [
+        { type: 'text', text: 'a1' },
+        { type: 'data', name: SOURCES_PART, data: {} },
+      ],
+    } as unknown as ThreadMessage
+    expect(toClientState([assistant])).toEqual({})
   })
 })
 
