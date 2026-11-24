@@ -46,13 +46,10 @@ export function useForm(id: string): FormDef | null {
 export const shownFields = (form: FormDef, values: FormValues) =>
   form.fields.filter((f) => Object.entries(f.when ?? {}).every(([k, choices]) => choices.includes(values[k] ?? '')))
 
-/** The form's page with the values as URL parameters; blank and hidden fields left out. */
-// shortcut: Open form goes to the staging site until the live one reads form parameters; then set
-// VITE_FORMS_SITE_URL= (empty) for the form's own page, or drop this default
-const FORMS_SITE = 'https://staging.biodatacatalyst.nhlbi.nih.gov'
-
+/** The form's page with the values as URL parameters; blank and hidden fields left out. The live site's page (the
+ * form's own url), or the same page on another site by VITE_FORMS_SITE_URL, e.g. staging's to try a site change. */
 export function formUrl(form: FormDef, values: FormValues): string {
-  const site: string = import.meta.env.VITE_FORMS_SITE_URL ?? FORMS_SITE // read here, so tests can stub it
+  const site: string = import.meta.env.VITE_FORMS_SITE_URL ?? '' // read here, so tests can stub it
   // the same page on that site, named as its links are: no trailing slash
   const page = site ? site.replace(/\/$/, '') + form.url.replace(/^https?:\/\/[^/?#]+/, '').replace(/\/$/, '') : form.url
   const params = new URLSearchParams()

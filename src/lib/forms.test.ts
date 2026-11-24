@@ -51,8 +51,8 @@ describe('shownFields', () => {
 
 describe('formUrl', () => {
   const params = (url: string) => Object.fromEntries(new URL(url).searchParams)
-  // the staging site for now, its pages named without the trailing slash
-  const PAGE = 'https://staging.biodatacatalyst.nhlbi.nih.gov/help/get-help'
+  // the live site: the form's own page
+  const PAGE = GH.url
   afterEach(() => vi.unstubAllEnvs())
 
   it('is the bare page with no values', () => {
@@ -75,9 +75,12 @@ describe('formUrl', () => {
     expect(params(formUrl(GH, { requester: 'a@b.org' }))).toEqual({ requester: 'a@b.org' })
   })
 
-  it('goes to another site, or the form’s own page, by VITE_FORMS_SITE_URL', () => {
-    vi.stubEnv('VITE_FORMS_SITE_URL', 'https://bdc.example/')
-    expect(formUrl(GH, { ticket_type: 'Login Issue' })).toBe('https://bdc.example/help/get-help?ticket_type=Login+Issue')
+  it('goes to the same page on another site by VITE_FORMS_SITE_URL', () => {
+    // its pages named as its links are: no trailing slash
+    vi.stubEnv('VITE_FORMS_SITE_URL', 'https://staging.biodatacatalyst.nhlbi.nih.gov/')
+    expect(formUrl(GH, { ticket_type: 'Login Issue' })).toBe(
+      'https://staging.biodatacatalyst.nhlbi.nih.gov/help/get-help?ticket_type=Login+Issue',
+    )
     vi.stubEnv('VITE_FORMS_SITE_URL', '')
     expect(formUrl(GH, {})).toBe(GH.url)
   })

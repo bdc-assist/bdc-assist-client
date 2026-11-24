@@ -18,7 +18,7 @@ npm install                                       # once
 npm run dev                                       # http://localhost:5173, API on :8010, bdc-side-panel on :8012
 VITE_API_URL=http://127.0.0.1:8011 VITE_SIDE_PANEL_URL=http://127.0.0.1:8013 npm run dev   # against the stubs instead
 VITE_SIDE_PANEL_URL= npm run dev                  # no form prefill (bdc-side-panel, below)
-# Open on BDC links staging.biodatacatalyst.nhlbi.nih.gov for now; VITE_FORMS_SITE_URL= (empty) links the live site
+# Open on BDC links the live site; VITE_FORMS_SITE_URL=https://staging.biodatacatalyst.nhlbi.nih.gov links staging
 npm test                                          # unit tests, no server needed
 npm run build                                     # production build in dist/
 ```
@@ -66,7 +66,8 @@ With bdc-side-panel running (its own service: drafts the BDC site's forms; `VITE
 server offers a form under gets the form's card (bdc-assist's BDC config, `form_offer` in the `done` event:
 `{question, forms: [{id, title, url}]}`). Opening it drafts the form in the side panel, from the conversation up
 to that answer and its question. Refine the draft by its chat or by clicking a value; *Open on BDC* goes to the
-BDC staging site's page for now (`VITE_FORMS_SITE_URL`) with the values as URL parameters, where the user checks
+form's page on the BDC site (another site by `VITE_FORMS_SITE_URL`, e.g. staging) with the values as URL
+parameters, where the user checks
 and submits. The header's **Get help** button has a Get Help draft of its own, drafted from the whole
 conversation (blank in a new one).
 
