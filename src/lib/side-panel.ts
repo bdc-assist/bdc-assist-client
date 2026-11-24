@@ -1,8 +1,10 @@
 import type { ToolMessage } from '@/components/bdc/tool-view'
 import { setForms, type FormDef, type FormValues } from '@/lib/forms'
 
-// bdc-side-panel: the forms it can draft, and its drafting turns (its README's API section). Unset: no form prefill.
-export const SIDE_PANEL_URL: string | undefined = import.meta.env.VITE_SIDE_PANEL_URL || undefined
+// bdc-side-panel: the forms it can draft, and its drafting turns (its README's API section). demo_services.sh runs it
+// on :8012, its stub is on :8013; set empty (VITE_SIDE_PANEL_URL=) for no form prefill.
+export const SIDE_PANEL_URL: string | undefined =
+  (import.meta.env.VITE_SIDE_PANEL_URL ?? 'http://127.0.0.1:8012') || undefined
 
 /** bdc-side-panel answered 503: every slot is taken. */
 export class Busy extends Error {

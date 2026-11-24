@@ -42,7 +42,7 @@ const REVEAL: Reveal =
     ? 'after-check'
     : 'stream'
 const adapter = createBdcAdapter(API_URL, { reveal: REVEAL })
-// the forms the side panel can prefill (bdc-side-panel, VITE_SIDE_PANEL_URL); none without it
+// the forms the side panel can prefill (bdc-side-panel, VITE_SIDE_PANEL_URL); none when it's set empty or down
 if (SIDE_PANEL_URL) void loadForms()
 // several conversations, saved in this browser; each is titled with its first question
 const storage = browserStorage()

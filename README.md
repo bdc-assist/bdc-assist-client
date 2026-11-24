@@ -15,9 +15,9 @@ Needs Node 20+ and a running bdc-assist server.
 
 ```bash
 npm install                                       # once
-npm run dev                                       # http://localhost:5173, API on :8010
-VITE_API_URL=http://127.0.0.1:8011 npm run dev    # against bdc-assist's stub server instead
-VITE_SIDE_PANEL_URL=http://127.0.0.1:8012 npm run dev   # with form prefill (bdc-side-panel, below)
+npm run dev                                       # http://localhost:5173, API on :8010, bdc-side-panel on :8012
+VITE_API_URL=http://127.0.0.1:8011 VITE_SIDE_PANEL_URL=http://127.0.0.1:8013 npm run dev   # against the stubs instead
+VITE_SIDE_PANEL_URL= npm run dev                  # no form prefill (bdc-side-panel, below)
 # Open on BDC links staging.biodatacatalyst.nhlbi.nih.gov for now; VITE_FORMS_SITE_URL= (empty) links the live site
 npm test                                          # unit tests, no server needed
 npm run build                                     # production build in dist/
@@ -33,11 +33,16 @@ checkout: `uv run python tests/_stub_stream_server.py` (port 8011), then run thi
 `VITE_API_URL=http://127.0.0.1:8011`. A keyword in the question picks a path: `block` (input
 guardrail refuses), `reject` (output guardrail replaces the draft), `canned` (predefined reply),
 `nosources`, `crash` (the stream ends with an error), `get_help` (an answer citing the Get Help
-page; the stub sends no `form_offer`, so it shows no form card). A Dug tool's name picks its real graph:
+page, offering its form). A Dug tool's name picks its real graph:
 `concept_graph` (congenital heart disease), `concept_graph_2` (asthma and COPD), `concept_connections`
 (asthma's related concepts), `cohort_variables` (asthma + COPD search words), `search_concepts` (a BMI
 search); several combine, e.g. `concept_graph_2 concept_connections`. Anything else gets a docs answer
 with a small graph.
+
+bdc-side-panel has one too: from its checkout, `uv run python tests/_stub_server.py` (port 8013), then
+`VITE_SIDE_PANEL_URL=http://127.0.0.1:8013`. It serves the real forms from a fixture and drafts them with a
+scripted LLM; `block` and `reject` in a panel message show the blocked and rejected replies. With both stubs,
+`get_help` gives a form card that drafts.
 
 ### Tool view
 
@@ -56,7 +61,8 @@ card and chat every tool shares).
 
 ## Form prefill
 
-With `VITE_SIDE_PANEL_URL` set (bdc-side-panel, its own service: drafts the BDC site's forms), an answer the
+With bdc-side-panel running (its own service: drafts the BDC site's forms; `VITE_SIDE_PANEL_URL`, default
+`http://127.0.0.1:8012`, empty for none), an answer the
 server offers a form under gets the form's card (bdc-assist's BDC config, `form_offer` in the `done` event:
 `{question, forms: [{id, title, url}]}`). Opening it drafts the form in the side panel, from the conversation up
 to that answer and its question. Refine the draft by its chat or by clicking a value; *Open on BDC* goes to the
