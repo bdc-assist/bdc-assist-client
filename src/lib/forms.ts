@@ -47,15 +47,20 @@ export const shownFields = (form: FormDef, values: FormValues) =>
   form.fields.filter((f) => Object.entries(f.when ?? {}).every(([k, choices]) => choices.includes(values[k] ?? '')))
 
 /** The form's page with the values as URL parameters; blank and hidden fields left out. The live site's page (the
- * form's own url), or the same page on another site by VITE_FORMS_SITE_URL, e.g. staging's to try a site change. */
+ * form's own url), or the same page on another site by VITE_FORMS_SITE_URL, e.g. staging's to try a site change.
+ * An anchor in the url (the form's place on a long page) stays last, after the parameters. */
 export function formUrl(form: FormDef, values: FormValues): string {
   const site: string = import.meta.env.VITE_FORMS_SITE_URL ?? '' // read here, so tests can stub it
-  // the same page on that site, named as its links are: no trailing slash
-  const page = site ? site.replace(/\/$/, '') + form.url.replace(/^https?:\/\/[^/?#]+/, '').replace(/\/$/, '') : form.url
-  const params = new URLSearchParams()
-  for (const f of shownFields(form, values)) if (values[f.name]) params.set(f.name, values[f.name])
-  const query = params.toString()
-  return query ? `${page}?${query}` : page
+  const url = new URL(form.url)
+  if (site) {
+    // the same page on that site, named as its links are: no trailing slash
+    const other = new URL(site)
+    url.protocol = other.protocol
+    url.host = other.host
+    url.pathname = other.pathname.replace(/\/$/, '') + url.pathname.replace(/\/$/, '')
+  }
+  for (const f of shownFields(form, values)) if (values[f.name]) url.searchParams.set(f.name, values[f.name])
+  return url.toString()
 }
 
 const isPersonal = (form: FormDef, name: string) => form.fields.some((f) => f.name === name && f.personal)

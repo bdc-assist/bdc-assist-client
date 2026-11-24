@@ -84,6 +84,17 @@ describe('formUrl', () => {
     vi.stubEnv('VITE_FORMS_SITE_URL', '')
     expect(formUrl(GH, {})).toBe(GH.url)
   })
+
+  it('keeps an anchor in the url last, after the parameters', () => {
+    const anchored = { ...GH, url: `${GH.url}#get-help-form` }
+    const url = formUrl(anchored, { ticket_type: 'Login Issue' })
+    expect(url).toBe(`${GH.url}?ticket_type=Login+Issue#get-help-form`)
+    expect(formUrl(anchored, {})).toBe(anchored.url)
+    vi.stubEnv('VITE_FORMS_SITE_URL', 'https://staging.biodatacatalyst.nhlbi.nih.gov')
+    expect(formUrl(anchored, { ticket_type: 'Login Issue' })).toBe(
+      'https://staging.biodatacatalyst.nhlbi.nih.gov/help/get-help?ticket_type=Login+Issue#get-help-form',
+    )
+  })
 })
 
 describe('personal fields', () => {
