@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Form layout</title>
+<!-- Design scratch page, not part of the app build. Open via the dev server:
+     npm run dev, then /design/form-layout.html. The draft's field list (FieldList in
+     src/components/bdc/form-prefill/draft-tool.tsx), with the cloud credits form's real labels
+     (bdc-side-panel tests/fixtures/forms.json, "costs"), in today's layout and three alternatives. -->
+<style>
+  * { box-sizing: border-box; }
+  :root { --fg: #0a0a0a; --muted: #737373; --hover: #f5f5f5; --line: #e5e5e5; --bg: #ffffff; --red: #dc2626;
+    --amber-bg: #fffbeb; --amber: #b45309; --blue-bg: #eff6ff; --blue: #1d4ed8; }
+  :root.dark { --fg: #fafafa; --muted: #a1a1a1; --hover: #262626; --line: #262626; --bg: #0a0a0a; --red: #f87171;
+    --amber-bg: rgb(251 191 36 / .1); --amber: #fcd34d; --blue-bg: rgb(147 197 253 / .1); --blue: #93c5fd; }
+  body { margin: 0; padding: 16px 24px 48px; background: var(--bg); color: var(--fg);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 32px 0 2px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin: 12px 0; font-size: 13px; }
+  .controls input[type=range] { width: 220px; }
+
+  /* the side panel's body: a container, as in the app (@max-sm = below 24rem stacks) */
+  .panel { container-type: inline-size; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px;
+    resize: horizontal; overflow: auto; min-width: 280px; max-width: 100%; }
+
+  dl { display: grid; margin: 0; font-size: 13px; }
+  dt { color: var(--muted); border-bottom: 1px solid var(--line); padding: 6px 12px 6px 0; margin: 0; }
+  dd { display: flex; align-items: flex-start; gap: 8px; min-width: 0; border-bottom: 1px solid var(--line);
+    padding: 6px 0; margin: 0; }
+  .req { color: var(--red); }
+  .val { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .empty { color: var(--muted); font-style: italic; }
+  .tag { flex-shrink: 0; border-radius: 999px; padding: 0 6px; font-size: 11px; line-height: 18px; }
+  .tag.needed { background: var(--amber-bg); color: var(--amber); }
+  .tag.updated { background: var(--blue-bg); color: var(--blue); }
+  input[type=checkbox] { margin-top: 3px; }
+
+  /* A. today: label column as wide as the longest label on one line */
+  .a dl { grid-template-columns: minmax(8rem, max-content) 1fr; }
+  /* B. label column capped at 40%; longer labels wrap */
+  .b dl { grid-template-columns: fit-content(40%) 1fr; }
+  /* C. always stacked: label above value */
+  .c dl { grid-template-columns: 1fr; }
+  .c dt { border: 0; padding-bottom: 0; }
+  /* D. mixed: long labels span the row, their value below; short ones side by side (as B) */
+  .d dl { grid-template-columns: fit-content(40%) 1fr; }
+  .d dt.long { grid-column: 1 / -1; border: 0; padding-bottom: 0; }
+  .d dt.long + dd { grid-column: 1 / -1; }
+
+  /* narrow: every layout stacks, as the app does below 24rem */
+  @container (max-width: 24rem) {
+    dl { grid-template-columns: 1fr !important; }
+    dt { border: 0 !important; padding-bottom: 0 !important; }
+    dd { grid-column: auto !important; }
+  }
+</style>
+</head>
+<body>
+<h1>Form layout</h1>
+<p class="muted">The side panel's field list for the cloud credits form (its real labels; NHLBI BDC Cloud Credit Support
+  Program chosen, so that section shows). Drag a panel's bottom-right corner, or the slider, to change the width; below
+  24rem (384px) every layout stacks, as the app already does.</p>
+<div class="controls">
+  <label>Panel width <input id="w" type="range" min="300" max="1000" value="560" /> <span id="wv"></span></label>
+  <label><input id="dark" type="checkbox" /> Dark</label>
+</div>
+<div id="root"></div>
+
+<script>
+// [label, required, value, tag]; '' = empty; personal fields left for the user
+const FIELDS = [
+  ["Requestor's Name", true, null, 'personal'],
+  ["Requestor's Email", true, null, 'personal'],
+  ['Project PI', false, 'Dr. Jane Rivera'],
+  ["Requestor's Role", true, 'Postdoctoral researcher'],
+  ["Requestor's Organization", true, 'University of North Carolina'],
+  ['Select a Research Community', true, 'TOPMed'],
+  ['If your research community is not listed, please describe here:', false, ''],
+  ['Project Name', true, 'Sleep apnea GWAS in TOPMed'],
+  ['Team Members', true, 'J. Rivera (PI), A. Chen (analyst)'],
+  ['How is your research related to HLBS (heart, lung, blood, and sleep)? ', true,
+    'We study genetic risk factors for obstructive sleep apnea and their link to cardiovascular outcomes.', 'updated'],
+  ['How did the requestor learn about BDC?', true, ''],
+  ['BDC users may request one of the following:', true, 'NHLBI BDC Cloud Credit Support Program'],
+  ['Project Name & Description', false, 'Genome-wide association of sleep apnea traits using TOPMed WGS.'],
+  ['Previous receipt of cloud credits from BDC (including Pilot Funding and other Cloud Credit Support Program approvals)',
+    false, 'checkbox'],
+  ['Cloud Credits: Computational Scope', false, 'About 20,000 genomes, GWAS with REGENIE on Seven Bridges'],
+  ['Cloud Credits: Estimated Need', false, '5000'],
+  ['Estimated cloud credits requested?', false, ''],
+  ['What will you use these credits for?', false, 'Compute and storage for the association analyses.'],
+  ['Cloud Credits: Anticipated timeline for the work', false, '6 months'],
+  ['Cloud Credits: Certify insufficient funding', false, 'checkbox'],
+  ['Cloud Credits: Research results link', false, ''],
+]
+// "long" for layout D: more than this many characters
+const LONG = 40
+
+const LAYOUTS = [
+  ['a', 'A. Today', 'Label column as wide as the longest label on one line (minmax(8rem, max-content)); the values get what is left.'],
+  ['b', 'B. Labels capped at 40%', 'fit-content(40%): short labels as today, longer ones wrap; values always get at least 60%. One class changes.'],
+  ['c', 'C. Always stacked', 'Label above its value, as the narrow view already does; values get the full width, about twice as tall.'],
+  ['d', 'D. Mixed', `Labels over ${LONG} characters span the row with the value below; the rest side by side, as B.`],
+]
+
+function esc(s) { return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]) }
+
+function row([label, req, value, tag]) {
+  const long = label.trim().length > LONG ? ' class="long"' : ''
+  let v
+  if (value === 'checkbox') v = '<input type="checkbox" />'
+  else if (value === null) v = '<span class="val empty">Left for you to fill in</span>'
+  else if (value === '') v = `<span class="val empty">${req ? 'Not filled in yet' : 'Optional, left blank'}</span>`
+  else v = `<span class="val">${esc(value)}</span>`
+  const t = tag === 'updated' ? '<span class="tag updated">updated</span>'
+    : value === '' && req ? '<span class="tag needed">needed</span>' : ''
+  return `<dt${long}>${esc(label)}${req ? '<span class="req"> *</span>' : ''}</dt><dd>${v}${t}</dd>`
+}
+
+document.getElementById('root').innerHTML = LAYOUTS.map(([k, name, note]) =>
+  `<h2>${name}</h2><p class="muted">${note}</p>
+   <div class="panel ${k}"><dl>${FIELDS.map(row).join('')}</dl></div>`).join('')
+
+const w = document.getElementById('w'), wv = document.getElementById('wv')
+const setW = () => { wv.textContent = w.value + 'px'; document.querySelectorAll('.panel').forEach((p) => (p.style.width = w.value + 'px')) }
+w.oninput = setW
+setW()
+const dark = document.getElementById('dark')
+dark.checked = matchMedia('(prefers-color-scheme: dark)').matches
+const setDark = () => document.documentElement.classList.toggle('dark', dark.checked)
+dark.onchange = setDark
+setDark()
+</script>
+</body>
+</html>

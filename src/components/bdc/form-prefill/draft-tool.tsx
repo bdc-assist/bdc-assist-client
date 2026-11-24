@@ -62,10 +62,11 @@ export function FormDraftTool({ form, d }: { form: FormDef; d: FormDraftState })
 type FieldProps = { draft: Draft; onEdit: (name: string, v: string) => void; busy?: boolean }
 
 /** The draft's shown fields, each editable in place; locked while a reply is pending (busy), which would otherwise
- * land on top of an edit made meanwhile. */
+ * land on top of an edit made meanwhile. Labels take at most 40% of the width and wrap beyond it, so one long label
+ * (cloud credits' HLBS question) doesn't squeeze every value (design/form-layout.html, option B). */
 export function FieldList({ form, ...props }: FieldProps & { form: FormDef }) {
   return (
-    <dl className="grid grid-cols-[minmax(8rem,max-content)_1fr] text-sm @max-sm:grid-cols-1">
+    <dl className="grid grid-cols-[fit-content(40%)_1fr] text-sm @max-sm:grid-cols-1">
       {shownFields(form, props.draft.values).map((f) => (
         <FieldRow key={f.name} field={f} {...props} />
       ))}
