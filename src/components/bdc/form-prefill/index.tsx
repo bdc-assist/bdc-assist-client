@@ -13,7 +13,7 @@ import { useFormDraft } from './use-form-draft'
 // from the conversation up to that answer and its question. Nothing is added to the conversation, and the card then
 // shows the draft (always as it is now). The draft is refined in the tool: by its chat, or by clicking a value and
 // typing. Open form goes to the BDC page with the values as URL parameters, where the user still checks and
-// submits. The header's Get help button (get-help-button.tsx) has a draft of its own, the same way.
+// submits. The header's form menu (form-menu.tsx) has a draft of each form of its own, the same way.
 // use-form-draft.ts: a draft's state; draft-tool.tsx: the draft in the tool view.
 
 export function FormPrefill({ form, question }: { form: FormDef; question: string | null }) {

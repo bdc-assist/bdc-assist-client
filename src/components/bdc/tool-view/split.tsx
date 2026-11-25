@@ -42,7 +42,7 @@ function saveWidths(widths: Widths) {
 }
 
 /** Which tool is open, for everything inside: the split (ToolSplit) and whatever opens tools, in the
- * conversation or outside it (the header's Get help button). */
+ * conversation or outside it (the header's form menu). */
 export function ToolViewProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState<ToolViewContext['open']>(null)
   const [conversationHidden, setConversationHidden] = useState(false)

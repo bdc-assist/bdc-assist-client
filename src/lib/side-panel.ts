@@ -15,7 +15,7 @@ export class Busy extends Error {
 
 type Options = { url?: string; fetchImpl?: typeof fetch }
 
-/** Loads the forms bdc-side-panel lists. Down or not ready: no forms, so no form cards or Get help button. */
+/** Loads the forms bdc-side-panel lists. Down or not ready: no forms, so no form cards or form menu. */
 export async function loadForms(url = SIDE_PANEL_URL, fetchImpl: typeof fetch = fetch): Promise<void> {
   try {
     const resp = await fetchImpl(`${url}/tools`)

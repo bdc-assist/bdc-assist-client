@@ -27,7 +27,7 @@ export function failureText(err: unknown, first: boolean): string {
   return first ? `${what} Fill in the fields yourself, or ask again below.` : `${what} Please try again in a moment.`
 }
 
-/** One draft of a form and its tool: whoever owns it (an answer's card, the header's Get help button) shows its
+/** One draft of a form and its tool: whoever owns it (an answer's card, the header's form menu) shows its
  * own way in, and FormDraftTool while it's open. bdc-side-panel drafts it (lib/side-panel.ts); personal fields
  * are the user's alone. State is in memory. */
 export function useFormDraft(form: FormDef) {

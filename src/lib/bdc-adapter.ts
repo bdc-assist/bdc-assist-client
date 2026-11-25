@@ -141,7 +141,7 @@ export function toHistory(messages: readonly ThreadMessage[]): { role: 'user' | 
  * is one node's, documented with it in bdc-assist's README; the server keeps nothing between requests.
  * - offered_forms (BDC config's form_offer): the forms earlier answers offered, in order, with the question each
  *   was offered for (null in conversations saved before the server sent it); one offered before is offered again
- *   only for a new request. The header's Get help draft is not an offer, so not here. */
+ *   only for a new request. The header menu's drafts are not offers, so not here. */
 export type ClientState = { offered_forms?: { id: string; question: string | null }[] }
 
 export function toClientState(messages: readonly ThreadMessage[]): ClientState {

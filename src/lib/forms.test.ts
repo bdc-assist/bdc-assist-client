@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { draftSummary, formUrl, mergeReply, shownFields, withoutPersonal, type FormDef } from '@/lib/forms'
+import { draftSummary, formUrl, groupForms, mergeReply, shownFields, withoutPersonal, type FormDef } from '@/lib/forms'
 
 // a Get Help–like definition, as bdc-side-panel's GET /tools serves it
 const GH: FormDef = {
@@ -119,5 +119,29 @@ describe('draftSummary', () => {
     expect(draftSummary(GH, { cf_submitted_description: 'D' })).toBe('D')
     expect(draftSummary(GH, { requester: 'a@b.org' })).toBeNull()
     expect(draftSummary(GH, {})).toBeNull()
+  })
+})
+
+describe('groupForms', () => {
+  const form = (id: string): FormDef => ({ id, title: id, url: `https://example.org/${id}/`, fields: [] })
+  const ids = (forms: FormDef[]) => groupForms(forms).map((g) => [g.label, g.forms.map((f) => f.id)])
+
+  it('puts the help forms first, the rest after, each in the order given', () => {
+    expect(ids(['costs', 'contact-bdc', 'stay-connected', 'get-help'].map(form))).toEqual([
+      ['Get help', ['contact-bdc', 'get-help']],
+      ['Other BDC forms', ['costs', 'stay-connected']],
+    ])
+  })
+
+  it('puts a form it does not know under Other', () => {
+    expect(ids(['get-help', 'new-form'].map(form))).toEqual([
+      ['Get help', ['get-help']],
+      ['Other BDC forms', ['new-form']],
+    ])
+  })
+
+  it('leaves out an empty group', () => {
+    expect(ids(['costs'].map(form))).toEqual([['Other BDC forms', ['costs']]])
+    expect(ids([])).toEqual([])
   })
 })
