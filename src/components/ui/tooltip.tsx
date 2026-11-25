@@ -2,14 +2,23 @@ import * as React from "react"
 import { cn } from "cn"
 import { Tooltip as TooltipPrimitive } from "radix-ui"
 
+// Local changes to shadcn's file (re-adding it with the shadcn CLI drops them), so tooltips don't get left open:
+// - disableHoverableContent: a tooltip closes when the pointer leaves its trigger, even onto the tooltip (ours are
+//   short labels, nothing to select or click in them); index.css lets the pointer through them, so one overlapping
+//   its trigger's edge doesn't take the pointer and flicker
+// - TooltipTrigger opens on keyboard focus only (:focus-visible), not on mouse focus: after a click the trigger keeps
+//   focus, and coming back to the window (e.g. from a link opened in a new tab) focuses it again, which would open
+//   the tooltip with the pointer elsewhere and nothing to close it
 function TooltipProvider({
   delayDuration = 0,
+  disableHoverableContent = true,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Provider>) {
   return (
     <TooltipPrimitive.Provider
       data-slot="tooltip-provider"
       delayDuration={delayDuration}
+      disableHoverableContent={disableHoverableContent}
       {...props}
     />
   )
@@ -22,9 +31,28 @@ function Tooltip({
 }
 
 function TooltipTrigger({
+  onFocus,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+  return (
+    <TooltipPrimitive.Trigger
+      data-slot="tooltip-trigger"
+      onFocus={(e) => {
+        onFocus?.(e)
+        // Radix skips opening when the focus event is default-prevented
+        if (!focusVisible(e.currentTarget)) e.preventDefault()
+      }}
+      {...props}
+    />
+  )
+}
+
+function focusVisible(el: Element) {
+  try {
+    return el.matches(":focus-visible")
+  } catch {
+    return true // a browser without :focus-visible: keep Radix's behaviour
+  }
 }
 
 function TooltipContent({

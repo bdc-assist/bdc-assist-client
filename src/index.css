@@ -159,6 +159,12 @@
   label:has(> input:is([type="checkbox"], [type="radio"]):not(:disabled)) {
     cursor: pointer;
   }
+  /* Tooltips let the pointer through (pointer-events inherits from Radix's positioning wrapper to the tooltip and
+     its arrow). They close when the pointer leaves their trigger (disableHoverableContent, ui/tooltip.tsx), so one
+     that overlaps its trigger's edge (the arrow, or the slide-in) would otherwise take the pointer, close, and flicker. */
+  [data-radix-popper-content-wrapper]:has(> [data-slot="tooltip-content"]) {
+    pointer-events: none;
+  }
 }
 
 @custom-variant data-open (&:where([data-state="open"], [data-open]:not([data-open="false"])));
