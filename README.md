@@ -66,7 +66,7 @@ With bdc-side-panel running (its own service: drafts the BDC site's forms; `VITE
 `http://127.0.0.1:8012`, empty for none), an answer the
 server offers a form under gets the form's card (bdc-assist's BDC config, `form_offer` in the `done` event:
 `{question, forms: [{id, title, url}]}`). Opening it drafts the form in the side panel, from the conversation up
-to that answer and its question. Refine the draft by its chat or by clicking a value; *Open on BDC* goes to the
+to that answer and its question. Refine the draft by its chat or by clicking a value; *Open on BDC* (in a bar above the fields) goes to the
 form's page on the BDC site (another site by `VITE_FORMS_SITE_URL`, e.g. staging) with the values as URL
 parameters, where the user checks
 and submits. The header's **Get help** button opens a menu of every form ("Get help": Get Help and Contact BDC;

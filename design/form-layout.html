@@ -7,7 +7,8 @@
 <!-- Design scratch page, not part of the app build. Open via the dev server:
      npm run dev, then /design/form-layout.html. The draft's field list (FieldList in
      src/components/bdc/form-prefill/draft-tool.tsx), with the cloud credits form's real labels
-     (bdc-side-panel tests/fixtures/forms.json, "costs"), in today's layout and three alternatives. -->
+     (bdc-side-panel tests/fixtures/forms.json, "costs"), in today's layout and three alternatives.
+     Then (2026-11-25) where the side panel's Open on BDC button goes (ToolViewFrame + FormDraftTool). -->
 <style>
   * { box-sizing: border-box; }
   :root { --fg: #0a0a0a; --muted: #737373; --hover: #f5f5f5; --line: #e5e5e5; --bg: #ffffff; --red: #dc2626;
@@ -19,7 +20,10 @@
   h1 { font-size: 20px; margin: 0 0 4px; }
   h2 { font-size: 16px; margin: 32px 0 2px; }
   .muted { color: var(--muted); font-size: 13px; }
-  .controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin: 12px 0; font-size: 13px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin: 12px 0; font-size: 13px;
+    position: sticky; top: 0; z-index: 1; background: var(--bg); padding: 6px 0; }
+  .controls a { color: inherit; }
+  #placement-head { scroll-margin-top: 56px; }
   .controls input[type=range] { width: 220px; }
 
   /* the side panel's body: a container, as in the app (@max-sm = below 24rem stacks) */
@@ -56,6 +60,64 @@
     dt { border: 0 !important; padding-bottom: 0 !important; }
     dd { grid-column: auto !important; }
   }
+
+  /* ---- Open on BDC placement: the whole tool view (ToolViewFrame + FormDraftTool) ---- */
+  :root { --panel-bg: #f5f5f5; --sheet-line: #a1a1a1; --bdc-button: #ac3041; }
+  :root.dark { --panel-bg: #171717; --sheet-line: #737373; }
+  .tool { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+    background: var(--panel-bg); max-width: 100%; }
+  .thead { container-type: inline-size; display: flex; align-items: center; gap: 8px; height: 40px; flex-shrink: 0;
+    padding: 0 8px; border-bottom: 1px solid var(--line); background: var(--bg); font-size: 12px; }
+  .thead .name { flex: 1; min-width: 0; font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; }
+  .ib { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0;
+    border-radius: 6px; background: transparent; color: var(--fg); padding: 6px; flex-shrink: 0; }
+  .ib:hover { background: var(--hover); }
+  .ib.off { opacity: .4; }
+  svg.i { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round;
+    stroke-linejoin: round; flex-shrink: 0; }
+  .open { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 6px;
+    background: var(--bdc-button); color: #fff; font-size: 13px; font-weight: 500; text-decoration: none;
+    white-space: nowrap; flex-shrink: 0; }
+  .open:hover { opacity: .85; }
+  /* today: just the icon when the header is narrow (@max-md = 28rem) */
+  @container (max-width: 28rem) { .thead .open .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } .thead .open { padding: 0 8px; } }
+  .tbody { display: flex; min-height: 0; flex: 1; }
+  .tbody.below { flex-direction: column; }
+  .sheet { container-type: inline-size; display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0;
+    margin: 8px; background: var(--bg); border: 1px solid var(--sheet-line); border-radius: 8px; overflow: hidden; }
+  .scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; }
+  .scroll dl { grid-template-columns: fit-content(40%) 1fr; }
+  .caption { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+  /* B: a bar fixed to the sheet's bottom; caption beside the button, above it when narrow */
+  .foot { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-top: 1px solid var(--line);
+    flex-shrink: 0; background: var(--bar-bg); }
+  .foot.top { border-top: 0; border-bottom: 1px solid var(--line); }
+  /* the bar's background (Bar control) */
+  :root { --bar-bg: #fafafa; }
+  :root.dark { --bar-bg: #171717; }
+  :root[data-bar="none"] { --bar-bg: var(--bg); }
+  :root[data-bar="grey"] { --bar-bg: #f5f5f5; }
+  :root.dark[data-bar="grey"] { --bar-bg: #262626; }
+  :root[data-bar="tint"] { --bar-bg: #fbf3f4; }
+  :root.dark[data-bar="tint"] { --bar-bg: #2a1418; }
+  .foot .caption { flex: 1; margin: 0; }
+  @container (max-width: 24rem) { .foot { flex-direction: column; align-items: stretch; } .foot .open { justify-content: center; } }
+  /* C: after the last field, scrolling with them */
+  .end { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; margin-top: 12px; }
+  .end .caption { margin: 0; align-self: stretch; }
+  /* D: button only in the bar, caption at the top of the fields */
+  .foot.btn-only { justify-content: flex-end; }
+  .lead { color: var(--muted); font-size: 12px; margin: 0 0 8px; }
+  .chat { display: flex; flex-direction: column; flex-shrink: 0; gap: 8px; padding: 8px; font-size: 13px; }
+  .tbody.right .chat { width: 280px; margin: 8px 8px 8px 0; padding: 0; }
+  .tbody.below .chat { height: 130px; padding-top: 0; }
+  .msgs { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 6px; }
+  .msg { border-radius: 10px; padding: 6px 10px; max-width: 90%; }
+  .msg.me { align-self: flex-end; background: var(--hover); border: 1px solid var(--line); }
+  .msg.bot { color: var(--muted); }
+  .compose { border: 1px solid var(--line); border-radius: 12px; background: var(--bg); padding: 8px 10px;
+    color: var(--muted); }
 </style>
 </head>
 <body>
@@ -65,9 +127,26 @@
   24rem (384px) every layout stacks, as the app already does.</p>
 <div class="controls">
   <label>Panel width <input id="w" type="range" min="300" max="1000" value="560" /> <span id="wv"></span></label>
+  <label>Panel height (placement) <input id="h" type="range" min="360" max="900" value="560" /> <span id="hv"></span></label>
+  <label>Bar background
+    <select id="bar">
+      <option value="faint">Faint grey</option>
+      <option value="grey">Muted grey (as hover)</option>
+      <option value="tint">BDC red tint</option>
+      <option value="none">None (white)</option>
+    </select>
+  </label>
+  <a href="#placement-head">Open on BDC placement ↓</a>
   <label><input id="dark" type="checkbox" /> Dark</label>
 </div>
 <div id="root"></div>
+
+<h1 id="placement-head" style="margin-top: 48px">Open on BDC placement</h1>
+<p class="muted">Where the side panel's <b>Open on BDC</b> button goes: the whole panel (header, the form's sheet in
+  layout B, its chat). The chat goes to the right when the panel is at least 600px wide (MIN_TOOL 320 + CHAT_WIDTH
+  280), else below, as in the app. The panel width slider above sets these too; the height slider shows how each holds
+  up when the fields scroll. Undo and Redo stay in the header in every option.</p>
+<div id="placement"></div>
 
 <script>
 // [label, required, value, tag]; '' = empty; personal fields left for the user
@@ -124,8 +203,82 @@ document.getElementById('root').innerHTML = LAYOUTS.map(([k, name, note]) =>
   `<h2>${name}</h2><p class="muted">${note}</p>
    <div class="panel ${k}"><dl>${FIELDS.map(row).join('')}</dl></div>`).join('')
 
+// ---- Open on BDC placement ----
+const ICON = {
+  chevrons: '<path d="m11 17-5-5 5-5M18 17l-5-5 5-5"/>',
+  form: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M12 11h4M12 16h4M8 11h.01M8 16h.01"/>',
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  redo: '<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  ext: '<path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+}
+const svg = (k) => `<svg class="i" viewBox="0 0 24 24">${ICON[k]}</svg>`
+const OPEN = `<a class="open" href="#" onclick="return false"><span class="lbl">Open on BDC</span>${svg('ext')}</a>`
+// today's caption (A), and the shorter one the alternatives use
+const OLD_CAPTION = 'Open on BDC goes to the form on the BDC site with these values. You can change anything there before you submit. Click a value to edit it, or ask for changes below.'
+const CAPTION = 'Edit a value by clicking it or asking below. You review and submit on BDC.'
+const FIELD_LIST = `<dl>${FIELDS.map(row).join('')}</dl>`
+
+const PLACEMENTS = [
+  ['header', 'A. In the header (today)', 'Always in sight, but among the panel commands (Undo, Redo, Close); below a 28rem header it is just its icon. The caption is under the last field, often scrolled out of sight.',
+    `<div class="scroll">${FIELD_LIST}<p class="caption">${OLD_CAPTION}</p></div>`],
+  ['foot', 'B. A bar at the bottom of the form', 'Fixed to the sheet\'s bottom, so always in sight; the fields scroll above it. The caption sits beside the button (above it when the sheet is narrow) and the label always shows. Costs about 50px of height (more when narrow).',
+    `<div class="scroll">${FIELD_LIST}</div><div class="foot"><p class="caption">${CAPTION}</p>${OPEN}</div>`],
+  ['top', 'B2. A bar at the top of the form', 'As B, but above the fields: the first thing you read, and it says how the panel works before you start. Further from where you finish reading the fields, and closer to the header\'s Undo/Redo.',
+    `<div class="foot top"><p class="caption">${CAPTION}</p>${OPEN}</div><div class="scroll">${FIELD_LIST}</div>`],
+  ['end', 'C. After the last field', 'Reads like a form\'s Submit, but on a long form it is out of sight until you scroll to the end.',
+    `<div class="scroll">${FIELD_LIST}<div class="end"><p class="caption">${CAPTION}</p>${OPEN}</div></div>`],
+  ['slim', 'D. A slim bar, caption at the top', 'As B, but the bar holds just the button (about 48px, the same narrow or wide); the caption leads the fields and scrolls away.',
+    `<div class="scroll"><p class="lead">${CAPTION}</p>${FIELD_LIST}</div><div class="foot btn-only">${OPEN}</div>`],
+]
+
+function tool([k, , , sheet]) {
+  return `<div class="tool" data-k="${k}">
+    <div class="thead">
+      <button class="ib">${svg('chevrons')}</button>
+      <span style="color: var(--muted); display: flex">${svg('form')}</span>
+      <span class="name">Cloud Credits Request</span>
+      <button class="ib">${svg('undo')}</button>
+      <button class="ib off">${svg('redo')}</button>
+      ${k === 'header' ? OPEN : ''}
+      <button class="ib">${svg('x')}</button>
+    </div>
+    <div class="tbody">
+      <div class="sheet">${sheet}</div>
+      <div class="chat">
+        <div class="msgs">
+          <div class="msg bot">I drafted the cloud credits request from your conversation. Your name and email are left for you.</div>
+          <div class="msg me">Make the timeline 9 months</div>
+        </div>
+        <div class="compose">Ask for changes…</div>
+      </div>
+    </div>
+  </div>`
+}
+
+document.getElementById('placement').innerHTML = PLACEMENTS.map((p) =>
+  `<h2>${p[1]}</h2><p class="muted">${p[2]}</p>${tool(p)}`).join('')
+
+const bar = document.getElementById('bar')
+const setBar = () => (document.documentElement.dataset.bar = bar.value)
+bar.onchange = setBar
+setBar()
+
+const h = document.getElementById('h'), hv = document.getElementById('hv')
+const setH = () => { hv.textContent = h.value + 'px'; document.querySelectorAll('.tool').forEach((t) => (t.style.height = h.value + 'px')) }
+h.oninput = setH
+setH()
+
 const w = document.getElementById('w'), wv = document.getElementById('wv')
-const setW = () => { wv.textContent = w.value + 'px'; document.querySelectorAll('.panel').forEach((p) => (p.style.width = w.value + 'px')) }
+const setW = () => {
+  wv.textContent = w.value + 'px'
+  document.querySelectorAll('.panel, .tool').forEach((p) => (p.style.width = w.value + 'px'))
+  document.querySelectorAll('.tbody').forEach((b) => {
+    const right = Number(w.value) >= 600
+    b.classList.toggle('right', right)
+    b.classList.toggle('below', !right)
+  })
+}
 w.oninput = setW
 setW()
 const dark = document.getElementById('dark')

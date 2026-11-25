@@ -10,7 +10,8 @@ import { cn } from '@/lib/utils'
 
 import type { Draft, FormDraftState } from './use-form-draft'
 
-/** A form draft in the tool view (`d` from useFormDraft): its fields, Undo/Redo, Open on BDC and its chat. Render it
+/** A form draft in the tool view (`d` from useFormDraft): Undo/Redo in the header, a bar with Open on BDC, the fields
+ * and its chat. Render it
  * only while the draft's tool is open. */
 export function FormDraftTool({ form, d }: { form: FormDef; d: FormDraftState }) {
   const { draft } = d
@@ -35,25 +36,30 @@ export function FormDraftTool({ form, d }: { form: FormDef; d: FormDraftState })
           <TooltipIconButton tooltip="Redo" side="bottom" className="size-7 p-1.5" disabled={!d.canRedo} onClick={d.redo}>
             <Redo2Icon />
           </TooltipIconButton>
-          {draft && <OpenOnBdc href={formUrl(form, draft.values)} />}
         </>
       }
     >
-      <div className="@container min-h-0 flex-1 overflow-y-auto px-3 py-3">
-        {draft ? (
-          <>
-            <FieldList form={form} draft={draft} onEdit={d.edit} busy={d.busy} />
-            <p className="text-muted-foreground mt-2 text-xs">
-              Open on BDC goes to the form on the BDC site with these values. You can change anything there before you
-              submit. Click a value to edit it, or ask for changes below.
+      <div className="@container flex min-h-0 flex-1 flex-col">
+        {draft && (
+          // a bar above the fields (design/form-layout.html, option B2): how the panel works, and the way out to BDC;
+          // it stays put while the fields scroll. On a narrow sheet the button goes under the text
+          <div className="bg-muted/50 flex shrink-0 items-center gap-3 border-b px-3 py-2 @max-sm:flex-col @max-sm:items-stretch">
+            <p className="text-muted-foreground flex-1 text-xs">
+              Click a value to edit it, or chat to make changes. Then Open on BDC for final submission.
             </p>
-          </>
-        ) : (
-          <p className="text-muted-foreground flex items-center gap-2 text-sm">
-            <LoaderIcon className="size-4 animate-spin" />
-            Drafting the {form.title} form…
-          </p>
+            <OpenOnBdc href={formUrl(form, draft.values)} />
+          </div>
         )}
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+          {draft ? (
+            <FieldList form={form} draft={draft} onEdit={d.edit} busy={d.busy} />
+          ) : (
+            <p className="text-muted-foreground flex items-center gap-2 text-sm">
+              <LoaderIcon className="size-4 animate-spin" />
+              Drafting the {form.title} form…
+            </p>
+          )}
+        </div>
       </div>
     </ToolViewFrame>
   )
@@ -74,14 +80,14 @@ export function FieldList({ form, ...props }: FieldProps & { form: FormDef }) {
   )
 }
 
-// Open on BDC in the tool's header (not "Open form": the card's Edit form opens the draft), filled in the BDC red
-// (design/form-prefill.html's Open button options); on a narrow tool view just its icon (the header is a container)
+// Open on BDC in the bar above the fields (not "Open form": the card's Edit form opens the draft), filled in the BDC
+// red (design/form-prefill.html's Open button options)
 function OpenOnBdc({ href }: { href: string }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <a href={href} target="_blank" rel="noopener" className={cn(buttonVariants({ size: 'sm' }), 'mx-0.5 bg-(--bdc-button) text-white hover:bg-(--bdc-button)/85')}>
-          <span className="@max-md:sr-only">Open on BDC</span>
+        <a href={href} target="_blank" rel="noopener" className={cn(buttonVariants({ size: 'sm' }), 'bg-(--bdc-button) text-white hover:bg-(--bdc-button)/85')}>
+          Open on BDC
           <ExternalLinkIcon />
         </a>
       </TooltipTrigger>
