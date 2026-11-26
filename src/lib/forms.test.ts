@@ -128,14 +128,14 @@ describe('groupForms', () => {
 
   it('puts the help forms first, the rest after, each in the order given', () => {
     expect(ids(['costs', 'contact-bdc', 'stay-connected', 'get-help'].map(form))).toEqual([
-      ['Get help', ['contact-bdc', 'get-help']],
+      ['Support', ['contact-bdc', 'get-help']],
       ['Other BDC forms', ['costs', 'stay-connected']],
     ])
   })
 
   it('puts a form it does not know under Other', () => {
     expect(ids(['get-help', 'new-form'].map(form))).toEqual([
-      ['Get help', ['get-help']],
+      ['Support', ['get-help']],
       ['Other BDC forms', ['new-form']],
     ])
   })

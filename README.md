@@ -69,7 +69,7 @@ server offers a form under gets the form's card (bdc-assist's BDC config, `form_
 to that answer and its question. Refine the draft by its chat or by clicking a value; *Open on BDC* (in a bar above the fields) goes to the
 form's page on the BDC site (another site by `VITE_FORMS_SITE_URL`, e.g. staging) with the values as URL
 parameters, where the user checks
-and submits. The header's **Get help** button opens a menu of every form ("Get help": Get Help and Contact BDC;
+and submits. The header's **Get help** button opens a menu of every form ("Support": Get Help and Contact BDC;
 "Other BDC forms": the rest; `HELP_FORMS` in `src/lib/forms.ts`). Each has a draft of its own there, drafted from the
 whole conversation (blank in a new one) on its first pick; the menu marks the open draft (✓) and the others drafted.
 

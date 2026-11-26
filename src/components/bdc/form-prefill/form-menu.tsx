@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils'
 import { FormDraftTool } from './draft-tool'
 import { useFormDraft } from './use-form-draft'
 
-// The header's form menu (design/form-picker.html, option A2): every form bdc-side-panel lists, "Get help" ones
+// The header's form menu (design/form-picker.html, option A2): every form bdc-side-panel lists, "Support" ones
 // first (HELP_FORMS in lib/forms.ts). Each form has a header draft of its own, separate from any answer's: the
 // first pick drafts it in the side panel from the whole conversation (blank in an empty one), with no question;
 // later picks open it again. The menu marks the open draft (✓) and the others drafted (dot); the panel's own Close

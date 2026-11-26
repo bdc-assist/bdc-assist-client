@@ -81,7 +81,7 @@ export function draftSummary(form: FormDef, values: FormValues): string | null {
   return filled.length ? filled.slice(0, 2).map((f) => values[f.name]).join(' · ') : null
 }
 
-/** The forms the header's menu lists under "Get help"; the rest go under "Other BDC forms". Not in the form data
+/** The forms the header's menu lists under "Support"; the rest go under "Other BDC forms". Not in the form data
  * (a web team question), so kept here by id: a new form bdc-side-panel lists goes under Other until it's added. */
 export const HELP_FORMS = ['get-help', 'contact-bdc']
 
@@ -90,7 +90,7 @@ export type FormGroup = { label: string; forms: FormDef[] }
 /** The header menu's groups: help forms, then the others, each in bdc-side-panel's order; an empty group left out. */
 export function groupForms(forms: FormDef[]): FormGroup[] {
   const groups = [
-    { label: 'Get help', forms: forms.filter((f) => HELP_FORMS.includes(f.id)) },
+    { label: 'Support', forms: forms.filter((f) => HELP_FORMS.includes(f.id)) },
     { label: 'Other BDC forms', forms: forms.filter((f) => !HELP_FORMS.includes(f.id)) },
   ]
   return groups.filter((g) => g.forms.length > 0)
